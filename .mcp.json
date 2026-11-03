@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "icogenie": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@icogenie/mcp"
+      ]
+    },
+    "lucide": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "lucide-mcp"
+      ]
+    }
+  }
+}

@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07080b">
+<title>Pool Pot</title>
+<!--og-->
+<script src="/assets/avatar.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e1322;--bg2:#0e1322;--card:#151b2e;--line:#26304f;
+  --txt:#edf0fa;--dim:#8e97b5;--acc:#a78bfa;--acc2:#5b7cff;--red:#ff6b6b;--gold:#ffb648;--mint:#34d399;
+  --display:'Bricolage Grotesque',ui-sans-serif,system-ui,sans-serif;
+  --r:18px;--beat:1.4s;--heat:0;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.55 'Inter',ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+h1,h2,h3,.logo,.stake,.center .pot,.banner .big{font-family:var(--display)}
+:focus-visible{outline:2px solid var(--acc2);outline-offset:2px}
+body{min-height:100vh;padding-bottom:40px;
+  background-image:radial-gradient(1100px 560px at 85% -200px,rgba(167,139,250,.16),transparent 60%)}
+a{color:inherit;text-decoration:none}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+.hide{display:none!important}
+.num{font-variant-numeric:tabular-nums}
+
+header{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:10px;
+  padding:12px max(16px,calc((100vw - 1080px)/2));background:rgba(7,8,11,.74);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}
+.logo{font-weight:800;letter-spacing:-.03em;font-size:20px;display:flex;align-items:center;gap:9px}
+.logo i{width:22px;height:22px;border-radius:50%;border:2.5px solid var(--acc);position:relative}
+.logo i:after{content:"";position:absolute;width:7px;height:7px;border-radius:50%;background:var(--acc);top:-5px;left:50%;margin-left:-3.5px;box-shadow:0 0 10px var(--acc)}
+@keyframes spin{to{transform:rotate(1turn)}}
+.grow{flex:1}
+.pill{display:flex;align-items:center;gap:6px;padding:7px 11px;border:1px solid var(--line);border-radius:999px;background:var(--card);font-weight:700;font-size:13px}
+.pill .dot{width:7px;height:7px;border-radius:50%;background:var(--acc)}
+.icon{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;font-size:15px}
+.icon.off{opacity:.4}
+
+main{max-width:1080px;margin:0 auto;padding:20px 16px}
+h1{font-size:clamp(34px,7vw,64px);line-height:.95;letter-spacing:-.06em;margin:0 0 12px}
+h2{font-size:18px;letter-spacing:-.02em;margin:28px 0 12px}
+.sub{color:var(--dim);margin:0 0 16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 18px;border-radius:12px;
+  background:var(--card);border:1px solid var(--line);font-weight:700;font-size:14px;transition:.15s transform}
+.btn:active{transform:scale(.97)}
+.btn.acc{background:var(--acc);color:#1b1035;border-color:transparent;box-shadow:0 10px 30px rgba(167,139,250,.22)}
+.btn.vio{background:var(--acc2);color:#fff;border-color:transparent}
+.btn.ghost{background:transparent}
+.btn.wide{width:100%}
+.btn:disabled{opacity:.45}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;backdrop-filter:blur(12px)}
+.muted{color:var(--dim);font-size:13px}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:650;
+  border:1px solid var(--line);border-radius:6px;padding:2px 7px;color:var(--dim)}
+.tag.house{color:#c9d3ff;border-color:rgba(91,124,255,.6);background:rgba(91,124,255,.14)}
+.tag.hot{color:#1b1035;background:var(--acc);border-color:transparent}
+.tag.live{color:var(--acc);border-color:rgba(167,139,250,.5)}
+
+/* hero */
+.hero{position:relative;overflow:hidden;padding:30px 24px;border:1px solid var(--line);border-radius:26px;
+  background:linear-gradient(125deg,rgba(18,22,32,.96),rgba(22,16,40,.8));margin-bottom:18px}
+.hero:after{content:"";position:absolute;width:280px;height:280px;right:-90px;top:-110px;border-radius:50%;background:var(--acc);filter:blur(80px);opacity:.16;animation:breathe 4s ease-in-out infinite}
+@keyframes breathe{50%{opacity:.28;transform:scale(1.1)}}
+.hero p{max-width:540px;position:relative;z-index:1}
+.hero h1,.hero .row{position:relative;z-index:1}
+.live-strip{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--dim);margin:0 0 18px;position:relative;z-index:1}
+.live-strip b{color:var(--txt)}
+.blink{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--acc);margin-right:6px;animation:blink 1.4s infinite}
+@keyframes blink{50%{opacity:.25}}
+
+.ticker{overflow:hidden;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.25);margin-bottom:18px;mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.ticker div{display:flex;gap:28px;white-space:nowrap;padding:8px 0;animation:slide 40s linear infinite;font-size:13px;width:max-content}
+.ticker span b{color:var(--gold)}.ticker span.h b{color:#b9c6ff}
+@keyframes slide{to{transform:translateX(-50%)}}
+
+.chips{display:flex;gap:7px;overflow:auto;padding-bottom:4px;margin-bottom:12px}
+.chips button{flex:0 0 auto;padding:8px 13px;border-radius:999px;border:1px solid var(--line);background:var(--card);font-weight:600;font-size:13px}
+.chips button.on{background:var(--txt);color:#0a0b0f}
+
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.tcard{position:relative;display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:var(--r);background:var(--card);
+  border:1px solid var(--line);transition:.2s transform,.2s border-color;overflow:hidden}
+.tcard:hover{transform:translateY(-3px);border-color:rgba(167,139,250,.5)}
+.tcard.hot{border-color:rgba(167,139,250,.55);box-shadow:0 0 0 1px rgba(167,139,250,.18),0 18px 40px rgba(167,139,250,.08)}
+.tcard .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.tcard .nm{font-weight:800;font-size:17px;letter-spacing:-.02em}
+.tcard .stake{font-size:30px;font-weight:900;letter-spacing:-.04em}
+.tcard .pot{font-weight:800;color:var(--acc);display:inline-block;animation:beat var(--beat) ease-in-out infinite}
+@keyframes beat{0%,100%{transform:scale(1)}12%{transform:scale(1.09)}24%{transform:scale(1)}36%{transform:scale(1.05)}}
+.dots{display:flex;gap:5px;flex-wrap:wrap}
+.dots i{width:13px;height:13px;border-radius:50%;border:1.5px dashed rgba(255,255,255,.25)}
+.dots i.f{border:0;background:var(--acc)}
+.dots i.h{border:0;background:var(--acc2)}
+.dots i.m{border:0;background:#fff;box-shadow:0 0 0 2px var(--acc)}
+.tcard .foot{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);border-top:1px solid var(--line);padding-top:10px}
+
+/* table */
+.tbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.tbar h2{margin:0;font-size:22px}
+.code{font-family:ui-monospace,monospace;font-weight:700;letter-spacing:.12em;font-size:12px;padding:4px 8px;border-radius:7px;border:1px solid var(--line);background:var(--bg2)}
+.layout{display:grid;gap:18px}
+@media(min-width:900px){.layout{grid-template-columns:1.25fr .9fr;align-items:start}}
+
+.arena{position:relative;width:min(84vw,460px);aspect-ratio:1;margin:44px auto 28px}
+.arena .glow{position:absolute;inset:18%;border-radius:50%;background:radial-gradient(circle,rgba(167,139,250,calc(.1 + var(--heat)*.28)),transparent 70%);
+  animation:beat var(--beat) ease-in-out infinite}
+.arena svg.ring{position:absolute;inset:16%;width:68%;height:68%;transform:rotate(-90deg)}
+.ring .trk{fill:none;stroke:rgba(255,255,255,.07);stroke-width:2.4}
+.ring .prog.off{opacity:0}
+.ring .prog{fill:none;stroke:var(--acc);stroke-width:2.4;stroke-linecap:round;transition:stroke-dashoffset .25s linear,stroke .3s}
+.ring .fill{fill:none;stroke:rgba(143,124,255,.55);stroke-width:1;stroke-dasharray:1 2.2}
+.center{position:absolute;inset:24%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:2px}
+.center .lbl{font-size:13px;color:var(--dim)}
+.center .pot{font-size:clamp(34px,10vw,56px);font-weight:900;letter-spacing:-.05em;line-height:1}
+.center .pot.bump{animation:bump .5s cubic-bezier(.3,1.6,.5,1)}
+@keyframes bump{40%{transform:scale(1.18);color:var(--acc)}}
+.center .clock{font-size:15px;font-weight:800;color:var(--acc);min-height:22px}
+.center .clock.wait{font-size:12px;font-weight:700;color:var(--dim);max-width:80%}
+.center .clock.urgent{color:var(--red);animation:blink .5s infinite}
+.center .win{font-size:12px;color:var(--dim)}
+
+.seat{position:absolute;width:62px;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;transition:.3s}
+.seat .av svg{display:block;border-radius:14px}
+.seat .av{width:50px;height:50px;border-radius:16px;overflow:hidden;display:grid;place-items:center;font-weight:900;font-size:18px;
+  background:#1a1e2b;border:2px solid rgba(255,255,255,.14);transition:.18s;position:relative}
+.seat .nm{font-size:11px;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)}
+.seat.empty .av{background:transparent;border:2px dashed rgba(255,255,255,.18);color:rgba(255,255,255,.3);font-size:20px;animation:open 2.2s ease-in-out infinite}
+@keyframes open{50%{border-color:rgba(167,139,250,.5)}}
+.seat.me .av{border-color:var(--mint);box-shadow:0 0 0 3px rgba(52,211,153,.35),0 0 22px rgba(52,211,153,.5)}
+.seat.me .nm{color:var(--mint);font-weight:700}
+.seat.house .av{background:linear-gradient(135deg,#6d8bff,#3b4fd0);border-color:#b9c6ff;font-size:10px;letter-spacing:.04em}
+.seat.house .nm{color:#b9c6ff;font-weight:800}
+.seat .sim{font-size:9.5px;color:var(--gold);margin-top:-3px}
+.testbar{background:repeating-linear-gradient(-45deg,rgba(255,182,72,.14) 0 12px,rgba(255,182,72,.08) 12px 24px);border-bottom:1px solid rgba(255,182,72,.35);color:#ffd79a;font-size:13px;font-weight:600;text-align:center;padding:7px 14px}
+.seat.new .av{animation:drop .6s cubic-bezier(.2,1.5,.4,1)}
+@keyframes drop{from{transform:scale(.2) translateY(-30px);opacity:0}}
+.seat.spot .av{transform:scale(1.18);border-color:var(--gold);box-shadow:0 0 0 4px rgba(255,209,102,.35),0 0 30px rgba(255,209,102,.6)}
+.seat.won .av{transform:scale(1.28);border-color:var(--gold);box-shadow:0 0 0 6px rgba(255,209,102,.4),0 0 60px rgba(255,209,102,.9);animation:wonp .9s ease-in-out infinite}
+@keyframes wonp{50%{box-shadow:0 0 0 12px rgba(255,209,102,.15),0 0 80px rgba(255,209,102,1)}}
+.seat.dim{opacity:.35}
+
+.math{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--dim);margin:8px 0 14px}
+.math b{color:var(--txt)}.math .w{color:var(--mint)}
+
+.action{position:sticky;bottom:10px;z-index:20;padding:14px;border-radius:20px;background:rgba(13,16,23,.94);border:1px solid var(--line);backdrop-filter:blur(16px)}
+.disclose{font-size:12px;color:var(--dim);text-align:center;margin:0 0 10px}
+.disclose b{color:var(--txt)}
+.hold{position:relative;overflow:hidden;width:100%;padding:17px;border-radius:14px;background:var(--acc);color:#1b1035;font-weight:900;font-size:17px;
+  letter-spacing:-.01em;user-select:none;-webkit-user-select:none;touch-action:none;box-shadow:0 12px 36px rgba(167,139,250,.25)}
+.hold .bar{position:absolute;inset:0;width:0;background:rgba(255,255,255,.55);mix-blend-mode:overlay}
+.hold span{position:relative}
+.hold.pulse{animation:ctaPulse 1.6s ease-in-out infinite}
+@keyframes ctaPulse{50%{box-shadow:0 12px 50px rgba(167,139,250,.55)}}
+.hold.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+.banner{text-align:center;padding:6px 0 12px}
+.banner .big{font-size:30px;font-weight:900;letter-spacing:-.04em}
+.banner.win .big{color:var(--gold)}
+.banner.lose .big{color:var(--txt)}
+
+.side .panel+.panel{margin-top:14px}
+.share{display:flex;gap:8px}
+.share input{flex:1;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px;font-family:ui-monospace,monospace;font-size:12px}
+.hist{font-size:13px}
+.hist .r{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}
+.hist .r:last-child{border:0}
+.hist .won{color:var(--acc);font-weight:700}
+.link{color:var(--acc2);font-weight:600;font-size:12px}
+
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.field label{font-size:13px;font-weight:600;color:var(--dim)}
+input[type=text],input[type=number],input[type=password],input[type=email]{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;width:100%}
+input:focus{outline:0;border-color:var(--acc)}
+input[type=range]{width:100%;accent-color:var(--acc)}
+
+.preview{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#111520;max-width:440px}
+.preview .img{aspect-ratio:1200/630;background:url(/pool-og.jpg) center/cover,#0b0d13}
+.preview .tx{padding:10px 12px}
+.preview .t{font-weight:700;font-size:14px}
+.preview .d{font-size:12px;color:var(--dim);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.preview .u{font-size:11px;color:var(--dim);text-transform:lowercase;margin-top:4px}
+
+.sheet{position:fixed;inset:0;z-index:90;background:rgba(4,5,8,.74);backdrop-filter:blur(8px);display:flex;align-items:flex-end;justify-content:center}
+.sheet>.box{background:var(--bg2);border:1px solid var(--line);border-radius:22px 22px 0 0;width:100%;max-width:500px;padding:20px;max-height:90vh;overflow:auto;animation:up .24s ease}
+@keyframes up{from{transform:translateY(40px);opacity:.4}}
+@media(min-width:600px){.sheet{align-items:center}.sheet>.box{border-radius:22px}}
+.toast{position:fixed;left:50%;top:70px;transform:translate(-50%,-14px);opacity:0;background:#1b1f2b;border:1px solid var(--line);
+  padding:10px 16px;border-radius:12px;font-size:14px;z-index:100;transition:.25s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.toast.err{border-color:var(--red);color:#ffc9d2}
+.toast.win{border-color:var(--acc)}
+pre.seed{white-space:pre-wrap;word-break:break-all;font-size:11px;background:#07080b;border:1px solid var(--line);border-radius:10px;padding:10px;margin:6px 0}
+canvas#fx{position:fixed;inset:0;pointer-events:none;z-index:80}
+.kv{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.empty{color:var(--dim);text-align:center;padding:28px 10px;font-size:14px}
+footer{max-width:1080px;margin:30px auto 0;padding:0 16px;font-size:12px;color:var(--dim);text-align:center}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <a href="/" class="icon" title="Back to Kohler">←</a>
+  <a class="logo" href="#/"><i></i>Pool Pot</a>
+  <div class="grow"></div>
+  <button class="icon" id="snd" title="Sound">🔊</button>
+  <button class="icon" id="hap" title="Haptics">📳</button>
+  <a class="pill num" id="balPill" href="/#/wallet"><span class="dot"></span><span id="bal">—</span></a>
+</header>
+<div class="testbar hide" id="testbar">Test mode: fake money and simulated players, at your own private copy of each table.</div>
+<main id="view"></main>
+<footer>Real money. Every seat has the same chance. The fee comes off every pot. You can lose your stake. 18+ ·
+  <a href="#/limits" style="text-decoration:underline">Limits &amp; cool-off</a></footer>
+<canvas id="fx"></canvas>
+<div class="toast" id="toast"></div>
+<div id="sheetHost"></div>
+
+<script>
+/* ═════════════ basics ═════════════ */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = (c) => { c = Number(c || 0); return '$' + (c % 100 ? (c / 100).toFixed(2) : (c / 100).toFixed(0)); };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const S = { user: null, code: null, t: null, lobby: null, offset: 0, ceremony: false, pending: null, filter: 'all',
+  prefs: { sound: store.get('pp_sound', true), haptics: store.get('pp_haptics', true) }, es: null, clock: null };
+
+async function api(path, opts = {}) {
+  const r = await fetch('/api' + path, { method: opts.method || 'GET', headers: { 'content-type': 'application/json' },
+    body: opts.body ? JSON.stringify(opts.body) : undefined, credentials: 'same-origin' });
+  const j = await r.json().catch(() => ({}));
+  if (j.now) S.offset = new Date(j.now).getTime() - Date.now();
+  if (!r.ok) throw Object.assign(new Error(j.error || 'request failed'), { status: r.status, data: j });
+  return j;
+}
+const serverNow = () => Date.now() + S.offset;
+
+let toastT;
+function toast(msg, kind) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'toast on' + (kind ? ' ' + kind : '');
+  clearTimeout(toastT); toastT = setTimeout(() => (t.className = 'toast'), 2600);
+}
+function sheet(html) {
+  $('#sheetHost').innerHTML = `<div class="sheet"><div class="box">${html}</div></div>`;
+  $('#sheetHost .sheet').onclick = (e) => { if (e.target.classList.contains('sheet')) closeSheet(); };
+  return $('#sheetHost .box');
+}
+const closeSheet = () => ($('#sheetHost').innerHTML = '');
+
+/* ═════════════ feel: haptics + sound ═════════════
+   Every pattern maps to a real event: a seat filled, the clock ticking, the draw
+   landing. Nothing fires to fake a near-miss or invent activity. */
+const H = {
+  tap: 8, claimMine: [14, 40, 28], claimOther: 10, lastSeat: [12, 50, 12], tick: 6, tickHard: 18,
+  lock: [22, 80, 22], hop: 5, win: [30, 60, 30, 60, 160], lose: [70], holdStep: [6],
+};
+const buzz = (p) => { if (!S.prefs.haptics) return; try { navigator.vibrate?.(p); } catch {} };
+let actx;
+function ac() { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch {} return actx; }
+function tone(freq, dur = 0.08, type = 'sine', gain = 0.05, when = 0, slide) {
+  if (!S.prefs.sound) return;
+  const a = ac(); if (!a) return;
+  try {
+    const t0 = a.currentTime + when, o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t0);
+    if (slide) o.frequency.exponentialRampToValueAtTime(slide, t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(gain, t0 + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g).connect(a.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+  } catch {}
+}
+const SFX = {
+  tap: () => tone(680, 0.03, 'triangle', 0.03),
+  claimMine: () => { tone(523, 0.09, 'triangle', 0.06); tone(784, 0.14, 'triangle', 0.06, 0.08); },
+  claimOther: () => { tone(392, 0.06, 'sine', 0.04); tone(587, 0.08, 'sine', 0.035, 0.05); },
+  lastSeat: () => { [440, 554, 659, 880].forEach((f, i) => tone(f, 0.08, 'square', 0.025, i * 0.06)); },
+  tick: () => tone(1300, 0.025, 'square', 0.018),
+  tickHard: () => { tone(1500, 0.03, 'square', 0.03); tone(70, 0.12, 'sine', 0.12); },
+  hop: (k) => tone(700 + k * 9, 0.03, 'triangle', 0.035),
+  drum: () => { for (let i = 0; i < 14; i++) tone(90 + (i % 2) * 20, 0.05, 'sine', 0.06, i * 0.045); },
+  win: () => { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.22, 'triangle', 0.07, i * 0.07)); tone(2093, 0.6, 'sine', 0.02, 0.36); },
+  lose: () => { tone(330, 0.25, 'sine', 0.05, 0, 220); tone(247, 0.35, 'sine', 0.04, 0.16, 165); },
+};
+function feel(name, arg) { SFX[name]?.(arg); if (H[name] != null) buzz(H[name]); }
+function paintPrefs() { $('#snd').classList.toggle('off', !S.prefs.sound); $('#snd').textContent = S.prefs.sound ? '🔊' : '🔇';
+  $('#hap').classList.toggle('off', !S.prefs.haptics); $('#hap').classList.toggle('hide', !('vibrate' in navigator)); }
+$('#snd').onclick = () => { S.prefs.sound = !S.prefs.sound; store.set('pp_sound', S.prefs.sound); paintPrefs(); feel('tap'); };
+$('#hap').onclick = () => { S.prefs.haptics = !S.prefs.haptics; store.set('pp_haptics', S.prefs.haptics); paintPrefs(); buzz(20); };
+document.addEventListener('pointerdown', () => ac(), { once: true });
+
+/* confetti */
+function confetti() {
+  if (REDUCED) return;
+  const c = $('#fx'), x = c.getContext('2d'); c.width = innerWidth * devicePixelRatio; c.height = innerHeight * devicePixelRatio;
+  x.scale(devicePixelRatio, devicePixelRatio);
+  const cols = ['#b8ff5a', '#8f7cff', '#ffd166', '#ffffff'];
+  const P = Array.from({ length: 160 }, () => ({ x: innerWidth / 2, y: innerHeight * 0.42, vx: (Math.random() - 0.5) * 16,
+    vy: -Math.random() * 15 - 4, s: 4 + Math.random() * 6, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4, c: cols[(Math.random() * 4) | 0] }));
+  const t0 = performance.now();
+  (function f(t) {
+    x.clearRect(0, 0, innerWidth, innerHeight);
+    for (const p of P) { p.vy += 0.42; p.x += p.vx; p.y += p.vy; p.vx *= 0.99; p.r += p.vr;
+      x.save(); x.translate(p.x, p.y); x.rotate(p.r); x.fillStyle = p.c; x.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); x.restore(); }
+    if (t - t0 < 2600) requestAnimationFrame(f); else x.clearRect(0, 0, innerWidth, innerHeight);
+  })(t0);
+}
+
+/* balance with a rolling count */
+let shown = null;
+function paintBalance(v) {
+  if (v == null) { $('#bal').textContent = 'Sign in'; return; }
+  const from = shown ?? v, to = v, t0 = performance.now(); shown = v;
+  (function s(t) { const k = Math.min(1, (t - t0) / 500); $('#bal').textContent = money(Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3))));
+    if (k < 1) requestAnimationFrame(s); })(t0);
+}
+async function refreshMe() {
+  try { S.user = (await api('/me')).user; } catch { S.user = null; }
+  paintBalance(S.user ? S.user.balance : null);
+  $('#testbar').classList.toggle('hide', !S.user?.testMode);
+  $('#balPill').href = S.user ? '/#/wallet' : '#';
+  $('#balPill').onclick = S.user ? null : (e) => { e.preventDefault(); authSheet(); };
+  return S.user;
+}
+
+/* ═════════════ auth (inline so share-link visitors never leave the table) ═════════════ */
+function authSheet(mode = 'login', then) {
+  const b = sheet(`
+    <h2 style="margin:0 0 4px">${mode === 'login' ? 'Sign in to grab a seat' : 'Create your account'}</h2>
+    <p class="muted" style="margin:0 0 14px">${mode === 'login' ? 'Email or username.' : 'Takes ten seconds. 18+ only.'}</p>
+    ${mode === 'login' ? `<div class="field"><label>Email or username</label><input type="text" id="aWho" autocomplete="username"></div>`
+      : `<div class="field"><label>Email</label><input type="email" id="aEmail" autocomplete="email"></div>
+         <div class="field"><label>Username</label><input type="text" id="aUser" autocomplete="username"></div>`}
+    <div class="field"><label>Password</label><input type="password" id="aPw" autocomplete="${mode === 'login' ? 'current' : 'new'}-password"></div>
+    <button class="btn acc wide" id="aGo">${mode === 'login' ? 'Sign in' : 'Create account'}</button>
+    <p class="muted" style="text-align:center;margin:12px 0 0"><a href="#" id="aSw" style="text-decoration:underline">${mode === 'login' ? 'New here? Create an account' : 'Have an account? Sign in'}</a></p>`);
+  b.querySelector('#aSw').onclick = (e) => { e.preventDefault(); authSheet(mode === 'login' ? 'register' : 'login', then); };
+  b.querySelector('#aGo').onclick = async () => {
+    try {
+      if (mode === 'login') await api('/auth/login', { method: 'POST', body: { who: $('#aWho').value, password: $('#aPw').value } });
+      else await api('/auth/register', { method: 'POST', body: { email: $('#aEmail').value, username: $('#aUser').value, password: $('#aPw').value } });
+      closeSheet(); feel('claimMine'); await refreshMe(); toast(`You're in, ${S.user.username}`, 'win'); then?.() ?? route();
+    } catch (e) { toast(e.message, 'err'); }
+  };
+}
+
+/* ═════════════ live updates ═════════════ */
+function connect(code) {
+  S.es?.close();
+  try {
+    S.es = new EventSource('/api/pool/stream' + (code ? '?code=' + encodeURIComponent(code) : ''));
+    S.es.addEventListener('change', (e) => {
+      const d = JSON.parse(e.data);
+      if (S.code && (d.code === S.code || d.code === S.liveCode)) refetchTable();
+      else if (!S.code) refetchLobby();
+    });
+    S.es.addEventListener('win', (e) => {
+      const w = JSON.parse(e.data);
+      if (!S.code) { toast(`${w.name} just took ${money(w.payout)} on ${w.table}`, 'win'); }
+    });
+  } catch {}
+}
+let rt1, rt2;
+const refetchTable = () => { clearTimeout(rt1); rt1 = setTimeout(() => S.code && loadTable(S.code).catch(() => {}), 120); };
+const refetchLobby = () => { clearTimeout(rt2); rt2 = setTimeout(() => !S.code && loadLobby().catch(() => {}), 300); };
+// safety net if the stream drops behind a proxy; only while the tab is visible
+setInterval(() => { if (document.hidden) return; S.code ? refetchTable() : refetchLobby(); }, 12000);
+
+/* ═════════════ lobby ═════════════ */
+const FILTERS = [['all', 'All tables'], ['hot', '🔥 Filling fast'], ['big', 'Biggest pot'], ['nohouse', 'No HOUSE'], ['lightning', '⚡ Lightning']];
+function heatOf(t) { return t.round ? t.round.seats / t.maxSeats : 0; }
+
+async function viewLobby() {
+  S.code = null; S.t = null; clearInterval(S.clock); connect(null);
+  $('#view').innerHTML = `
+    <section class="hero">
+      <div class="live-strip" id="liveStrip"></div>
+      <h1>One pot.<br>One winner.<br>Sixty seconds.</h1>
+      <p class="sub">Everyone puts in the same stake. One seat takes the pot, minus a fee you see before you sit.
+        When the HOUSE plays, its seat says HOUSE. No mystery bots.</p>
+      <div class="row">
+        <a class="btn acc" href="#tables" id="jump">Jump a table</a>
+        <a class="btn vio" href="#/new">Start a session for your group</a>
+      </div>
+    </section>
+    <div class="ticker hide" id="ticker"><div></div></div>
+    <div id="crew"></div>
+    <h2 id="tables">Open tables</h2>
+    <div class="chips" id="chips">${FILTERS.map(([k, l]) => `<button data-f="${k}" class="${S.filter === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+    <div class="grid" id="grid"><div class="empty">Loading tables…</div></div>`;
+  $('#jump').onclick = (e) => { e.preventDefault(); feel('tap'); $('#tables').scrollIntoView({ behavior: 'smooth' }); };
+  $('#chips').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; S.filter = b.dataset.f; feel('tap');
+    $('#chips').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); paintLobby(); };
+  await loadLobby();
+}
+async function loadLobby() { S.lobby = await api('/pool/lobby'); paintLobby(); }
+
+function cardHtml(t) {
+  const r = t.round || { seats: 0, pot: 0, status: 'open' };
+  const left = t.maxSeats - r.seats, heat = heatOf(t);
+  const fee = (r.feeBps ?? t.feeBps) / 100, topPrize = Math.floor(t.stake * t.maxSeats * (1 - fee / 100));
+  const hot = left > 0 && (left === 1 || heat >= 0.6);
+  const dots = Array.from({ length: t.maxSeats }, (_, i) => {
+    if (i >= r.seats) return '<i></i>';
+    if (r.houseIn && i === 0) return '<i class="h"></i>';
+    return '<i class="f"></i>';
+  }).join('');
+  const status = r.status === 'countdown' ? `<span class="tag live num" data-ends="${r.endsAt}">⏱ …</span>`
+    : left === 1 ? '<span class="tag hot">1 seat left</span>'
+    : `<span class="tag">Needs ${Math.max(0, t.minPlayers - (r.seats - (r.houseIn ? 1 : 0)))} more to start</span>`;
+  return `<a class="tcard ${hot ? 'hot' : ''}" href="#/t/${t.code}" style="--beat:${(1.5 - heat).toFixed(2)}s">
+    <div class="top"><div><div class="nm">${esc(t.name)}</div><div class="muted">${t.mode === 'lightning' ? '⚡ Lightning · ' : ''}${t.maxSeats} seats · winner takes up to ${money(topPrize)}</div></div>
+      ${r.houseIn || t.houseSeat ? '<span class="tag house">HOUSE seat</span>' : ''}</div>
+    <div class="row" style="justify-content:space-between;align-items:flex-end">
+      <div><div class="muted">Buy-in</div><div class="stake num">${money(t.stake)}</div></div>
+      <div style="text-align:right"><div class="muted">Pot now</div><div class="pot num" style="font-size:22px">${money(r.pot)}</div></div>
+    </div>
+    <div class="dots">${dots}</div>
+    <div class="row" style="justify-content:space-between">${status}<span class="muted num">${r.meIn ? '<b style="color:var(--acc)">You\'re in</b> · ' : ''}${r.seats}/${t.maxSeats}</span></div>
+    <div class="foot"><span>Fee ${fee}%</span><span>HOUSE seat: ${t.houseSeat ? 'Yes' : 'No'}</span><span>${t.code}</span></div>
+  </a>`;
+}
+function paintLobby() {
+  const L = S.lobby; if (!L || S.code) return;
+  $('#liveStrip').innerHTML = `<span><span class="blink"></span><b class="num">${L.live.seated}</b> seated right now</span>
+    <span><b class="num">${money(L.live.pots)}</b> in live pots</span><span>Fee <b>${L.settings.feeBps / 100}%</b> on every pot</span>
+    ${L.settings.paused ? '<span class="tag" style="color:var(--red)">Paused</span>' : ''}`;
+  if (L.feed.length) {
+    const items = L.feed.map((f) => `<span class="${f.isHouse ? 'h' : ''}">${esc(f.name)} took <b>${money(f.payout)}</b> on ${esc(f.table)}</span>`).join('');
+    $('#ticker').classList.remove('hide'); $('#ticker div').innerHTML = items + items;
+  }
+  $('#crew').innerHTML = L.crew.length ? `<h2>Your sessions</h2><div class="grid">${L.crew.map(cardHtml).join('')}</div>` : '';
+  let list = [...L.tables];
+  if (S.filter === 'hot') list = list.filter((t) => t.round && t.round.seats < t.maxSeats).sort((a, b) => heatOf(b) - heatOf(a));
+  if (S.filter === 'big') list.sort((a, b) => (b.round?.pot || 0) - (a.round?.pot || 0));
+  if (S.filter === 'nohouse') list = list.filter((t) => !t.houseSeat);
+  if (S.filter === 'lightning') list = list.filter((t) => t.mode === 'lightning');
+  $('#grid').innerHTML = list.length ? list.map(cardHtml).join('') : '<div class="empty">Nothing matches that filter.</div>';
+  clearInterval(S.clock);
+  const paintClocks = () => document.querySelectorAll('[data-ends]').forEach((el) => {
+    const s = Math.max(0, Math.ceil((new Date(el.dataset.ends).getTime() - serverNow()) / 1000));
+    el.textContent = s > 0 ? `⏱ Draw in ${fmt(s)}` : '⏱ Drawing…';
+  });
+  paintClocks(); S.clock = setInterval(paintClocks, 500);
+}
+const fmt = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+/* ═════════════ table ═════════════ */
+async function viewTable(code) {
+  S.code = code; S.liveCode = null; S.t = null; clearInterval(S.clock); connect(code);
+  $('#view').innerHTML = `<div class="empty">Pulling up a chair…</div>`;
+  await loadTable(code);
+}
+
+async function loadTable(code) {
+  const data = await api('/pool/t/' + encodeURIComponent(code));
+  if (S.code !== code) return;
+  const prev = S.t;
+  if (S.ceremony) { S.pending = data; return; }
+  if (prev && prev.table.round && data.table.round && prev.table.round.id !== data.table.round.id) {
+    const old = await api('/pool/rounds/' + prev.table.round.id).catch(() => null);
+    if (old?.status === 'settled') { S.pending = data; return ceremony(old, prev); }
+    if (old?.status === 'cancelled') toast('Round cancelled. Every stake was refunded.');
+  }
+  paintTable(data, prev);
+}
+
+function seatSlots(seats, max) {
+  return Array.from({ length: max }, (_, i) => seats[i] || null);
+}
+function seatPos(i, n) {
+  const a = -Math.PI / 2 + (i * 2 * Math.PI) / n, R = 44;
+  return { left: 50 + R * Math.cos(a), top: 50 + R * Math.sin(a) };
+}
+function seatHtml(s, i, n, isNew) {
+  const p = seatPos(i, n);
+  if (!s) return `<div class="seat empty" data-i="${i}" style="left:${p.left}%;top:${p.top}%"><div class="av">+</div><div class="nm">open</div></div>`;
+  const cls = ['seat', s.isHouse ? 'house' : '', s.me ? 'me' : '', isNew ? 'new' : ''].join(' ');
+  return `<div class="${cls}" data-i="${i}" style="left:${p.left}%;top:${p.top}%">
+    <div class="av">${s.isHouse ? 'HOUSE' : KohlerAvatar(s.name, { size: 46 })}</div>
+    <div class="nm">${s.me ? 'You' : esc(s.name)}</div>${s.bot ? '<div class="sim">simulated</div>' : ''}</div>`;
+}
+
+function paintTable(data, prev) {
+  S.t = data;
+  if (data.table.liveCode && data.table.liveCode !== S.liveCode) { S.liveCode = data.table.liveCode; if (S.liveCode !== S.code) connect(S.liveCode); }
+  const { table: t, seats } = data, r = t.round;
+  const firstPaint = !$('#arena');
+  if (firstPaint) buildTable(t);
+  const n = t.maxSeats, filled = seats.length, left = n - filled;
+  const heat = filled / n;
+  document.documentElement.style.setProperty('--heat', heat.toFixed(2));
+  document.documentElement.style.setProperty('--beat', (1.5 - heat * 1.05).toFixed(2) + 's');
+
+  // seats + arrival effects
+  const prevKeys = new Set((prev?.table.round?.id === r?.id ? prev.seats : []).map((s) => s.index + ':' + s.name));
+  $('#seats').innerHTML = seatSlots(seats, n).map((s, i) => seatHtml(s, i, n, s && !firstPaint && !prevKeys.has(s.index + ':' + s.name))).join('');
+  if (!firstPaint && prev?.table.round?.id === r?.id) {
+    const added = seats.filter((s) => !prevKeys.has(s.index + ':' + s.name));
+    if (added.some((s) => s.me)) feel('claimMine');
+    else if (added.length) { feel('claimOther'); }
+    if (added.length && left === 1) setTimeout(() => { feel('lastSeat'); toast('1 seat left'); }, 250);
+    if (added.length) { const p = $('#potNum'); p.classList.remove('bump'); void p.offsetWidth; p.classList.add('bump'); }
+  }
+
+  // centre
+  const feeBps = r?.feeBps ?? 1000, pot = r?.pot || 0;
+  const payoutNow = pot - Math.floor((pot * feeBps) / 10000);
+  $('#potNum').textContent = money(pot);
+  $('#winNow').textContent = filled >= 2 ? `winner takes ${money(payoutNow)}` : `fills to ${money(t.stake * n - Math.floor((t.stake * n * feeBps) / 10000))}`;
+  $('#math').innerHTML = `<span>Pot <b class="num">${money(pot)}</b></span><span>→</span><span>Fee ${feeBps / 100}% <b class="num">${money(Math.floor((pot * feeBps) / 10000))}</b></span>
+    <span>→</span><span>Winner <b class="w num">${money(payoutNow)}</b></span>`;
+  $('#tags').innerHTML = `${t.houseSeat || r?.houseIn ? '<span class="tag house">HOUSE seat in play</span>' : '<span class="tag">No HOUSE seat</span>'}
+    ${t.mode === 'lightning' ? '<span class="tag">⚡ Lightning</span>' : ''}${t.sandbox ? '<span class="tag" style="color:var(--gold)">Test table</span>' : t.isPrivate ? '<span class="tag">Private session</span>' : ''}
+    <span class="tag num">${filled}/${n} seated</span>`;
+
+  paintAction();
+  paintClock();
+  clearInterval(S.clock); S.clock = setInterval(paintClock, 250);
+  paintHistory();
+}
+
+function buildTable(t) {
+  const url = location.origin + '/t/' + t.code;
+  $('#view').innerHTML = `
+    <div class="tbar"><a class="icon" href="#/">←</a><h2>${esc(t.name)}</h2><span class="code">${t.code}</span><div class="grow"></div>
+      <button class="btn" id="shareTop">Share ↗</button></div>
+    <div class="row" id="tags" style="margin-bottom:6px"></div>
+    <div class="layout">
+      <section>
+        <div class="arena" id="arena">
+          <div class="glow"></div>
+          <svg class="ring" viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="46"/><circle class="fill" cx="50" cy="50" r="41"/>
+            <circle class="prog" id="prog" cx="50" cy="50" r="46" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/></svg>
+          <div class="center"><div class="lbl" id="lbl">Pot</div><div class="pot num" id="potNum">$0</div>
+            <div class="clock num" id="clock"></div><div class="win num" id="winNow"></div></div>
+          <div id="seats"></div>
+        </div>
+        <div class="math" id="math"></div>
+        <div class="action" id="action"></div>
+      </section>
+      <aside class="side">
+        <div class="panel">
+          <b>Bring the group</b>
+          <p class="muted" style="margin:4px 0 10px">Drop this in the chat. The link preview shows the table name, buy-in and seats left.</p>
+          <div class="share"><input readonly id="shareUrl" value="${esc(url)}"><button class="btn acc" id="shareBtn">Share</button></div>
+        </div>
+        <div class="panel"><div class="row" style="justify-content:space-between"><b>Last rounds</b><span class="muted">tap to verify</span></div>
+          <div class="hist" id="hist"></div></div>
+        <div class="panel muted" style="font-size:12px">
+          <b style="color:var(--txt)">How the draw works</b><br>
+          Before anyone sits we publish a hash of a secret server seed. Every seat adds its own random seed when it joins.
+          At the draw we combine them and reveal the server seed, so anyone can recompute the winner. Each seat, HOUSE included, has exactly 1 in N.
+        </div>
+      </aside>
+    </div>`;
+  $('#shareBtn').onclick = $('#shareTop').onclick = () => shareTable();
+}
+
+function shareText(t) {
+  const fee = (t.round?.feeBps ?? 1000) / 10000;
+  const top = t.stake * t.maxSeats - Math.floor(t.stake * t.maxSeats * fee);
+  return `${t.name}: ${money(t.stake)} buy-in, winner takes up to ${money(top)}. ${t.maxSeats - (t.round?.seats || 0)} seats left. Pull up 👇`;
+}
+async function shareTable() {
+  const t = S.t.table, url = location.origin + '/t/' + t.code;
+  feel('tap');
+  try {
+    if (navigator.share) { await navigator.share({ title: t.name + ' · Pool Pot', text: shareText(t), url }); return; }
+  } catch (e) { if (e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(shareText(t) + ' ' + url); toast('Link copied. Paste it in the group chat.', 'win'); }
+  catch { $('#shareUrl').select(); toast('Copy the link above'); }
+}
+
+let lastSec = null;
+function paintClock() {
+  const t = S.t?.table, r = t?.round; if (!r || S.ceremony) return;
+  const prog = $('#prog'), clock = $('#clock'), lbl = $('#lbl');
+  if (r.status === 'countdown' && r.endsAt) {
+    const msLeft = new Date(r.endsAt).getTime() - serverNow();
+    const s = Math.max(0, Math.ceil(msLeft / 1000));
+    const frac = Math.max(0, Math.min(1, msLeft / (t.countdownSecs * 1000)));
+    prog.classList.remove('off'); clock.classList.remove('wait');
+    prog.style.strokeDashoffset = String(100 - frac * 100);
+    prog.style.stroke = s <= 5 ? 'var(--red)' : 'var(--acc)';
+    clock.textContent = s > 0 ? (s <= 3 ? `LOCKED · ${s}` : `Draw in ${fmt(s)}`) : 'Drawing…';
+    clock.classList.toggle('urgent', s <= 5);
+    lbl.textContent = 'Pot';
+    if (s !== lastSec) {
+      lastSec = s;
+      const mine = S.t.seats.some((x) => x.me);
+      if (s > 0 && s <= 3) feel('tickHard');
+      else if (s > 0 && s <= 10 && mine) feel('tick');
+      if (s === 3 && mine) buzz(H.lock);
+      if (s === 0) { refetchTable(); setTimeout(refetchTable, 1200); }
+    }
+  } else {
+    prog.style.strokeDashoffset = '100'; prog.classList.add('off');
+    const humans = S.t.seats.filter((x) => !x.isHouse).length, need = Math.max(0, t.minPlayers - humans);
+    clock.classList.remove('urgent');
+    clock.classList.toggle('wait', !!need);
+    clock.textContent = need ? `Clock starts at ${t.minPlayers} players · ${need} to go` : '';
+    lastSec = null;
+  }
+}
+
+function paintAction(result) {
+  const t = S.t.table, r = t.round, el = $('#action');
+  const mine = S.t.seats.find((x) => x.me);
+  const n = S.t.seats.length, max = t.maxSeats, feePct = (r?.feeBps ?? 1000) / 100;
+  const odds = mine ? n : n + 1;
+  const oddsTxt = n === 0 ? 'first seat in · odds set as others join' : `your chance <b>1 in ${odds}</b> right now`;
+  let banner = '';
+  if (result) {
+    banner = result.won
+      ? `<div class="banner win"><div class="big num">+${money(result.payout)}</div><div class="muted">You took the pot. ${100 - feePct}% is yours. The fee was always on the ticket.</div></div>`
+      : result.wasIn
+        ? `<div class="banner lose"><div class="big">${esc(result.winner)} took ${money(result.payout)}</div><div class="muted">Stake gone. Rematch or cash out, your call.</div></div>`
+        : `<div class="banner"><div class="big">${esc(result.winner)} took ${money(result.payout)}</div><div class="muted">Next round is open.</div></div>`;
+  }
+  if (!S.user) {
+    el.innerHTML = banner + `<p class="disclose">Spectating. <b>${money(t.stake)}</b> a seat · ${feePct}% fee · you can lose your stake · 18+</p>
+      <button class="btn acc wide" id="signin" style="padding:16px;font-size:16px">Sign in to grab a seat</button>`;
+    $('#signin').onclick = () => authSheet('login');
+    return;
+  }
+  if (S.t.paused) { el.innerHTML = banner + `<p class="disclose">Pool is paused. Seats already in play still draw.</p>`; return; }
+  if (mine) {
+    el.innerHTML = banner + `<p class="disclose">You're in. Your chance right now: <b>1 in ${n}</b>. Draw when every seat fills or the clock hits zero.</p>
+      <div class="row"><button class="btn wide" id="leave" style="flex:1">Leave seat (refund ${money(t.stake)})</button>
+      <button class="btn acc" id="sh2" style="flex:1">Invite friends ↗</button></div>`;
+    $('#leave').onclick = leaveSeat; $('#sh2').onclick = shareTable;
+    return;
+  }
+  if (n >= max) { el.innerHTML = banner + `<p class="disclose">Table full. Drawing now.</p>`; return; }
+  el.innerHTML = banner + `<p class="disclose">Stake <b>${money(t.stake)}</b> · ${oddsTxt} · winner gets <b>${100 - feePct}%</b> of the pot ·
+      ${r?.houseIn ? '<b>HOUSE</b> is seated · ' : ''}you can lose your stake</p>
+    <button class="hold ${result ? 'pulse' : ''}" id="hold"><div class="bar"></div><span>${result ? 'Hold to rematch' : 'Hold to join'} · ${money(t.stake)}</span></button>`;
+  holdButton($('#hold'), joinSeat);
+}
+
+/* press-and-hold: a deliberate confirm that also feels physical */
+function holdButton(btn, done) {
+  const DUR = 650; let raf, t0, steps;
+  const bar = btn.querySelector('.bar');
+  const reset = () => { cancelAnimationFrame(raf); bar.style.width = '0'; t0 = null; };
+  const frame = (t) => {
+    const k = Math.min(1, (t - t0) / DUR); bar.style.width = (k * 100) + '%';
+    const step = Math.floor(k * 4);
+    if (step > steps) { steps = step; buzz(4 + step * 4); tone(500 + step * 140, 0.04, 'triangle', 0.03); }
+    if (k >= 1) { reset(); done(); return; }
+    raf = requestAnimationFrame(frame);
+  };
+  btn.onpointerdown = (e) => { e.preventDefault(); ac(); t0 = performance.now(); steps = 0; raf = requestAnimationFrame(frame); };
+  btn.onpointerup = btn.onpointerleave = btn.onpointercancel = () => { if (t0 && performance.now() - t0 < DUR) { btn.classList.remove('shake'); void btn.offsetWidth; btn.classList.add('shake'); } reset(); };
+  btn.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); done(); } };
+}
+
+function clientSeed() { const a = new Uint8Array(12); crypto.getRandomValues(a); return Array.from(a, (b) => b.toString(16).padStart(2, '0')).join(''); }
+
+async function joinSeat() {
+  if (!store.get('pp_ack', false)) return ackSheet(joinSeat);
+  const code = S.code;
+  try {
+    const seed = clientSeed();
+    const out = await api(`/pool/t/${code}/join`, { method: 'POST', body: { clientSeed: seed } });
+    store.set('pp_seed_' + out.roundId, seed);
+    if (!out.settled) refreshMe();   // if my seat filled the table, the ceremony reveals the balance
+    await loadTable(code);
+  } catch (e) {
+    buzz([30, 40, 30]);
+    if (e.status === 402) return topUpSheet(e.data.need);
+    if (e.status === 401) return authSheet('login');
+    if (e.data?.cooloffUntil) return toast('Cool-off active until ' + new Date(e.data.cooloffUntil).toLocaleString(), 'err');
+    toast(e.message, 'err'); refetchTable();
+  }
+}
+async function leaveSeat() {
+  try { await api(`/pool/t/${S.code}/leave`, { method: 'POST' }); feel('tap'); toast('Seat released. Stake refunded.'); refreshMe(); await loadTable(S.code); }
+  catch (e) { toast(e.message, 'err'); }
+}
+function ackSheet(then) {
+  const b = sheet(`<h2 style="margin:0 0 10px">Before you sit</h2>
+    <div class="kv"><span>This is real money</span><b>Your stake can be lost</b></div>
+    <div class="kv"><span>Odds</span><b>Every seat 1 in N</b></div>
+    <div class="kv"><span>Fee</span><b>${(S.t.table.round?.feeBps ?? 1000) / 100}% off every pot</b></div>
+    <div class="kv"><span>HOUSE seat</span><b>Always labelled HOUSE</b></div>
+    <div class="kv"><span>Age</span><b>18+ only</b></div>
+    <p class="muted">You can set a 24h limit or take a cool-off any time from <a href="#/limits" style="text-decoration:underline">Limits</a>.</p>
+    <button class="btn acc wide" id="ackGo">I'm 18+. Seat me.</button>`);
+  b.querySelector('#ackGo').onclick = () => { store.set('pp_ack', true); closeSheet(); then(); };
+}
+function topUpSheet(need) {
+  sheet(`<h2 style="margin:0 0 6px">Top up to grab a seat</h2>
+    <p class="muted">You're ${money(need)} short for this table.</p>
+    <a class="btn acc wide" href="/#/wallet">Go to wallet</a>`);
+}
+
+/* ═════════════ the draw ceremony ═════════════ */
+async function ceremony(round, prev) {
+  S.ceremony = true; clearInterval(S.clock);
+  const n = prev.table.maxSeats, seats = round.seats, k = seats.length;
+  const myIdx = seats.findIndex((s) => s.me), wasIn = myIdx >= 0, won = wasIn && seats[myIdx].won;
+  const winner = seats[round.winnerIndex];
+  $('#seats').innerHTML = seatSlots(seats, n).map((s, i) => seatHtml(s, i, n)).join('');
+  $('#lbl').textContent = 'Drawing'; $('#clock').classList.remove('urgent');
+  $('#clock').textContent = round.drawHash.slice(0, 10) + '…';
+  $('#potNum').textContent = money(round.pot);
+  $('#winNow').textContent = `winner takes ${money(round.payout)}`;
+  $('#clock').classList.remove('wait');
+  $('#math').innerHTML = `<span>Pot <b class="num">${money(round.pot)}</b></span><span>→</span><span>Fee ${round.feeBps / 100}% <b class="num">${money(round.fee)}</b></span><span>→</span><span>Winner <b class="w num">${money(round.payout)}</b></span>`;
+  $('#prog').classList.remove('off'); $('#prog').style.strokeDashoffset = '0';
+  $('#action').innerHTML = `<p class="disclose">Seeds locked. Hash <span class="num">${round.serverSeedHash.slice(0, 12)}…</span> revealing…</p>`;
+  feel('drum');
+
+  // spotlight hops round the occupied seats and decelerates onto the drawn index
+  const hops = REDUCED ? 1 : Math.max(14, k * 2 + ((round.winnerIndex - 0 + k) % k) + 1);
+  for (let h = 0; h < hops; h++) {
+    const cur = (((round.winnerIndex - (hops - 1 - h)) % k) + k) % k;   // walks forward, lands exactly on the drawn seat
+    document.querySelectorAll('.seat.spot').forEach((x) => x.classList.remove('spot'));
+    $(`.seat[data-i="${cur}"]`)?.classList.add('spot');
+    SFX.hop(h); buzz(H.hop);
+    await sleep(REDUCED ? 0 : 45 + 330 * Math.pow(h / hops, 2.4));
+  }
+  document.querySelectorAll('.seat').forEach((x) => { x.classList.remove('spot'); if (+x.dataset.i !== round.winnerIndex) x.classList.add('dim'); });
+  $(`.seat[data-i="${round.winnerIndex}"]`)?.classList.add('won');
+  $('#lbl').textContent = winner.isHouse ? 'HOUSE takes' : won ? 'You take' : `${winner.name} takes`;
+  $('#potNum').textContent = money(round.payout);
+  $('#clock').textContent = `fee ${money(round.fee)}`;
+  if (won) { feel('win'); confetti(); } else if (wasIn) feel('lose'); else SFX.claimOther();
+
+  await sleep(REDUCED ? 600 : 2600);
+  S.ceremony = false;
+  const next = S.pending; S.pending = null;
+  S.t = null; buildTable(next.table);
+  paintTable(next, null);
+  paintAction({ won, wasIn, payout: round.payout, winner: winner.isHouse ? 'HOUSE' : winner.me ? 'You' : winner.name });
+  refreshMe(); realityCheck();
+}
+
+function paintHistory() {
+  const h = S.t.history;
+  $('#hist').innerHTML = h.length ? h.slice(0, 15).map((x) => `
+    <div class="r" data-v="${x.id}" style="cursor:pointer">
+      <span>#${x.seq} ${x.status === 'cancelled' ? '<span class="muted">cancelled · refunded</span>'
+        : `<b class="${x.meWon ? 'won' : ''}">${x.meWon ? 'You' : esc(x.winner)}</b> took ${money(x.payout)}`}
+        ${x.houseSat ? ' <span class="tag house" style="font-size:9px">HOUSE sat</span>' : ''}</span>
+      <span class="muted num">${x.seats} seats ${x.meIn ? (x.meWon ? '🏆' : '·') : ''}</span></div>`).join('')
+    : '<div class="empty" style="padding:14px">First round on this table.</div>';
+  $('#hist').onclick = (e) => { const r = e.target.closest('[data-v]'); if (r) verifySheet(r.dataset.v); };
+}
+
+/* ═════════════ verify in the browser ═════════════ */
+async function sha256(s) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return Array.from(new Uint8Array(b), (x) => x.toString(16).padStart(2, '0')).join(''); }
+async function verifySheet(id) {
+  const r = await api('/pool/rounds/' + id);
+  const b = sheet(`<h2 style="margin:0 0 4px">Verify round #${r.seq}</h2><p class="muted">${esc(r.table)} · ${r.seats.length} seats · pot ${money(r.pot)}</p>
+    <div class="field"><label>Server seed hash (published before the round)</label><pre class="seed">${r.serverSeedHash}</pre></div>
+    <div class="field"><label>Server seed (revealed after)</label><pre class="seed">${r.serverSeed || 'hidden until the draw'}</pre></div>
+    <div class="field"><label>Seat seeds, in seat order</label><pre class="seed">${r.seats.map((s, i) => `${i}  ${s.isHouse ? 'HOUSE' : esc(s.name)}${s.me ? ' (you)' : ''}  ${s.clientSeed}`).join('\n')}</pre></div>
+    <div id="vOut" class="panel" style="margin:10px 0">Checking…</div>
+    <p class="muted">Formula: client = sha256(seat seeds joined by "|"); hash = sha256(server : client : roundId); winner = int(hash[0..13], 16) mod seats.</p>`);
+  if (r.status !== 'settled') { b.querySelector('#vOut').textContent = r.status === 'cancelled' ? 'Cancelled round. Every stake was refunded.' : 'Not drawn yet.'; return; }
+  const okHash = (await sha256(r.serverSeed)) === r.serverSeedHash;
+  const client = await sha256(r.seats.map((s) => s.clientSeed).join('|'));
+  const hash = await sha256(`${r.serverSeed}:${client}:${r.id}`);
+  const idx = parseInt(hash.slice(0, 13), 16) % r.seats.length;
+  const good = okHash && client === r.clientSeed && hash === r.drawHash && idx === r.winnerIndex;
+  b.querySelector('#vOut').innerHTML = `${good ? '✅' : '❌'} <b>${good ? 'Verified in your browser' : 'Mismatch'}</b><br>
+    <span class="muted">seed hash ${okHash ? 'matches' : 'does NOT match'} · winner index ${idx} → ${esc(r.seats[idx].isHouse ? 'HOUSE' : r.seats[idx].name)}</span>`;
+  if (good) buzz(12);
+}
+
+/* ═════════════ start a session ═════════════ */
+async function viewNew() {
+  S.code = null; clearInterval(S.clock);
+  if (!S.user) { $('#view').innerHTML = `<div class="panel" style="text-align:center;padding:30px"><h2 style="margin:0 0 6px">Sign in to start a session</h2><button class="btn acc" id="si">Sign in</button></div>`; $('#si').onclick = () => authSheet('login', viewNew); return; }
+  const L = S.lobby || await api('/pool/lobby');
+  const stakes = L.settings.stakes, fee = L.settings.feeBps;
+  const st = { name: (await api('/pool/name')).name, stake: stakes.includes(1000) ? 1000 : stakes[0], seats: 6 };
+  $('#view').innerHTML = `
+    <a class="btn ghost" href="#/" style="margin-bottom:10px">← Lobby</a>
+    <h1 style="font-size:clamp(30px,6vw,48px)">Start a session and send it to the group.</h1>
+    <p class="sub">Private table, link only. Nobody sees it in the lobby unless you share it. No HOUSE seat at crew tables.</p>
+    <div class="layout">
+      <div class="panel">
+        <div class="field"><label>Session name</label><div class="row" style="flex-wrap:nowrap"><input type="text" id="nName" maxlength="24" value="${esc(st.name)}"><button class="icon" id="reroll" title="New name">🎲</button></div></div>
+        <div class="field"><label>Buy-in</label><div class="chips" id="nStake">${stakes.map((s) => `<button data-s="${s}" class="${s === st.stake ? 'on' : ''}">${money(s)}</button>`).join('')}</div></div>
+        <div class="field"><label>Seats: <b id="nSeatsLbl" style="color:var(--txt)">${st.seats}</b></label><input type="range" id="nSeats" min="2" max="12" value="${st.seats}"></div>
+        <div class="kv"><span>Full pot</span><b class="num" id="nPot"></b></div>
+        <div class="kv"><span>Fee (${fee / 100}%)</span><b class="num" id="nFee"></b></div>
+        <div class="kv"><span>Winner takes</span><b class="num" id="nWin" style="color:var(--acc)"></b></div>
+        <button class="btn acc wide" id="nGo" style="margin-top:14px;padding:15px">Open the table</button>
+      </div>
+      <div><div class="muted" style="margin-bottom:8px">How it looks in the group chat</div>
+        <div class="preview"><div class="img"></div><div class="tx"><div class="t" id="pvT"></div><div class="d" id="pvD"></div><div class="u">${esc(location.host)}</div></div></div></div>
+    </div>`;
+  const paint = () => {
+    const full = st.stake * st.seats, f = Math.floor((full * fee) / 10000);
+    $('#nPot').textContent = money(full); $('#nFee').textContent = money(f); $('#nWin').textContent = money(full - f);
+    $('#pvT').textContent = `${st.name || 'Your session'} · ${money(st.stake)} buy-in · winner takes ${money(full - f)}`;
+    $('#pvD').textContent = `${S.user.username} opened ${st.name || 'a table'}. ${st.seats} seats open. Everyone puts in ${money(st.stake)}, one random seat takes ${100 - fee / 100}% of the pot. ${fee / 100}% fee. Provably fair draw. You can lose your stake. 18+.`;
+  };
+  paint();
+  $('#nName').oninput = (e) => { st.name = e.target.value; paint(); };
+  $('#reroll').onclick = async () => { feel('tap'); st.name = (await api('/pool/name')).name; $('#nName').value = st.name; paint(); };
+  $('#nStake').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; st.stake = +b.dataset.s; feel('tap');
+    $('#nStake').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); paint(); };
+  $('#nSeats').oninput = (e) => { st.seats = +e.target.value; $('#nSeatsLbl').textContent = st.seats; buzz(4); paint(); };
+  $('#nGo').onclick = async () => {
+    try {
+      const out = await api('/pool/tables', { method: 'POST', body: { name: st.name, stakeCents: st.stake, maxSeats: st.seats } });
+      feel('claimMine'); location.hash = '#/t/' + out.code;
+      setTimeout(() => { if (S.t) { toast('Session live. Send the link to the group.', 'win'); shareTable(); } }, 700);
+    } catch (e) { toast(e.message, 'err'); }
+  };
+}
+
+/* ═════════════ limits + reality check ═════════════ */
+async function viewLimits() {
+  S.code = null; clearInterval(S.clock);
+  if (!S.user) { $('#view').innerHTML = `<div class="panel" style="text-align:center;padding:30px"><h2 style="margin:0 0 6px">Sign in to manage limits</h2><button class="btn acc" id="si">Sign in</button></div>`; $('#si').onclick = () => authSheet('login', viewLimits); return; }
+  const m = await api('/pool/me');
+  $('#view').innerHTML = `<a class="btn ghost" href="#/" style="margin-bottom:10px">← Lobby</a><h2 style="font-size:24px">Limits &amp; cool-off</h2>
+    <div class="panel">
+      <div class="kv"><span>Seats taken (24h)</span><b class="num">${m.last24h.seats}</b></div>
+      <div class="kv"><span>Staked (24h)</span><b class="num">${money(m.last24h.spent)}</b></div>
+      <div class="kv"><span>Net result (24h)</span><b class="num" style="color:${m.last24h.net >= 0 ? 'var(--acc)' : 'var(--red)'}">${m.last24h.net >= 0 ? '+' : '−'}${money(Math.abs(m.last24h.net))}</b></div>
+      ${m.cooloffUntil ? `<div class="kv"><span>Cool-off until</span><b>${new Date(m.cooloffUntil).toLocaleString()}</b></div>` : ''}
+    </div>
+    <h2>24-hour limit</h2>
+    <div class="panel"><p class="muted" style="margin-top:0">Caps how much you can stake in any rolling 24 hours. Lowering is instant. Raising or removing is allowed 24h after your last change.</p>
+      <div class="row" style="flex-wrap:nowrap"><input type="number" id="lim" min="1" step="1" placeholder="No limit" value="${m.dailyLimit != null ? m.dailyLimit / 100 : ''}"><button class="btn acc" id="limGo">Save</button></div></div>
+    <h2>Take a break</h2>
+    <div class="panel"><p class="muted" style="margin-top:0">Blocks new seats until it ends. It can be extended, never shortened.</p>
+      <div class="row">${[[24, '24 hours'], [168, '7 days'], [720, '30 days']].map(([h, l]) => `<button class="btn" data-h="${h}">${l}</button>`).join('')}</div></div>`;
+  $('#limGo').onclick = async () => {
+    const v = $('#lim').value.trim();
+    try { await api('/pool/limits', { method: 'POST', body: { dailyLimitCents: v === '' ? null : Math.round(+v * 100) } }); toast('Limit saved'); viewLimits(); }
+    catch (e) { toast(e.message, 'err'); }
+  };
+  $('#view').querySelectorAll('[data-h]').forEach((b) => b.onclick = () => {
+    const s = sheet(`<h2 style="margin:0 0 8px">Cool-off for ${b.textContent}?</h2><p class="muted">You won't be able to take a seat until it ends. This can't be undone early.</p>
+      <button class="btn acc wide" id="cGo">Start cool-off</button>`);
+    s.querySelector('#cGo').onclick = async () => { try { await api('/pool/limits', { method: 'POST', body: { cooloffHours: +b.dataset.h } }); closeSheet(); toast('Cool-off started'); viewLimits(); } catch (e) { toast(e.message, 'err'); } };
+  });
+}
+const sessionStart = (() => { try { const v = +sessionStorage.getItem('pp_t0'); if (v) return v; const n = Date.now(); sessionStorage.setItem('pp_t0', n); return n; } catch { return Date.now(); } })();
+let lastCheck = sessionStart;
+async function realityCheck() {
+  if (!S.user || Date.now() - lastCheck < 30 * 60e3) return;
+  lastCheck = Date.now();
+  const m = await api('/pool/me').catch(() => null); if (!m) return;
+  const mins = Math.round((Date.now() - sessionStart) / 60e3);
+  const b = sheet(`<h2 style="margin:0 0 6px">You've been here ${mins} minutes</h2>
+    <div class="kv"><span>Seats in the last 24h</span><b>${m.last24h.seats}</b></div>
+    <div class="kv"><span>Net in the last 24h</span><b style="color:${m.last24h.net >= 0 ? 'var(--acc)' : 'var(--red)'}">${m.last24h.net >= 0 ? '+' : '−'}${money(Math.abs(m.last24h.net))}</b></div>
+    <div class="row" style="margin-top:14px"><button class="btn" id="rcL" style="flex:1">Set a limit</button><button class="btn acc" id="rcK" style="flex:1">Keep playing</button></div>`);
+  b.querySelector('#rcK').onclick = closeSheet; b.querySelector('#rcL').onclick = () => { closeSheet(); location.hash = '#/limits'; };
+}
+
+/* ═════════════ router ═════════════ */
+async function route() {
+  closeSheet();
+  const hash = location.hash.slice(1) || (window.__POOL_CODE__ ? '/t/' + window.__POOL_CODE__ : '/');
+  const [p, arg] = hash.split('/').filter(Boolean);
+  try {
+    if (p === 't' && arg) await viewTable(arg.toUpperCase());
+    else if (p === 'new') await viewNew();
+    else if (p === 'limits') await viewLimits();
+    else await viewLobby();
+  } catch (e) {
+    $('#view').innerHTML = e.status === 404
+      ? `<div class="panel" style="text-align:center;padding:34px"><h2 style="margin:0 0 6px">Pool Pot isn't open right now</h2><p class="muted">Check back soon.</p><a class="btn" href="/">Back to Kohler</a></div>`
+      : `<div class="empty">${esc(e.message)}</div>`;
+  }
+}
+addEventListener('hashchange', route);
+paintPrefs();
+(async () => { await refreshMe(); route(); })();
+</script>
+</body>
+</html>

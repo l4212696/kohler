@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e1322">
+<title>Kohler</title>
+<link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/kohler.css">
+<script src="/assets/avatar.js"></script>
+<script src="/assets/withdraw.js"></script>
+<style>
+/* home */
+.hero{display:grid;grid-template-columns:1.25fr .9fr;gap:22px;align-items:stretch;margin-bottom:26px}
+@media(max-width:900px){.hero{grid-template-columns:1fr}}
+.hero-copy{padding:10px 0 4px;display:flex;flex-direction:column;justify-content:center;gap:16px}
+.hero-copy h1{font-size:clamp(30px,4vw,48px);max-width:16ch}
+.hero-copy p{color:var(--muted);font-size:16.5px;max-width:46ch}
+.search{display:flex;align-items:center;gap:10px;height:54px;padding:0 16px;border-radius:16px;background:var(--ink-1);border:1px solid var(--line);max-width:520px}
+.search:focus-within{border-color:var(--cobalt);box-shadow:0 0 0 3px rgba(0,255,102,.14)}
+.search svg{flex:0 0 18px;color:var(--muted)}
+.search input{border:0;background:transparent;height:100%;padding:0;box-shadow:none!important}
+
+.live{position:relative;display:grid;grid-template-columns:150px 1fr;gap:18px;align-items:center;padding:20px;border-radius:var(--r-lg);overflow:hidden;
+  background:radial-gradient(420px 260px at 0% 0%,rgba(0,255,102,.14),transparent 70%),radial-gradient(420px 260px at 100% 100%,rgba(232,196,106,.12),transparent 70%),var(--ink-1);border:1px solid rgba(232,196,106,.45)}
+.live:hover{border-color:rgba(232,196,106,.8)}
+.live .ring{position:relative;width:150px;height:150px}
+.live .ring svg{position:absolute;inset:0}
+.live .ring .c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.live .ring .pot{font-family:var(--display);font-weight:800;font-size:24px;color:var(--mint);letter-spacing:-.03em}
+.live .ring .lbl{font-size:12px;color:var(--muted)}
+.live h3{font-size:20px;margin-bottom:4px}
+.live .when{font-weight:700;color:var(--gold)}
+.live .meta{font-size:13.5px;color:var(--muted);margin-top:8px}
+.live .take{margin-top:14px;display:inline-flex;height:40px;align-items:center;padding:0 16px;border-radius:11px;background:linear-gradient(180deg,#3dff8c,#00d955);color:#03140a;font-weight:700}
+@media(max-width:520px){.live{grid-template-columns:110px 1fr}.live .ring{width:110px;height:110px}.live .ring .pot{font-size:23px}}
+
+.filters{display:flex;gap:10px;align-items:center;margin-bottom:18px}
+.filters select{width:auto;height:36px;border-radius:999px;padding:0 12px;font-size:13.5px;font-weight:600;background:var(--ink-1)}
+.shop{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+.g{display:flex;flex-direction:column;border-radius:var(--r-md);background:var(--ink-1);border:1px solid var(--line);overflow:hidden;transition:border-color .15s,transform .15s}
+.g:hover{border-color:color-mix(in srgb,var(--hue) 60%,var(--line));transform:translateY(-2px)}
+.g-art{position:relative;aspect-ratio:16/10;display:grid;place-items:center;background:color-mix(in srgb,var(--hue) 18%,var(--ink-2))}
+.g-art img{width:100%;height:100%;object-fit:cover}
+.g-art .mono-l{font-family:var(--display);font-weight:800;font-size:46px;letter-spacing:-.04em;color:color-mix(in srgb,var(--hue) 75%,#fff)}
+.g-art .flag{position:absolute;top:10px;right:10px;font-size:15px;line-height:1;padding:4px 6px;border-radius:8px;background:rgba(10,14,28,.6)}
+.g-body{padding:13px 14px 14px;display:flex;flex-direction:column;gap:4px;flex:1}
+.g-name{font-weight:650;font-size:15px;line-height:1.3}
+.g-cat{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted)}
+.g-cat i{width:7px;height:7px;border-radius:50%;background:var(--hue)}
+.g-foot{margin-top:auto;padding-top:10px;display:flex;justify-content:space-between;align-items:baseline}
+.g-price{font-weight:700;font-size:16px}
+.g-opts{font-size:12.5px;color:var(--faint)}
+.g.soldout .g-price{color:var(--faint);font-weight:600;font-size:14px}
+
+/* games */
+.games{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+.gt{position:relative;display:flex;flex-direction:column;justify-content:space-between;min-height:168px;padding:18px;border-radius:var(--r-md);overflow:hidden;
+  background:radial-gradient(260px 160px at 100% 0%,color-mix(in srgb,var(--hue) 30%,transparent),transparent 70%),var(--ink-1);border:1px solid var(--line);transition:border-color .15s,transform .15s}
+.gt:hover{border-color:color-mix(in srgb,var(--hue) 70%,var(--line));transform:translateY(-2px)}
+.gt svg{width:38px;height:38px;color:var(--hue)}
+.gt h3{font-size:19px;margin-top:18px}
+.gt p{font-size:13.5px;color:var(--muted);margin-top:2px}
+.gt.feature{grid-column:1/-1;min-height:0;flex-direction:row;align-items:center;gap:22px;padding:24px}
+.gt.feature h3{margin:0 0 4px;font-size:clamp(22px,3vw,30px)}
+.gt.feature .go{margin-left:auto}
+@media(max-width:620px){.gt.feature{flex-direction:column;align-items:flex-start}.gt.feature .go{margin-left:0}}
+
+/* product */
+.prod{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:24px;align-items:start}
+@media(max-width:900px){.prod{grid-template-columns:1fr}}
+.prod-art{border-radius:var(--r-lg);aspect-ratio:16/9;max-height:300px;width:100%;display:grid;place-items:center;overflow:hidden;background:color-mix(in srgb,var(--hue) 20%,var(--ink-2))}
+.prod-art img{width:100%;height:100%;object-fit:cover}
+.prod-art .mono-l{font-family:var(--display);font-weight:800;font-size:92px;color:color-mix(in srgb,var(--hue) 75%,#fff)}
+.opt{display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;border:1px solid var(--line);background:var(--ink-0);cursor:pointer;margin-bottom:8px;transition:border-color .12s}
+.opt:hover{border-color:var(--line-2)}
+.opt .radio{width:18px;height:18px;border-radius:50%;border:2px solid var(--line-2);flex:0 0 18px}
+.opt.sel{border-color:var(--cobalt);background:rgba(0,255,102,.06)}
+.opt.sel .radio{border:5px solid var(--cobalt)}
+.opt .nm{flex:1;font-weight:600}
+.opt .stk{font-size:12.5px;color:var(--muted)}
+.opt.sold{opacity:.45;cursor:not-allowed}
+.sum>div{display:flex;justify-content:space-between;font-size:14px;color:var(--muted);padding:4px 0}
+.sum>div.total{color:var(--text);font-weight:700;font-size:18px;padding-top:10px;margin-top:6px;border-top:1px solid var(--line)}
+
+/* wallet */
+.wal{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:860px){.wal{grid-template-columns:1fr}}
+.balbig{font-family:var(--display);font-weight:800;font-size:clamp(42px,7vw,64px);letter-spacing:-.04em;line-height:1}
+.qr{width:150px;height:150px;border-radius:14px;background:#fff;padding:8px;flex:0 0 150px}
+.addr{font-family:var(--mono);font-size:13px;word-break:break-all;background:var(--ink-0);border:1px solid var(--line);border-radius:12px;padding:12px}
+.testpanel{border-color:rgba(255,182,72,.45);background:radial-gradient(420px 220px at 100% 0%,rgba(255,182,72,.14),transparent 70%),var(--ink-1)}
+.act .k{font-weight:600}
+.act small{display:block;color:var(--faint);font-size:12.5px}
+
+/* game stage */
+.stage{position:relative;height:280px;border-radius:var(--r-lg);display:grid;place-items:center;overflow:hidden;
+  background:radial-gradient(480px 260px at 50% 0%,color-mix(in srgb,var(--hue) 22%,transparent),transparent 70%),var(--ink-1);border:1px solid var(--line)}
+.stage .big{font-family:var(--display);font-weight:800;font-size:64px;letter-spacing:-.04em}
+.stage .msg{color:var(--muted)}
+.stakes{display:flex;gap:8px;overflow-x:auto;padding:14px 0}
+.pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:14px}
+.pick button{height:56px;border-radius:14px;border:1px solid var(--line);background:var(--ink-1);font-weight:650;display:flex;justify-content:space-between;align-items:center;padding:0 14px}
+.pick button b{color:var(--muted);font-weight:600}
+.pick button.on{border-color:var(--hue);background:color-mix(in srgb,var(--hue) 12%,var(--ink-1))}
+.pulse{animation:pulse .5s}@keyframes pulse{50%{transform:scale(1.03)}}
+.shake{animation:shake .4s}@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+.orders .o{padding:16px 0;border-bottom:1px solid var(--line)}
+.orders .o:last-child{border:0}
+.filebanner{background:var(--coral);color:#2a0606;font-weight:650;padding:10px 16px;text-align:center}
+</style>
+</head>
+<body>
+<div class="filebanner hide" id="fileBanner">You opened the HTML file directly, so nothing can sign in. Run <code>npm run forever</code> and open http://localhost:3001.</div>
+<header class="bar">
+  <div class="bar-in">
+    <a class="brand" href="#/shop" aria-label="Kohler home"><img src="/assets/logo.svg" alt="">Kohler</a>
+    <nav class="nav" id="nav">
+      <a href="#/shop" data-r="shop">Shop</a>
+      <a href="/casino" class="hide casino" id="navPlay">Casino</a>
+      <a href="/casino#/survivor" class="hide" id="navPool">Survivor</a>
+      <a href="#/orders" data-r="orders">Orders</a>
+      <a href="#/support" data-r="support">Help</a>
+    </nav>
+    <div class="grow"></div>
+    <a class="bal" id="bal" href="#/wallet"><i></i><span class="num">Sign in</span></a>
+    <a class="avatar" id="av" href="#/account" aria-label="Account">?</a>
+  </div>
+  <div class="testbar hide" id="testbar">Test mode: fake money and simulated players. Nothing you buy or win here is real.</div>
+</header>
+
+<main id="view"></main>
+
+<nav class="tabs" id="tabs">
+  <a href="#/shop" data-r="shop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16l-1.2 11.2a2 2 0 0 1-2 1.8H7.2a2 2 0 0 1-2-1.8L4 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>Shop</a>
+  <a href="/casino" class="hide" id="tabPlay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>Play</a>
+  <a href="#/wallet" data-r="wallet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M16 12.5h2"/><path d="M3 9h18"/></svg>Wallet</a>
+  <a href="#/orders" data-r="orders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>Orders</a>
+  <a href="#/account" data-r="account"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="9" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>Account</a>
+</nav>
+
+<footer class="site"><span>© <span id="yr"></span> Kohler</span><a href="#/support">Help</a><a href="/casino#/limits">Play limits</a><span>18+ for games. Play with money you can afford to lose.</span></footer>
+<div class="toast" id="toast"></div>
+<div id="sheetHost"></div>
+
+<script>
+const S = { user: null, store: null, cfg: null, group: null, sel: null, pool: null, livePoll: null };
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = (c) => (Number(c) < 0 ? '−' : '') + '$' + (Math.abs(Number(c || 0)) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const flag = (cc) => !cc || cc === 'WW' ? '🌍' : String.fromCodePoint(...[...cc.toUpperCase()].map((l) => 127397 + l.charCodeAt()));
+const HUES = ['--sky', '--mint', '--gold', '--coral', '--violet', '--rose', '--sky'];
+const hueOf = (s) => { let h = 0; for (const ch of String(s || 'x')) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return `var(${HUES[h % HUES.length]})`; };
+$('#yr').textContent = new Date().getFullYear();
+if (location.protocol === 'file:') $('#fileBanner').classList.remove('hide');
+
+/* feel: small, only on actions */
+const buzz = (p) => { try { navigator.vibrate?.(p); } catch {} };
+let actx;
+function tone(f = 440, d = 0.07, type = 'sine', g = 0.04, when = 0) {
+  try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); const t = actx.currentTime + when, o = actx.createOscillator(), v = actx.createGain();
+    o.type = type; o.frequency.value = f; v.gain.setValueAtTime(g, t); v.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(v).connect(actx.destination); o.start(t); o.stop(t + d); } catch {}
+}
+const winSound = () => [523, 659, 784].forEach((f, i) => tone(f, 0.14, 'triangle', 0.06, i * 0.08));
+const loseSound = () => { tone(300, 0.22, 'sine', 0.05); tone(220, 0.3, 'sine', 0.04, 0.12); };
+
+let toastT;
+function toast(msg, kind) { const t = $('#toast'); t.textContent = msg; t.className = 'toast on ' + (kind || ''); clearTimeout(toastT); toastT = setTimeout(() => (t.className = 'toast'), 2800); }
+function sheet(html) {
+  $('#sheetHost').innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="box">${html}</div></div>`;
+  $('#sheetHost .sheet').onclick = (e) => { if (e.target.classList.contains('sheet')) closeSheet(); };
+  setTimeout(() => $('#sheetHost input')?.focus(), 30);
+  return $('#sheetHost .box');
+}
+const closeSheet = () => ($('#sheetHost').innerHTML = '');
+addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
+
+async function api(path, opts = {}) {
+  let r;
+  try {
+    r = await fetch('/api' + path, { method: opts.method || 'GET', headers: { 'content-type': 'application/json' },
+      body: opts.body ? JSON.stringify(opts.body) : undefined, credentials: 'same-origin' });
+  } catch { throw Object.assign(new Error("Can't reach the Kohler server. Is it running?"), { status: 0 }); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(j.error || `Request failed (${r.status})`), { status: r.status, data: j });
+  return j;
+}
+
+let shownBal = null;
+function paintUser() {
+  const u = S.user, el = $('#bal');
+  el.classList.toggle('test', !!u?.testMode);
+  $('#testbar').classList.toggle('hide', !u?.testMode);
+  $('#av').innerHTML = u ? KohlerAvatar(u.username, { size: 40, tier: KohlerAvatar.tier(u.xp) }) : '?';
+  $('#av').style.padding = u ? '0' : ''; $('#av').style.overflow = 'hidden';
+  if (!u) { el.querySelector('span').textContent = 'Sign in'; el.onclick = (e) => { e.preventDefault(); authSheet(); }; shownBal = null; return; }
+  el.onclick = null;
+  const to = u.balance, from = shownBal ?? to, t0 = performance.now(); shownBal = to;
+  if (from !== to) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+  (function s(t) { const k = Math.min(1, (t - t0) / 450); el.querySelector('span').textContent = money(Math.round(from + (to - from) * (1 - (1 - k) ** 3))); if (k < 1) requestAnimationFrame(s); })(t0);
+}
+async function refreshMe() { try { S.user = (await api('/me')).user; } catch { S.user = null; } paintUser(); return S.user; }
+
+/* ── auth ── */
+function authSheet(mode = 'in', then) {
+  const reg = mode === 'up';
+  const b = sheet(`
+    <div class="chips" style="margin-bottom:18px"><button class="chip ${reg ? '' : 'on'}" data-m="in">Sign in</button><button class="chip ${reg ? 'on' : ''}" data-m="up">Create account</button></div>
+    <form id="af">
+      ${reg ? `<label class="field"><span>Email</span><input type="email" id="aEmail" autocomplete="email" required></label>
+               <label class="field"><span>Username</span><input type="text" id="aUser" autocomplete="username" required minlength="3" maxlength="24"></label>`
+            : `<label class="field"><span>Email or username</span><input type="text" id="aWho" autocomplete="username" required></label>`}
+      <label class="field"><span>Password</span><input type="password" id="aPw" autocomplete="${reg ? 'new' : 'current'}-password" required minlength="${reg ? 8 : 1}"></label>
+      <div class="err" id="aErr" role="alert"></div>
+      <button class="btn go lg wide" type="submit">${reg ? 'Create account' : 'Sign in'}</button>
+    </form>
+    ${reg ? '' : '<button class="btn ghost wide" id="aMagic" style="margin-top:8px">Email me a sign-in link instead</button>'}`);
+  b.querySelectorAll('[data-m]').forEach((x) => x.onclick = () => authSheet(x.dataset.m, then));
+  b.querySelector('#af').onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = b.querySelector('button[type=submit]'); btn.disabled = true; $('#aErr').textContent = '';
+    try {
+      if (reg) await api('/auth/register', { method: 'POST', body: { email: $('#aEmail').value, username: $('#aUser').value, password: $('#aPw').value } });
+      else await api('/auth/login', { method: 'POST', body: { who: $('#aWho').value, password: $('#aPw').value } });
+      closeSheet(); buzz(12); await refreshMe(); toast(`Signed in as ${S.user.username}`, 'good'); then ? then() : route();
+    } catch (err) { $('#aErr').textContent = err.message; btn.disabled = false; buzz([30, 40, 30]); }
+  };
+  b.querySelector('#aMagic')?.addEventListener('click', async () => {
+    const email = ($('#aWho').value.includes('@') ? $('#aWho').value : '') || prompt('Email for your sign-in link:');
+    if (!email) return;
+    try {
+      const r = await api('/auth/magic', { method: 'POST', body: { email } });
+      $('#aErr').style.color = 'var(--muted)';
+      $('#aErr').textContent = r.emailed ? 'If that email has an account, a link is on its way.' : "Email isn't set up on this server, so the link was printed in the server's terminal window.";
+    } catch (err) { $('#aErr').textContent = err.message; }
+  });
+}
+function needAuth(what = 'continue') {
+  $('#view').innerHTML = `<div class="panel" style="max-width:460px;margin:30px auto;text-align:center">
+    <h2 style="margin-bottom:6px">Sign in to ${esc(what)}</h2><p class="muted" style="margin-bottom:18px">Your balance, orders and wallet live in your account.</p>
+    <div class="row" style="display:flex;gap:10px;justify-content:center"><button class="btn go" id="na">Sign in</button><button class="btn" id="nr">Create account</button></div></div>`;
+  $('#na').onclick = () => authSheet('in'); $('#nr').onclick = () => authSheet('up');
+}
+
+/* ── shop ── */
+const SEARCH_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
+let shopFilter = { q: '', cat: '', cc: '' };
+
+async function viewShop() {
+  $('#view').innerHTML = `
+    <section class="hero">
+      <div class="hero-copy">
+        <h1>Gift cards, subscriptions and top-ups, paid from your balance.</h1>
+        <p>Fund your wallet with Bitcoin, pick what you need, and the code or login lands on your Orders page as soon as you pay.</p>
+        <label class="search">${SEARCH_ICON}<input type="search" id="q" placeholder="Search Netflix, Steam, Amazon…" value="${esc(shopFilter.q)}" aria-label="Search the shop"></label>
+      </div>
+      <div id="liveSlot"></div>
+    </section>
+    <div class="filters"><div class="chips" id="cats" style="flex:1"></div><select id="cc" aria-label="Region"><option value="">All regions</option></select></div>
+    <div class="sect"><h2>Marketplace</h2><p id="count"></p></div>
+    <div class="shop" id="grid"><div class="empty">Loading the shelves…</div></div>
+    <section id="playStrip" style="margin-top:40px"></section>`;
+  paintLive(); paintPlayStrip();
+  let groups = [];
+  try { groups = (await api('/groups')).groups; }
+  catch (e) { $('#grid').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  if (!groups.length) { $('#grid').innerHTML = '<div class="empty">Nothing on the shelves yet. Add product groups in the admin panel.</div>'; $('#count').textContent = ''; return; }
+  const cats = [...new Set(groups.map((g) => g.category || 'Other'))].sort();
+  const ccs = [...new Set(groups.map((g) => g.country).filter(Boolean))].sort();
+  $('#cats').innerHTML = `<button class="chip ${shopFilter.cat ? '' : 'on'}" data-c="">All</button>` +
+    cats.map((c) => `<button class="chip ${shopFilter.cat === c ? 'on' : ''}" data-c="${esc(c)}"><i style="background:${hueOf(c)}"></i>${esc(c)}</button>`).join('');
+  $('#cc').innerHTML += ccs.map((c) => `<option value="${esc(c)}" ${shopFilter.cc === c ? 'selected' : ''}>${flag(c)} ${esc(c === 'WW' ? 'Worldwide' : c)}</option>`).join('');
+  const paint = () => {
+    const t = shopFilter.q.trim().toLowerCase();
+    const list = groups.filter((g) => (!t || `${g.name} ${g.category} ${(g.tags || []).join(' ')}`.toLowerCase().includes(t))
+      && (!shopFilter.cat || (g.category || 'Other') === shopFilter.cat) && (!shopFilter.cc || g.country === shopFilter.cc));
+    $('#count').textContent = `${list.length} of ${groups.length}`;
+    $('#grid').innerHTML = list.length ? list.map(groupCard).join('') : `<div class="empty">Nothing matches "${esc(shopFilter.q)}". Try a shorter search or another category.</div>`;
+  };
+  $('#q').oninput = (e) => { shopFilter.q = e.target.value; paint(); };
+  $('#cats').onclick = (e) => { const b = e.target.closest('[data-c]'); if (!b) return; shopFilter.cat = b.dataset.c;
+    $('#cats').querySelectorAll('.chip').forEach((x) => x.classList.toggle('on', x === b)); paint(); };
+  $('#cc').onchange = (e) => { shopFilter.cc = e.target.value; paint(); };
+  paint();
+}
+function groupCard(g) {
+  const out = g.from_cents == null;
+  return `<a class="g ${out ? 'out' : ''}" href="#/g/${encodeURIComponent(g.slug)}" style="--hue:${hueOf(g.category)}">
+    <div class="g-art">${g.logo_url ? `<img src="${esc(g.logo_url)}" alt="" loading="lazy">` : `<span class="mono-l">${esc((g.name || '?')[0])}</span>`}<span class="flag">${flag(g.country)}</span></div>
+    <div class="g-body"><div class="g-name">${esc(g.name)}</div><div class="g-cat"><i></i>${esc(g.category || 'Other')}</div>
+      <div class="g-foot"><span class="g-price num">${out ? 'Out of stock' : 'from ' + money(g.from_cents)}</span>
+        ${out ? '' : `<span class="g-opts">${g.option_count} option${g.option_count == 1 ? '' : 's'}</span>`}</div></div></a>`;
+}
+
+/* the one loud thing on the page: a live Survivor table */
+async function paintLive() {
+  clearInterval(S.livePoll);
+  const slot = $('#liveSlot'); if (!slot) return;
+  const load = async () => { try { S.pool = await api('/pool/lobby'); } catch { S.pool = null; } };
+  const draw = () => {
+    if (!$('#liveSlot')) return;
+    const ts = (S.pool?.tables || []).filter((t) => t.round);
+    if (!ts.length) { $('#liveSlot').innerHTML = ''; return; }
+    const t = [...ts].sort((a, b) => b.round.seats / b.maxSeats - a.round.seats / a.maxSeats || b.maxSeats - a.maxSeats)[0];
+    const r = t.round, n = t.maxSeats, L = t.losers || 1, left = n - r.seats;
+    const f = t.stake * L, share = Math.floor((f - Math.floor(f * (r.feeBps ?? 1000) / 10000)) / (n - L));
+    const dots = Array.from({ length: n }, (_, i) => {
+      const a = -Math.PI / 2 + i * 2 * Math.PI / n, x = 50 + 43 * Math.cos(a), y = 50 + 43 * Math.sin(a);
+      return `<circle cx="${x}" cy="${y}" r="4.6" fill="${i < r.seats ? 'var(--mint)' : 'none'}" stroke="${i < r.seats ? 'none' : 'var(--line-2)'}" stroke-width="1.3" stroke-dasharray="${i < r.seats ? 0 : '2 1.6'}"/>`;
+    }).join('');
+    const mode = ({ duel: 'Duel', classic: 'Classic', squad: 'Squad', blitz: 'Blitz' })[t.mode] || t.name;
+    $('#liveSlot').innerHTML = `<a class="live" href="/casino#/survivor/${t.code}" aria-label="Open ${esc(mode)} in Survivor">
+      <div class="ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="33" fill="none" stroke="rgba(232,196,106,.3)" stroke-width="1.4" stroke-dasharray="2 2"/>${dots}</svg>
+        <div class="c"><span class="pot num">+${money(share).replace('.00', '')}</span><span class="lbl">per survivor</span></div></div>
+      <div><span class="when num">${left === 1 ? 'One seat left' : left + ' seats open'}</span><h3>Survivor · ${esc(mode)} ${money(t.stake).replace('.00', '')}</h3>
+        <p class="muted" style="font-size:14px">Everyone stakes ${money(t.stake).replace('.00', '')}. ${L} of ${n} gets knocked out, everyone else takes their stake back plus ${money(share)}.</p>
+        <p class="meta">${r.seats} of ${n} seated · 10% fee on the knocked-out stake only.</p>
+        <span class="take">Take a seat</span></div></a>`;
+  };
+  await load(); draw();
+  S.livePoll = setInterval(async () => { if (!$('#liveSlot')) return clearInterval(S.livePoll); if (!document.hidden) { await load(); draw(); } }, 8000);
+}
+
+/* ── games ── */
+const ICONS = {
+  pool: '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="20" cy="20" r="13"/><circle cx="20" cy="4.5" r="2.6" fill="currentColor"/><circle cx="33.4" cy="27.8" r="2.6" fill="currentColor"/><circle cx="6.6" cy="27.8" r="2.6" fill="currentColor"/><path d="M15 21h10M20 16v10"/></svg>',
+  crash: '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 33c9 0 16-4 22-16l3-6"/><path d="M24 9h7v7"/><path d="M5 37h30"/></svg>',
+  color: '<svg viewBox="0 0 40 40"><circle cx="15" cy="20" r="10" fill="currentColor"/><circle cx="25" cy="20" r="10" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>',
+  coin: '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.4"><ellipse cx="20" cy="20" rx="14" ry="14"/><ellipse cx="20" cy="20" rx="6" ry="14"/></svg>',
+  racing: '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 12h22M8 20h26M4 28h18"/><circle cx="32" cy="12" r="2.5" fill="currentColor"/><circle cx="28" cy="28" r="2.5" fill="currentColor"/></svg>',
+  derby: '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M10 34V20l6-9 4 3 8-6 2 6-6 5v15"/><path d="M18 34v-8"/></svg>',
+  penalty: '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 30V10h32v20"/><path d="M4 30h32" stroke-dasharray="3 3"/><circle cx="26" cy="19" r="4" fill="currentColor"/></svg>',
+};
+const GAMES = [
+  { id: 'crash', name: 'Crash', hue: '--amber', blurb: 'Cash out before it bursts' },
+  { id: 'color', name: 'Red or Black', hue: '--coral', blurb: 'Pick a side, paid 2×' },
+  { id: 'coin', name: 'Coin flip', hue: '--sky', blurb: 'Heads or tails, paid 2×' },
+  { id: 'racing', name: 'Racing', hue: '--mint', blurb: 'Four runners, up to 6.2×' },
+  { id: 'derby', name: 'Horses', hue: '--rose', blurb: 'Six in the gate, up to 14×' },
+  { id: 'penalty', name: 'Penalty', hue: '--cobalt', blurb: 'Pick a corner, paid 2×' },
+];
+const poolTile = (p) => `<a class="gt feature" href="/casino#/survivor" style="--hue:var(--gold)">${ICONS.pool}
+  <div><h3>Survivor</h3><p>Everyone stakes the same, one gets knocked out, the rest split their stake. ${p?.live?.seated ? `${p.live.seated} seated right now.` : ''}</p></div>
+  <span class="btn go">Find a table</span></a>`;
+const gameTile = (g) => `<a class="gt" href="#/play/${g.id}" style="--hue:var(${g.hue})">${ICONS[g.id]}<div><h3>${g.name}</h3><p>${g.blurb}</p></div></a>`;
+
+async function paintPlayStrip() {
+  const el = $('#playStrip'); if (!el || !S.store?.gamblingEnabled) return;
+  el.innerHTML = `<div class="sect"><h2>Play</h2><a class="btn ghost" href="/casino">Open the casino</a></div>
+    <div class="games"><a class="gt feature" href="/casino" style="--hue:var(--mint)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="16" height="15" rx="2.5"/><rect x="4.5" y="8.5" width="11" height="7" rx="1"/><path d="M8.2 8.5v7M11.8 8.5v7M18 9h2.2a1 1 0 0 1 1 1v3"/></svg>
+      <div><h3>Kohler Casino</h3><p>Rocket, Mines, Coin Flip, slots and tables, all made in-house. Try any of them free in demo mode.</p></div><span class="btn go">Enter the lobby</span></a>
+      ${S.store.poolEnabled ? poolTile(S.pool) : ''}</div>`;
+}
+
+async function viewGames() {
+  if (!S.user) return needAuth('play');
+  if (!S.cfg) S.cfg = await api('/games/config').catch(() => null);
+  const p = S.store?.poolEnabled ? await api('/pool/lobby').catch(() => null) : null;
+  $('#view').innerHTML = `<div class="stack">
+    <div><h1>Play</h1><p class="muted" style="margin-top:6px">Balance ${money(S.user.balance)}${S.cfg ? `. Max stake on instant games ${money(S.cfg.maxStake)}.` : ''}</p></div>
+    <div class="games">${p ? poolTile(p) : ''}${S.cfg ? GAMES.map(gameTile).join('') : '<div class="panel muted" style="grid-column:1/-1">Instant games are offline because the BTC price feed is unreachable. Pool Pot still works.</div>'}</div>
+    <div><div class="sect"><h2>Your recent rounds</h2></div><div class="panel"><div class="rows" id="hist"><div class="empty">Loading…</div></div></div></div></div>`;
+  const { rounds } = await api('/games/history').catch(() => ({ rounds: [] }));
+  $('#hist').innerHTML = rounds.length ? rounds.map((r) => `<div><span><b>${esc(GAMES.find((g) => g.id === r.game)?.name || r.game)}</b> at ${Number(r.multiplier).toFixed(2)}×
+      <small class="muted" style="display:block">${new Date(r.started_at).toLocaleString()}</small></span>
+      <b class="num ${r.win ? 'in' : 'out'}">${r.win ? '+' + money(r.payout_cents - r.stake_cents) : money(-r.stake_cents)}</b></div>`).join('')
+    : '<div class="empty">No rounds yet.</div>';
+}
+
+let stake = 100;
+async function viewPlay(id) {
+  if (!S.user) return needAuth('play');
+  if (!S.cfg) S.cfg = await api('/games/config');
+  const g = GAMES.find((x) => x.id === id); if (!g) return (location.hash = '#/games');
+  const picks = id === 'derby' ? S.cfg.derby : id === 'racing' ? S.cfg.racing
+    : id === 'color' ? [{ id: 'red', name: 'Red', mult: 2 }, { id: 'black', name: 'Black', mult: 2 }]
+    : id === 'coin' ? [{ id: 'h', name: 'Heads', mult: 2 }, { id: 't', name: 'Tails', mult: 2 }]
+    : id === 'penalty' ? [{ id: 'l', name: 'Left', mult: 2 }, { id: 'c', name: 'Centre', mult: 2 }, { id: 'r', name: 'Right', mult: 2 }] : [];
+  let pick = picks[0]?.id || null;
+  $('#view').innerHTML = `<div style="max-width:620px;margin:0 auto;--hue:var(${g.hue})">
+    <a class="btn ghost" href="#/games" style="margin-bottom:12px;padding-left:0">Back to games</a>
+    <div class="stage" id="stage"><div style="text-align:center"><div style="color:var(--hue)">${ICONS[id].replace('<svg', '<svg width="56" height="56"')}</div><h2 style="margin-top:10px">${g.name}</h2><p class="msg">${g.blurb}</p></div></div>
+    <div class="stakes chips" id="stakes">${S.cfg.stakes.map((s) => `<button class="chip ${s === stake ? 'on' : ''}" data-s="${s}">${money(s).replace('.00', '')}</button>`).join('')}</div>
+    ${picks.length ? `<div class="pick" id="picks">${picks.map((p, i) => `<button class="${i ? '' : 'on'}" data-p="${p.id}"><span>${esc(p.name)}</span><b>${p.mult}×</b></button>`).join('')}</div>` : ''}
+    <button class="btn go lg wide" id="go">${id === 'crash' ? 'Launch' : 'Play ' + money(stake)}</button></div>`;
+  $('#stakes').onclick = (e) => { const b = e.target.closest('[data-s]'); if (!b) return; stake = +b.dataset.s; buzz(8);
+    $('#stakes').querySelectorAll('.chip').forEach((x) => x.classList.toggle('on', x === b)); $('#go').textContent = id === 'crash' ? 'Launch' : 'Play ' + money(stake); };
+  if (picks.length) $('#picks').onclick = (e) => { const b = e.target.closest('[data-p]'); if (!b) return; pick = b.dataset.p; buzz(8);
+    $('#picks').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); };
+  $('#go').onclick = () => (id === 'crash' ? startCrash() : playInstant(id, pick));
+}
+function settleUi(win, payout, at) {
+  const s = $('#stage');
+  s.innerHTML = win
+    ? `<div style="text-align:center"><div class="big win num">${at ? at.toFixed(2) + '×' : '+' + money(payout)}</div><p class="msg">You won ${money(payout)}</p></div>`
+    : `<div style="text-align:center"><div class="big num" style="color:var(--coral)">${at ? at.toFixed(2) + '×' : 'Miss'}</div><p class="msg">Stake ${money(stake)} lost</p></div>`;
+  if (win) { winSound(); buzz([10, 25, 10, 25, 40]); s.classList.add('pulse'); } else { loseSound(); buzz([40]); s.classList.add('shake'); }
+  setTimeout(() => s.classList.remove('pulse', 'shake'), 600);
+  refreshMe();
+}
+async function playInstant(game, pick) {
+  const btn = $('#go'); btn.disabled = true; $('#stage').innerHTML = '<div class="big">…</div>'; buzz(12);
+  try { const r = await api('/games/play', { method: 'POST', body: { game, stakeCents: stake, pick } }); await new Promise((x) => setTimeout(x, 450)); settleUi(r.win, r.payout, null); }
+  catch (e) { toast(e.message, 'bad'); if (e.status === 402) depositSheet(); $('#stage').innerHTML = `<p class="msg">${esc(e.message)}</p>`; }
+  finally { btn.disabled = false; }
+}
+let crashTimer = null, crashRound = null, cashed = false;
+async function startCrash() {
+  const btn = $('#go'); btn.disabled = true;
+  try {
+    const { roundId, startedAt } = await api('/games/crash/start', { method: 'POST', body: { stakeCents: stake } });
+    crashRound = roundId; cashed = false; $('#stage').innerHTML = '<div class="big num" id="mult">1.00×</div>';
+    btn.textContent = 'Cash out'; btn.className = 'btn money lg wide'; btn.disabled = false; btn.onclick = cashout; buzz(15);
+    const t0 = new Date(startedAt).getTime(); let last = 1;
+    crashTimer = setInterval(async () => {
+      const el = Date.now() - t0, m = Math.exp(0.09 * (el / 1000)); $('#mult').textContent = m.toFixed(2) + '×';
+      if (Math.floor(m) > last) { last = Math.floor(m); tone(900, 0.03, 'square', 0.02); }
+      if (el > 22000) { clearInterval(crashTimer); await bust(); }
+    }, 40);
+    refreshMe();
+  } catch (e) { toast(e.message, 'bad'); btn.disabled = false; }
+}
+async function cashout() {
+  if (!crashRound || cashed) return; cashed = true; clearInterval(crashTimer); $('#go').disabled = true;
+  try { const r = await api('/games/crash/cashout', { method: 'POST', body: { roundId: crashRound } }); settleUi(r.win, r.payout, r.at); } catch (e) { toast(e.message, 'bad'); }
+  resetCrash();
+}
+async function bust() { if (!crashRound) return; const r = await api('/games/crash/bust', { method: 'POST', body: { roundId: crashRound } }).catch(() => ({ at: 1 })); settleUi(false, 0, r.at); resetCrash(); }
+function resetCrash() { crashRound = null; const b = $('#go'); if (!b) return; b.disabled = false; b.textContent = 'Launch'; b.className = 'btn go lg wide'; b.onclick = startCrash; refreshMe(); }
+
+/* ── product group ── */
+async function viewGroup(slug) {
+  const { group, options } = await api('/groups/' + encodeURIComponent(slug));
+  S.group = group; S.sel = options.find((o) => o.stock !== 0) || null;
+  const bps = S.store?.feeBps ?? 100;
+  $('#view').innerHTML = `<a class="btn ghost" href="#/shop" style="margin-bottom:12px;padding-left:0">Back to the shop</a>
+    <div class="prod" style="--hue:${hueOf(group.category)}">
+      <div class="stack">
+        <div class="prod-art">${group.logo_url ? `<img src="${esc(group.logo_url)}" alt="">` : `<span class="mono-l">${esc(group.name[0])}</span>`}</div>
+        <div><div class="g-cat" style="margin-bottom:8px"><i></i>${esc(group.category || 'Other')}<span>${flag(group.country)} ${group.country === 'WW' ? 'Works worldwide' : esc(group.country)}</span></div>
+          <h1>${esc(group.name)}</h1>
+          <p class="muted" style="margin-top:12px;max-width:62ch;white-space:pre-line">${esc(group.description || 'No description yet.')}</p></div>
+      </div>
+      <div class="panel" style="position:sticky;top:84px">
+        <h3 style="margin-bottom:12px">Choose an option</h3>
+        <div id="opts" role="radiogroup">${options.length ? '' : '<div class="empty" style="padding:16px">Out of stock right now.</div>'}</div>
+        <div class="sum" id="sum" style="margin-top:14px"></div>
+        <button class="btn go lg wide" id="buy" style="margin-top:14px">Buy now</button>
+        <p class="muted" style="font-size:12.5px;margin-top:10px">Paid from your Kohler balance. Delivery details appear on your Orders page right away.</p>
+      </div></div>`;
+  const paint = () => {
+    $('#opts').innerHTML = options.map((o, i) => `<div class="opt ${o === S.sel ? 'sel' : ''} ${o.stock === 0 ? 'sold' : ''}" data-i="${i}" role="radio" aria-checked="${o === S.sel}" tabindex="0">
+      <span class="radio"></span><span class="nm">${esc(o.name)}<span class="stk" style="display:block">${o.stock === 0 ? 'Sold out' : o.stock == null ? 'In stock' : o.stock + ' left'}</span></span><b class="num">${money(o.price_cents)}</b></div>`).join('');
+    const p = S.sel ? Number(S.sel.price_cents) : 0, fee = Math.ceil(p * bps / 10000);
+    $('#sum').innerHTML = S.sel ? `<div><span>Price</span><span class="num">${money(p)}</span></div><div><span>Service fee (${bps / 100}%)</span><span class="num">${money(fee)}</span></div>
+      <div class="total"><span>Total</span><span class="num">${money(p + fee)}</span></div>` : '';
+    $('#buy').disabled = !S.sel;
+  };
+  $('#opts').onclick = $('#opts').onkeydown = (e) => {
+    if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+    const o = e.target.closest('[data-i]'); if (!o) return; e.preventDefault();
+    const opt = options[+o.dataset.i]; if (opt.stock === 0) return; S.sel = opt; buzz(6); paint();
+  };
+  paint(); $('#buy').onclick = buy;
+}
+async function buy() {
+  if (!S.user) return authSheet('in', () => viewGroup(S.group.slug));
+  if (!S.sel) return;
+  const btn = $('#buy'); btn.disabled = true;
+  try {
+    const { order } = await api('/orders', { method: 'POST', body: { productId: S.sel.id } });
+    await refreshMe(); winSound(); buzz([12, 30, 12]);
+    const b = sheet(`<h2 style="margin-bottom:4px">${order.is_test ? 'Test order placed' : 'Paid. Here it is.'}</h2>
+      <p class="muted" style="margin-bottom:16px">${esc(S.group.name)}, ${esc(S.sel.name)}. Also saved on your Orders page.</p>
+      <label class="field"><span>Delivery</span><textarea readonly class="mono" style="min-height:140px">${esc(order.delivery || 'No delivery text was attached to this product.')}</textarea></label>
+      <div style="display:flex;gap:10px"><button class="btn go" style="flex:1" id="cp">Copy</button><button class="btn" id="done">Go to orders</button></div>`);
+    b.querySelector('#cp').onclick = () => { navigator.clipboard?.writeText(order.delivery || ''); toast('Copied', 'good'); };
+    b.querySelector('#done').onclick = () => { closeSheet(); location.hash = '#/orders'; };
+  } catch (e) { if (e.status === 402) depositSheet(e.data?.need); else toast(e.message, 'bad'); }
+  finally { btn.disabled = false; }
+}
+function depositSheet(need) {
+  if (!S.user) return authSheet();
+  const b = sheet(`<h2 style="margin-bottom:6px">Add funds first</h2><p class="muted" style="margin-bottom:18px">${need ? `You're ${money(need)} short. ` : ''}Top up your balance, then come back to finish.</p>
+    <button class="btn go lg wide" id="go">Open wallet</button>`);
+  b.querySelector('#go').onclick = () => { closeSheet(); location.hash = '#/wallet'; };
+}
+
+/* ── wallet ── */
+const KIND = { deposit: 'Deposit', withdraw: 'Withdrawal', order: 'Purchase', bet: 'Game stake', payout: 'Game win', bonus: 'Daily bonus',
+  adjust: 'Adjustment', pool_buyin: 'Survivor seat', pool_refund: 'Survivor refund', pool_payout: 'Survivor win', vault: 'Vault purchase', casino_bet: 'Casino bet', casino_win: 'Casino win' };
+async function viewWallet() {
+  if (!S.user) return needAuth('see your wallet');
+  const w = await api('/wallet');
+  const test = !!w.test;
+  $('#view').innerHTML = `<div class="stack">
+    <h1>Wallet</h1>
+    <div class="wal">
+      <div class="panel ${test ? 'testpanel' : ''}">
+        <p class="muted" style="font-weight:600">${test ? 'Test balance (fake money)' : 'Balance'}</p>
+        <div class="balbig num" style="margin:6px 0 18px">${money(w.balance)}</div>
+        ${test ? `<p class="muted" style="margin-bottom:14px">Spend it anywhere on the site. Orders deliver a placeholder, withdrawals are simulated and Survivor seats you with simulated players.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn warn" data-add="10000">Add $100</button><button class="btn" data-add="50000">Add $500</button><button class="btn" data-add="100000">Add $1,000</button></div>`
+        : `<button class="btn" id="bonus">Claim daily bonus</button>`}
+      </div>
+      ${test ? `<div class="panel"><h3>Deposits</h3><p class="muted" style="margin-top:8px">Test accounts don't get a Bitcoin address. Use the buttons on the left to add fake money.</p></div>`
+      : `<div class="panel"><h3 style="margin-bottom:12px">Deposit Bitcoin</h3>${w.address ? `
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><img class="qr" src="${w.qr}" alt="QR code for your deposit address">
+          <div style="flex:1;min-width:200px"><div class="addr" id="addr">${esc(w.address)}</div><button class="btn wide" id="cpAddr" style="margin-top:10px">Copy address</button></div></div>
+        ${KohlerWithdraw.incoming(w.incoming, esc)}
+        <p class="muted" style="font-size:13.5px;margin-top:14px">Send BTC only. Your balance is credited in dollars once the payment has enough confirmations. Bought BTC on Cash App or PayPal? Send it here; don't send those transfers directly.</p>`
+        : `<p class="muted">Deposits aren't available right now${w.addressError ? `: ${esc(w.addressError)}` : ''}.</p>`}</div>`}
+    </div>
+    <div class="wal">
+      <div class="panel"><h3 style="margin-bottom:14px">Withdraw${test ? ' (simulated)' : ''}</h3><div id="kwMount"></div><div id="kwList"></div></div>
+      <div class="panel"><h3 style="margin-bottom:6px">Activity</h3><div class="rows act">${w.ledger.length ? w.ledger.map((l) => `<div>
+        <span><span class="k">${KIND[l.kind] || esc(l.kind)}${l.meta?.test ? ' <span class="pill">test</span>' : ''}</span><small>${new Date(l.created_at).toLocaleString()}</small></span>
+        <b class="num ${Number(l.delta_cents) >= 0 ? 'in' : 'out'}">${Number(l.delta_cents) >= 0 ? '+' : ''}${money(l.delta_cents)}</b></div>`).join('') : '<div class="empty">Nothing yet. Your deposits, purchases and wins will show here.</div>'}</div></div>
+    </div></div>`;
+  $('#cpAddr')?.addEventListener('click', () => { navigator.clipboard?.writeText(w.address); toast('Address copied', 'good'); });
+  $('#bonus')?.addEventListener('click', async () => { try { const r = await api('/wallet/bonus', { method: 'POST' }); winSound(); toast('Daily bonus +' + money(r.amount), 'good'); refreshMe(); viewWallet(); } catch (e) { toast(e.message === 'not yet' ? 'Already claimed. Come back tomorrow.' : e.message, 'bad'); } });
+  $('#view').querySelectorAll('[data-add]').forEach((b) => b.onclick = async () => { try { await api('/wallet/test-topup', { method: 'POST', body: { amountCents: +b.dataset.add } }); buzz(10); await refreshMe(); viewWallet(); } catch (e) { toast(e.message, 'bad'); } });
+  const showList = () => KohlerWithdraw.list($('#kwList'), { api, money, esc });
+  KohlerWithdraw.mount($('#kwMount'), { api, money, esc, balance: w.balance, test, cls: { primary: 'btn go', ghost: 'btn' },
+    onDone: () => { refreshMe(); showList(); } });
+  showList();
+}
+
+/* ── orders ── */
+async function viewOrders() {
+  if (!S.user) return needAuth('see your orders');
+  const { orders } = await api('/orders');
+  $('#view').innerHTML = `<div class="stack"><h1>Orders</h1><div class="panel orders">${orders.length ? orders.map((o) => `<div class="o">
+      <div style="display:flex;justify-content:space-between;gap:12px"><b>${esc(o.group_name || 'Product')} <span class="muted" style="font-weight:500">${esc(o.name || '')}</span></b><b class="num">${money(o.price_cents)}</b></div>
+      <div class="muted" style="font-size:13px">${new Date(o.created_at).toLocaleString()} ${String(o.delivery || '').startsWith('TEST ORDER') ? '<span class="pill">test</span>' : ''}</div>
+      ${o.delivery ? `<button class="btn" style="margin-top:10px;height:38px" data-d="${esc(o.delivery)}">Show delivery</button>` : ''}</div>`).join('')
+    : '<div class="empty">No orders yet. <a href="#/shop" style="text-decoration:underline">Browse the shop</a>.</div>'}</div></div>`;
+  $('#view').querySelectorAll('[data-d]').forEach((b) => b.onclick = () => {
+    const s = sheet(`<h2 style="margin-bottom:12px">Delivery</h2><textarea readonly class="mono" style="min-height:160px">${esc(b.dataset.d)}</textarea>
+      <button class="btn go wide" style="margin-top:12px" id="cp">Copy</button>`);
+    s.querySelector('#cp').onclick = () => { navigator.clipboard?.writeText(b.dataset.d); toast('Copied', 'good'); };
+  });
+}
+
+/* ── help ── */
+async function viewSupport() {
+  $('#view').innerHTML = `<div class="stack" style="max-width:720px">
+    <div><h1>Help</h1><p class="muted" style="margin-top:6px">Tell us what happened. We reply through the contact you leave.</p></div>
+    <form class="panel" id="sf">
+      <label class="field"><span>Name</span><input type="text" id="sName" value="${esc(S.user?.username || '')}" required></label>
+      <label class="field"><span>Where can we reach you? (email, Telegram or Discord)</span><input type="text" id="sContact" value="${esc(S.user?.email || '')}" required></label>
+      <label class="field"><span>Subject</span><input type="text" id="sSubj" required></label>
+      <label class="field"><span>Message</span><textarea id="sBody" required></textarea></label>
+      <button class="btn go" type="submit">Send message</button></form>
+    <div id="threads"></div></div>`;
+  $('#sf').onsubmit = async (e) => {
+    e.preventDefault();
+    try { await api('/support', { method: 'POST', body: { name: $('#sName').value, contact: $('#sContact').value, subject: $('#sSubj').value, body: $('#sBody').value } });
+      toast('Message sent', 'good'); $('#sBody').value = ''; $('#sSubj').value = ''; loadThreads(); }
+    catch (err) { toast(err.message, 'bad'); }
+  };
+  loadThreads();
+}
+async function loadThreads() {
+  if (!S.user) return;
+  const { tickets, messages } = await api('/support');
+  if (!tickets.length) return;
+  $('#threads').innerHTML = `<div class="sect"><h2>Your conversations</h2></div><div class="panel">${tickets.map((t) => `
+    <div style="padding:12px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between"><b>${esc(t.subject)}</b><span class="pill">${t.status === 'open' ? 'Open' : 'Closed'}</span></div>
+      ${messages.filter((m) => m.ticket_id === t.id).map((m) => `<p style="font-size:14px;margin-top:8px"><b style="color:${m.from_admin ? 'var(--cobalt)' : 'var(--text)'}">${m.from_admin ? 'Kohler' : 'You'}:</b> ${esc(m.body)}</p>`).join('')}
+      <div style="display:flex;gap:8px;margin-top:10px"><input type="text" placeholder="Reply" data-r="${t.id}"><button class="btn" data-send="${t.id}">Send</button></div></div>`).join('')}</div>`;
+  $('#threads').querySelectorAll('[data-send]').forEach((b) => b.onclick = async () => {
+    const i = $(`[data-r="${b.dataset.send}"]`); if (!i.value.trim()) return;
+    await api('/support/' + b.dataset.send + '/reply', { method: 'POST', body: { body: i.value } }); loadThreads();
+  });
+}
+
+/* ── account ── */
+async function viewAccount() {
+  if (!S.user) return needAuth('manage your account');
+  const u = S.user;
+  $('#view').innerHTML = `<div class="stack" style="max-width:760px">
+    <div style="display:flex;align-items:center;gap:16px"><div class="avatar" style="width:64px;height:64px;font-size:26px;border-radius:18px">${esc(u.username[0].toUpperCase())}</div>
+      <div><h1 style="font-size:32px">${esc(u.username)}</h1><p class="muted">${esc(u.email)}${u.isAdmin ? ` <span class="pill">${u.adminRole === 'god' ? 'Full admin' : 'Catalog admin'}</span>` : ''}${u.testMode ? ' <span class="pill" style="color:var(--amber)">Test account</span>' : ''}</p></div></div>
+    ${u.isAdmin ? `<a class="panel" href="/admin" style="display:flex;justify-content:space-between;align-items:center"><div><h3>Admin panel</h3><p class="muted" style="font-size:14px">Products, orders, users, Pool Pot and the house.</p></div><span class="btn go">Open</span></a>` : ''}
+    <div class="panel"><h3 style="margin-bottom:14px">Username</h3><form id="uf" style="display:flex;gap:10px"><input type="text" id="uName" value="${esc(u.username)}" minlength="3" maxlength="24"><button class="btn" type="submit">Save</button></form></div>
+    <form class="panel" id="pf"><h3 style="margin-bottom:14px">Password</h3>
+      <label class="field"><span>Current password</span><input type="password" id="pCur" autocomplete="current-password"></label>
+      <label class="field"><span>New password (8+ characters)</span><input type="password" id="pNew" autocomplete="new-password" minlength="8"></label>
+      <button class="btn" type="submit">Change password</button></form>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn" href="/casino#/limits">Play limits and cool-off</a><a class="btn" href="#/support">Help</a><button class="btn danger" id="out">Sign out</button></div></div>`;
+  $('#uf').onsubmit = async (e) => { e.preventDefault(); try { await api('/auth/username', { method: 'POST', body: { username: $('#uName').value } }); toast('Username saved', 'good'); await refreshMe(); viewAccount(); } catch (err) { toast(err.message === 'taken' ? 'That username is taken' : err.message, 'bad'); } };
+  $('#pf').onsubmit = async (e) => { e.preventDefault(); try { await api('/auth/password', { method: 'POST', body: { current: $('#pCur').value, next: $('#pNew').value } }); toast('Password changed', 'good'); $('#pCur').value = $('#pNew').value = ''; } catch (err) { toast(err.message, 'bad'); } };
+  $('#out').onclick = async () => { await api('/auth/logout', { method: 'POST' }); S.user = null; paintUser(); location.hash = '#/shop'; };
+}
+
+/* ── router ── */
+async function route() {
+  closeSheet(); clearInterval(crashTimer); crashRound = null; clearInterval(S.livePoll);
+  const [p, arg] = (location.hash.slice(1) || '/shop').split('/').filter(Boolean);
+  if ((p === 'games' || p === 'play') && !S.store?.gamblingEnabled) { location.hash = '#/shop'; return; }
+  document.querySelectorAll('#tabs a, #nav a').forEach((a) => a.classList.toggle('on', a.dataset.r === (p === 'play' ? 'games' : p || 'shop')));
+  scrollTo(0, 0);
+  try {
+    if (p === 'g') await viewGroup(arg);
+    else if (p === 'wallet') await viewWallet();
+    else if (p === 'games' || p === 'play') { location.replace('/casino'); return; }
+    else if (p === 'orders') await viewOrders();
+    else if (p === 'support') await viewSupport();
+    else if (p === 'account') await viewAccount();
+    else await viewShop();
+  } catch (e) {
+    if (e.status === 401) needAuth();
+    else $('#view').innerHTML = `<div class="panel" style="max-width:520px;margin:30px auto"><h3>That didn't load</h3><p class="muted" style="margin:6px 0 14px">${esc(e.message)}</p><button class="btn" onclick="route()">Try again</button></div>`;
+  }
+}
+addEventListener('hashchange', route);
+(async () => {
+  try { S.store = await api('/storefront'); } catch { S.store = null; }
+  const play = !!S.store?.gamblingEnabled;
+  ['#navPlay', '#tabPlay'].forEach((s) => $(s).classList.toggle('hide', !play));
+  $('#navPool').classList.toggle('hide', !S.store?.poolEnabled);
+  await refreshMe(); route();
+  if (S.user) KohlerWithdraw.notices({ api, money, userId: S.user.id, toast: (m) => toast(m, 'good') });
+})();
+</script>
+</body>
+</html>
