@@ -19,15 +19,16 @@ console.log('connected');
 await client.query(`create table if not exists schema_migrations (
   name text primary key, applied_at timestamptz not null default now())`);
 const { rows } = await client.query('select name from schema_migrations');
-const done = new Set(rows.map((r) => r.name));
+const done = new Set(rows.map((r) => r.name.replace(/\\/g, '/')));  // Windows recorded backslashes
 
 for (const rel of files) {
-  if (done.has(rel)) { console.log('skip', rel); continue; }
+  const key = rel.split(path.sep).join('/');
+  if (done.has(key)) { console.log('skip', key); continue; }
   const sql = await fs.readFile(path.join(dbDir, rel), 'utf8');
   try {
     await client.query('begin');
     await client.query(sql);
-    await client.query('insert into schema_migrations (name) values ($1)', [rel]);
+    await client.query('insert into schema_migrations (name) values ($1)', [key]);
     await client.query('commit');
     console.log('applied', rel);
   } catch (e) {
