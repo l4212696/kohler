@@ -18,7 +18,7 @@ import { migrate, ensureTestAccount } from './lib/boot.js';
 import { createVault } from './lib/vault.js';
 import { createPayouts } from './lib/payouts.js';
 import fs from 'node:fs/promises';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, existsSync } from 'node:fs';
 
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -62,14 +62,21 @@ const KEY = (() => {
     console.warn(`[kohler] KEY_ENC is ${raw.length} characters, not 64 hex characters. Using a 32-byte key derived from it, so keep this KEY_ENC unchanged.`);
     return crypto.createHash('sha256').update(raw).digest();
   }
+  // Serverless hosts (Vercel) can't write files and run many copies at once, so a random key
+  // would differ between copies. Derive one from the database URL instead: stable everywhere.
+  if (process.env.VERCEL) {
+    console.warn('[kohler] KEY_ENC is not set. Using a key derived from DATABASE_URL. Add KEY_ENC (64 hex characters) to your environment variables.');
+    return crypto.createHash('sha256').update('kohler-key:' + (process.env.DATABASE_URL || '')).digest();
+  }
   const fresh = crypto.randomBytes(32).toString('hex');
   try {
     appendFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '.env'), `\nKEY_ENC=${fresh}\n`);
     console.warn('[kohler] KEY_ENC was missing, so a new one was generated and saved to .env. Back up your .env file.');
+    return Buffer.from(fresh, 'hex');
   } catch {
-    console.warn('[kohler] KEY_ENC is missing and .env could not be written. Using a temporary key; set KEY_ENC to 64 hex characters.');
+    console.warn('[kohler] KEY_ENC is missing and .env could not be written. Using a key derived from DATABASE_URL; set KEY_ENC (64 hex characters).');
+    return crypto.createHash('sha256').update('kohler-key:' + (process.env.DATABASE_URL || '')).digest();
   }
-  return Buffer.from(fresh, 'hex');
 })();
 
 function seal(plain) {
@@ -103,8 +110,16 @@ app.use(express.static(path.join(__dirname, 'public'), {
 }));
 
 // until migrations have run, API calls get a clear "starting" answer instead of SQL errors
-let booted = false;
-app.use('/api', (req, res, next) => (booted || req.path === '/health' ? next() : res.status(503).json({ error: 'Kohler is starting up. Try again in a few seconds.' })));
+// On serverless hosts every cold start boots, so a request waits (up to 9s) for startup instead of
+// failing, and if startup can't finish the answer says exactly why.
+let booted = false, bootError = null, bootPromise = null;
+const ensureBooted = () => (booted ? Promise.resolve() : (bootPromise ||= bootSequence().finally(() => { bootPromise = null; })));
+app.use('/api', async (req, res, next) => {
+  if (booted || req.path === '/health') return next();
+  await Promise.race([ensureBooted(), new Promise((r) => setTimeout(r, 9000))]);
+  if (booted) return next();
+  res.status(503).json({ error: bootError ? `Kohler can't start: ${bootError}` : 'Kohler is starting up. Try again in a few seconds.', reason: bootError });
+});
 
 // Keep Neon awake while people are using the site (no cold-start lag on clicks),
 // and let it sleep 15 minutes after the last visitor. DB_KEEPWARM=false turns this off.
@@ -460,6 +475,8 @@ app.get('/api/wallet', requireUser, async (req, res) => {
   }
   let address = null, addressError = null;
   try { address = await depositAddressFor(req.user.id); } catch (e) { addressError = e.message; }
+  // look for new payments to this address right now (serverless hosts have no background polling)
+  if (address) await checkDepositsFor(req.user.id);
   const [led, wd, claims, price] = await Promise.all([
     q('select delta_cents, kind, ref, created_at from ledger where user_id = $1 order by created_at desc limit 60', [req.user.id]),
     q('select * from withdrawals where user_id = $1 order by created_at desc limit 20', [req.user.id]),
@@ -551,6 +568,34 @@ async function notifyWithdrawal(id, event) {
     if (msg) await sendEmail({ to: w.email, subject: msg[0], html: `<div style="font-family:Inter,Arial,sans-serif;font-size:15px;line-height:1.5;color:#111">${msg[1]}<p style="color:#888;font-size:12px">Kohler</p></div>` });
   } catch (e) { console.error('[email] withdrawal notice', e.message); }
 }
+
+async function checkDepositsFor(userId) {
+  if (!depositWatcher) return;
+  const a = (await q('select address, idx from deposit_addresses where user_id = $1', [userId])).rows[0];
+  if (a) await Promise.race([depositWatcher.check(a).catch(() => {}), new Promise((r) => setTimeout(r, 5000))]);
+}
+// the deposit screen asks every 20s while it's open: checks the chain, returns balance and incoming
+app.post('/api/wallet/check-deposits', requireUser, async (req, res) => {
+  if (req.user.test_mode) return res.json({ balance: Number(req.user.balance_cents), incoming: [] });
+  await checkDepositsFor(req.user.id);
+  const u = (await q('select balance_cents from users where id = $1', [req.user.id])).rows[0];
+  const a = (await q('select address from deposit_addresses where user_id = $1', [req.user.id])).rows[0];
+  res.set('cache-control', 'no-store');
+  res.json({ balance: Number(u.balance_cents), incoming: a ? incomingFor(a.address) : [] });
+});
+
+// Housekeeping for hosts without background timers (Vercel): point Vercel Cron or any free cron
+// service at /api/cron/tick every few minutes with "Authorization: Bearer <CRON_SECRET>".
+app.all('/api/cron/tick', async (req, res) => {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || (req.get('authorization') !== `Bearer ${secret}` && req.query.key !== secret)) return res.status(401).json({ error: 'Set CRON_SECRET and send it as a Bearer token.' });
+  const out = {};
+  const step = async (name, fn) => { const t0 = Date.now(); try { out[name] = { ok: true, ...(await fn()) || {}, ms: Date.now() - t0 }; } catch (e) { out[name] = { ok: false, error: e.message }; } };
+  await step('deposits', async () => { await depositWatcher?.sweep({ force: true }); return { enabled: !!depositWatcher }; });
+  await step('games', async () => casino.sweep());
+  await step('autopilot', async () => ({ result: await autopilot.run() }));
+  res.json(out);
+});
 
 app.get('/api/wallet/withdrawals', requireUser, async (req, res) => {
   if (req.user.test_mode) {
@@ -828,12 +873,15 @@ app.get('/t/:code', async (req, res) => {
 <meta name="twitter:description" content="${escAttr(desc)}">
 <meta name="twitter:image" content="${escAttr(`${base}/pool-og.jpg`)}">
 <meta name="description" content="${escAttr(desc)}">
-<script>window.__SURVIVOR_CODE__=${JSON.stringify(code)}</script>`;
-  const html = await fs.readFile(path.join(__dirname, 'public', 'casino.html'), 'utf8');
+`;
+  // chat apps read the preview tags; people are sent straight into the table
+  const target = `/casino#/survivor/${code}`;
   res.set('cache-control', 'public, max-age=30');
-  res.type('html').send(html
-    .replace(/<title>[^<]*<\/title>/, `<title>${escAttr(p ? 'Survive ' + p.name + ' · Kohler' : 'Survivor · Kohler')}</title>`)
-    .replace('<!--og-->', meta));
+  res.type('html').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escAttr(p ? 'Survive ' + p.name + ' · Kohler' : 'Survivor · Kohler')}</title>${meta}
+<meta http-equiv="refresh" content="0;url=${escAttr(target)}"><link rel="icon" href="/assets/logo.svg">
+<style>body{margin:0;background:#07090d;color:#eef2f8;font:16px Inter,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh}a{color:#00ff66}</style></head>
+<body><p>Opening the table… <a href="${escAttr(target)}">tap here</a> if nothing happens.</p><script>location.replace(${JSON.stringify(target)})</script></body></html>`);
 });
 
 app.get('/api/house/meter', async (_req, res) => {
@@ -1332,8 +1380,10 @@ app.use('/api/admin', adminRouter);
 
 /* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ deposit watcher Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 
+let depositWatcher = null;
 if (chain.chainEnabled()) {
-  chain.watchDeposits({
+  depositWatcher = chain.watchDeposits({
+    poll: !process.env.VERCEL,
     addresses: async () => (await q('select address, idx from deposit_addresses')).rows,
     // seen on the blockchain but not confirmed yet: the player's wallet shows it as incoming
     onPending: ({ address, txid, sats, confs, need }) => { incoming.set(address + ':' + txid, { address, txid, sats, confs, need, at: Date.now() }); },
@@ -1413,37 +1463,48 @@ app.get('/health', async (_req, res) => {
     res.status(503).json({ ok: false, db: 'down', error: e.message, uptimeSec: Math.round(process.uptime()) });
   }
 });
-app.get('/admin', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
-app.use((_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+// pages: served from public/ on a normal server. On serverless hosts public/ is on the CDN and not
+// next to this code, so the page addresses redirect to the files the CDN serves.
+const PUBLIC = path.join(__dirname, 'public'), hasPublic = existsSync(path.join(PUBLIC, 'index.html'));
+const page = (file) => (req, res) => (hasPublic ? res.sendFile(path.join(PUBLIC, file)) : res.redirect(302, '/' + file + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '')));
+app.get(['/admin', '/admin/'], page('admin.html'));
+app.get(['/casino', '/casino/'], page('casino.html'));
+app.use((req, res) => (hasPublic ? res.sendFile(path.join(PUBLIC, 'index.html')) : req.path === '/' ? res.status(404).send('Not found') : res.redirect(302, '/')));
 
 const port = process.env.PORT || 3001;
-async function bootSequence(attempt = 1) {
+let bootTries = 0;
+async function bootSequence() {
   try {
     await migrate(pool, path.join(__dirname, 'db'));
     await ensureTestAccount(q, { email: process.env.TEST_ACCOUNT_EMAIL || 'testkohler@yopmail.com', username: 'testkohler',
       password: process.env.TEST_ACCOUNT_PASSWORD || 'test1234' }).catch((e) => console.error('[boot] test account', e.message));
     // the casino catalogue is not allowed to keep the shop and sign-in offline
     await casino.setup().catch((e) => console.error('[boot] casino catalogue:', e.message, '(the rest of the site is up; it retries on next start)'));
-    booted = true;
+    booted = true; bootError = null;
     console.log('[boot] ready: database up to date, casino catalog loaded');
     poolPot.start().catch((e) => console.error('[pool] start', e.message));
     setTimeout(() => autopilot.kick(), 10_000).unref();
   } catch (e) {
-    const wait = Math.min(60, 5 * attempt);
-    console.error(`[boot] ${e.message}. Retrying in ${wait}s (is the database reachable? npm run fix explains why not).`);
-    setTimeout(() => bootSequence(attempt + 1), wait * 1000).unref?.();
+    bootError = !process.env.DATABASE_URL ? 'DATABASE_URL is not set. Add it to your environment variables (on Vercel: Project → Settings → Environment Variables), then redeploy.'
+      : /ENOTFOUND|ECONNREFUSED|timeout|password authentication|does not exist/i.test(e.message) ? `the database is unreachable (${e.message}). Check DATABASE_URL.` : e.message;
+    const wait = Math.min(60, 5 * ++bootTries);
+    console.error(`[boot] ${bootError} Retrying in ${wait}s.`);
+    setTimeout(() => ensureBooted(), wait * 1000).unref?.();
   }
 }
-const server = app.listen(port, () => {
+ensureBooted();
+// a normal server listens on PORT; Vercel imports the app and runs it as a function
+const server = process.env.VERCEL ? null : app.listen(port, () => {
   console.log(`kohler on :${port}  →  http://localhost:${port}`);
-  bootSequence();
-  if (!chain.chainEnabled()) console.log('[chain] disabled Ã¢â‚¬â€ deposits and payouts are stubs');
+  if (!chain.chainEnabled()) console.log('[chain] disabled: deposits and payouts are stubs');
 });
+export default app;
 
 // stop cleanly on restarts/deploys: finish in-flight requests, then exit
 for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => {
   console.log(`[kohler] ${sig}: shutting down`);
   poolPot.stop();
+  if (!server) return pool.end().finally(() => process.exit(0));
   server.close(() => pool.end().finally(() => process.exit(0)));
   setTimeout(() => process.exit(0), 8000).unref();
 });

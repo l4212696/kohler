@@ -12,6 +12,7 @@
     "dbcheck": "node scripts/dbcheck.js",
     "fix": "node scripts/fix.js",
     "forever": "node scripts/forever.js",
+    "bundle-sql": "node scripts/bundle-sql.js",
 
     "newseed": "node scripts/newseed.js"
   },

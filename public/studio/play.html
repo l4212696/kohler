@@ -162,7 +162,7 @@ canvas{max-width:100%;max-height:100%}
 <script>
 const $ = (s) => document.querySelector(s);
 if (window.top !== window) document.body.classList.add('embed');
-const gameId = decodeURIComponent(location.pathname.split('/').pop());
+const gameId = new URLSearchParams(location.search).get('g') || decodeURIComponent(location.pathname.split('/').pop());
 const hp = new URLSearchParams(location.hash.slice(1));
 const token = hp.get('token'); const isDemo = hp.get('demo') === '1' || !token;
 const demoId = isDemo ? (sessionStorage.getItem('ks-demo') || (() => { const v = 'demo-' + crypto.getRandomValues(new Uint32Array(2)).join(''); sessionStorage.setItem('ks-demo', v); return v; })()) : null;

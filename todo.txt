@@ -2,3 +2,12 @@ Most withdrawals go through within 30 minutes
 
 is it set up such that you have to bet with your deposited funds to withdraw or such that if you dont bet we take a charge or sth
 
+put all extra text around platform rather in a policy page or sth
+
+sth like this
+Provably fair draw
+10% fee on the knocked-out stake only
+Kohler seats always labelled
+
+rules can still stay but some of these are not necessary
+

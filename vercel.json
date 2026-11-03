@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/casino", "destination": "/casino.html" },
+    { "source": "/admin", "destination": "/admin.html" }
+  ],
+  "crons": [
+    { "path": "/api/cron/tick", "schedule": "0 4 * * *" }
+  ]
+}

@@ -67,7 +67,7 @@ button{cursor:pointer;border:0;background:none;padding:0;touch-action:manipulati
 .balw.flash{border-color:rgba(0,255,102,.6);box-shadow:0 0 24px rgba(0,255,102,.18)}
 .balw.drop .amt{color:#ff8fa3}
 .delta.down{color:var(--rose)}
-.delta{position:absolute;right:120px;top:-4px;font-family:var(--display);font-weight:700;font-size:14px;color:var(--neon);pointer-events:none;animation:floatup 1.6s ease forwards}
+.delta{position:absolute;right:calc(100% + 10px);top:14px;white-space:nowrap;font-family:var(--display);font-weight:700;font-size:14px;color:var(--neon);pointer-events:none;animation:floatup 1.6s ease forwards}
 @keyframes floatup{0%{opacity:0;transform:translateY(10px)}15%{opacity:1}100%{opacity:0;transform:translateY(-26px)}}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border-radius:11px;font-weight:700;font-size:14px;
   background:var(--slate2);border:1px solid var(--line2);transition:transform .08s,filter .15s;white-space:nowrap}
@@ -594,7 +594,7 @@ async function wallet(tab = 'deposit') {
         : w.address ? `<p style="color:var(--dim);margin-top:0">Send Bitcoin to your personal address. It's credited in dollars after confirmation.</p>
            <div style="display:flex;justify-content:center;margin:8px 0 14px"><img src="${w.qr}" alt="Deposit QR code" style="width:180px;height:180px;border-radius:14px;background:#fff;padding:8px"></div>
            <div class="addr" id="addr">${esc(w.address)}</div><button class="btn wide" style="margin-top:10px" id="cp">${ic('layers', 16)}Copy address</button>
-           ${KohlerWithdraw.incoming(w.incoming, esc)}
+           <div id="incoming">${KohlerWithdraw.incoming(w.incoming, esc)}</div>
            <p style="color:var(--faint);font-size:12.5px;margin:12px 0 0">Send Bitcoin only. Deposits are credited after ${w.minConfirmations || 2} confirmations, and you'll see them here as soon as they're on the way.</p>`
         : `<p style="color:var(--dim)">Deposits aren't available right now${w.addressError ? ': ' + esc(w.addressError) : ''}.</p>`;
       body.querySelectorAll('[data-add]').forEach((b) => b.onclick = async () => { b.disabled = true; try { await api('/wallet/test-topup', { method: 'POST', body: { amountCents: +b.dataset.add } }); await refreshMe(); toast('Test money added'); } catch (e) { toast(e.message); } b.disabled = false; });
@@ -602,7 +602,12 @@ async function wallet(tab = 'deposit') {
       // while the deposit tab is open, check for incoming payments every 20s
       clearInterval(CS.depPoll); CS.depPoll = setInterval(async () => {
         if (!$('#drawer').classList.contains('on') || !$('#addr')) return clearInterval(CS.depPoll);
-        const before = CS.user.balance; await refreshMe(); if (CS.user.balance > before) toast(`Deposit arrived: +${money(CS.user.balance - before)}`);
+        const before = CS.user.balance;
+        try {
+          const d = await api('/wallet/check-deposits', { method: 'POST' });
+          const slot = $('#incoming'); if (slot) slot.innerHTML = KohlerWithdraw.incoming(d.incoming, esc);
+          if (d.balance > before) { await refreshMe(); toast(`Deposit arrived: +${money(d.balance - before)}`); }
+        } catch {}
       }, 20000);
     }
   } catch (e) { body.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
@@ -703,6 +708,8 @@ addEventListener('DOMContentLoaded', async () => {
   const boot = async () => {
     const [, games] = await Promise.allSettled([refreshMe(), loadGames(), loadVault(), Survivor.prefetch()]);
     paintMe();
+    const why = games.status === 'rejected' && games.reason?.data?.reason;
+    if (why) { $('#view').innerHTML = `<div class="empty"><h3>Kohler can't start yet</h3><p>${esc(why)}</p></div>`; return; }
     if (games.status === 'rejected' && games.reason?.status === 503 && tries++ < 20) { setTimeout(boot, 1500); }
     route();
     if (CS.user) KohlerWithdraw.notices({ api, money, userId: CS.user.id, toast });

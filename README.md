@@ -35,6 +35,40 @@ books. Change it with `TEST_ACCOUNT_EMAIL` / `TEST_ACCOUNT_PASSWORD` in `.env`.
 If a login fails, `npm run fix -- --check you@email.com yourpassword` says exactly why. To set a new
 password, use `npm run fix -- --reset you@email.com NewPassword123`.
 
+## 1b. Running it on Vercel
+
+The same code runs on Vercel. Vercel runs the server as short-lived functions instead of one
+program that stays on, so a few things work differently, and the code handles them:
+- **Startup.** Each cold start brings the database up to date. Migrations come from `lib/sql-bundle.js`
+  because Vercel doesn't ship the `db/` folder. Run `npm run bundle-sql` after adding a migration.
+- **Startup errors.** If startup can't finish, every API answer says why (for example "DATABASE_URL is
+  not set"), and so does the casino page. Before, it only said "starting up" forever.
+- **Pages and games.** Pages and the game client are plain files on Vercel's CDN. `/casino` and `/admin`
+  map to them (`vercel.json`), and games open at `/studio/play.html?g=<game>`.
+- **Casino payments.** Casino games pay out by calling the wallet code directly inside the same function,
+  with the same transactions and duplicate protection. This is faster everywhere.
+
+**Environment variables (Vercel → Project → Settings → Environment Variables).** Your `.env` is not
+uploaded, so copy these across, then redeploy:
+`DATABASE_URL`, `KEY_ENC` (**the exact same value as your `.env`**, or saved wallet keys can't be read),
+`SESSION_SECRET`, `PUBLIC_URL=https://your-domain`, `COOKIE_SECURE=true`, `CHAIN_ENABLED`, `BTC_NETWORK`,
+`MEMPOOL_API`, `DEPOSIT_MNEMONIC`, `MIN_CONFIRMATIONS`, `PLATFORM_FEE_BPS`, plus `RESEND_API_KEY`,
+`MAIL_FROM`, `ALERT_EMAIL` if you use email, and a new random `CRON_SECRET`.
+
+**Background jobs.** Vercel doesn't keep timers running between requests. These still work:
+- **Deposits** are checked whenever a player opens their wallet, and every 20 seconds while the deposit
+  screen is open.
+- **Survivor** settles the moment a table fills.
+- **Autopilot** runs on traffic.
+- **Everything else** (all deposit addresses, unattended Rocket/Mines rounds, automatic payouts) runs
+  from `/api/cron/tick`. `vercel.json` calls it once a day, which is the most the free plan allows. For
+  every 5 minutes, add a free job at cron-job.org that calls
+  `https://your-domain/api/cron/tick?key=<CRON_SECRET>`.
+
+**Two rules to know about.** Vercel's free Hobby plan is for personal, non-commercial use only, so a site
+that takes money needs Pro ($20/month). Vercel's Acceptable Use Policy also forbids content that promotes
+or facilitates *unlawful* online gambling, so get the licence question settled (§9) before going live there.
+
 ## 2. Why buttons felt slow, and what changed
 
 Most of the delay was the database, not the site:
