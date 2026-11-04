@@ -2,7 +2,7 @@
 // Pages, scripts and styles always come from the network first (so a new deploy shows up at
 // once) and fall back to the last copy only when offline. Money and account calls (/api) are
 // never cached. Avatar pictures and flags never change, so they're served from the cache.
-const VERSION = 'kohler-v1';
+const VERSION = 'kohler-v2';
 const OFFLINE = '/offline.html';
 const PRECACHE = [OFFLINE, '/assets/logo.svg', '/assets/app/icon-192.png', '/kohler.css'];
 

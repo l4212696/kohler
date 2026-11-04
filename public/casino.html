@@ -530,6 +530,7 @@ function origArt(engine, a) {
   return '';
 }
 origArt.n = 0;   // unique ids for each tile's gradients
+const KNOWN_ENGINES = new Set(['slot', 'rocket', 'mines', 'coinflip', 'limbo', 'keno', 'dice', 'plinko', 'wheel', 'roulette', 'blackjack']);
 function art(g, big) {
   const t = g.theme || {}, a = t.a || '#00ff66', b = t.b || '#07090d';
   const bg = `background:radial-gradient(120% 80% at 50% 10%,${a}aa 0%,${a}22 40%,${b} 78%)`;
@@ -764,7 +765,10 @@ function route() {
   lobby();
 }
 async function loadGames() {
-  const g = await api('/casino/games'); CS.games = g.games; CS.recent = g.recent; CS.open = g.open;
+  const g = await api('/casino/games');
+  // only list games this page knows how to show: a newer catalog (another server on the same
+  // database, or a deploy still rolling out) never shows a broken tile
+  CS.games = g.games.filter((x) => x.provider !== 'Kohler Studio' || KNOWN_ENGINES.has(x.engine)); CS.recent = g.recent; CS.open = g.open;
   $('#cSlots').textContent = CS.games.filter((x) => x.category === 'slots').length;
   $('#cTable').textContent = CS.games.filter((x) => x.category === 'table').length;
   $('#cOrig').textContent = CS.games.filter((x) => x.category === 'originals').length + 1;
