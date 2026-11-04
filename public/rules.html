@@ -48,7 +48,7 @@ footer{color:var(--faint);font-size:13px;margin-top:30px;text-align:center}
   <h1>Rules &amp; fees</h1>
   <p class="lead">Everything about how Kohler works, in one place.</p>
   <div class="toc">
-    <a href="#survivor">Survivor</a><a href="#casino">Casino games</a><a href="#money">Deposits &amp; withdrawals</a><a href="#shop">Shop orders</a><a href="#vault">Vault</a><a href="#play">Playing safely</a>
+    <a href="#survivor">Survivor</a><a href="#casino">Casino games</a><a href="#money">Deposits &amp; withdrawals</a><a href="#bonus">Bonuses</a><a href="#shop">Shop orders</a><a href="#vault">Vault</a><a href="#play">Playing safely</a>
   </div>
 
   <section id="survivor">
@@ -111,6 +111,24 @@ footer{color:var(--faint);font-size:13px;margin-top:30px;text-align:center}
     </ul>
   </section>
 
+  <section id="bonus">
+    <h2>Bonuses &amp; referrals</h2>
+    <h3>First deposit</h3>
+    <p>Your first deposit is matched <b class="v" data-promo="pct">100%</b>, up to <b class="v" data-promo="cap">$50</b>. The match is bonus money.</p>
+    <h3>Bonus money</h3>
+    <ul>
+      <li>Bonus money can be played in the casino and Survivor straight away.</li>
+      <li>It can't be withdrawn or spent in the shop until you've played <b class="v" data-promo="x">5</b> times its amount. Every bet counts. After that it's ordinary money.</li>
+      <li>Your own deposits and winnings are never locked: you can always withdraw what isn't bonus.</li>
+    </ul>
+    <h3>Referrals</h3>
+    <ul>
+      <li>Share your link or code (Account → Invite friends). A friend counts once they've deposited at least <b class="v" data-promo="min">$10</b>.</li>
+      <li>Every <b class="v" data-promo="every">10</b> friends who count earns you <b class="v" data-promo="reward">$10</b> of bonus money, then the next group, and so on.</li>
+      <li>One account per person. Accounts made to refer yourself are closed and their rewards removed.</li>
+    </ul>
+  </section>
+
   <section id="vault">
     <h2>Vault</h2>
     <ul>
@@ -137,6 +155,11 @@ document.getElementById('yr').textContent = new Date().getFullYear();
 const pct = (bps) => (Math.round(bps) / 100).toString().replace(/\.0+$/, '') + '%';
 const set = (k, bps) => { if (Number.isFinite(bps)) document.querySelectorAll(`[data-fee="${k}"]`).forEach((e) => e.textContent = pct(bps)); };
 fetch('/api/pool/lobby').then((r) => r.ok ? r.json() : null).then((d) => d && set('pool', Number(d.settings?.feeBps))).catch(() => {});
+fetch('/api/promos/offer').then((r) => r.ok ? r.json() : null).then((d) => {
+  const money = (c) => '$' + (c / 100).toFixed(c % 100 ? 2 : 0), put = (k, v) => document.querySelectorAll(`[data-promo="${k}"]`).forEach((e) => (e.textContent = v));
+  if (d?.first) { put('pct', d.first.pct + '%'); put('cap', money(d.first.cap)); put('x', d.first.wagerX); }
+  if (d?.referral) { put('every', d.referral.every); put('reward', money(d.referral.reward)); put('min', money(d.referral.minDeposit)); }
+}).catch(() => {});
 fetch('/api/storefront').then((r) => r.ok ? r.json() : null).then((d) => d && set('shop', Number(d.feeBps))).catch(() => {});
 </script>
 </body>

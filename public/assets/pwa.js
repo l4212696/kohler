@@ -28,5 +28,11 @@
   document.addEventListener('DOMContentLoaded', show);
   let queued = false;
   new MutationObserver(() => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; show(); }); } }).observe(document.documentElement, { childList: true, subtree: true });
+  // referral: ?ref=CODE (or /r/CODE) is remembered for 30 days and sent with sign-up
+  try {
+    const ref = new URLSearchParams(location.search).get('ref');
+    if (ref && /^[A-Za-z0-9]{4,12}$/.test(ref)) localStorage.setItem('kohler-ref', JSON.stringify({ code: ref.toUpperCase(), at: Date.now() }));
+  } catch {}
+  window.KohlerRef = () => { try { const r = JSON.parse(localStorage.getItem('kohler-ref') || 'null'); return r && Date.now() - r.at < 30 * 864e5 ? r.code : ''; } catch { return ''; } };
   window.KohlerApp = { standalone };
 })();

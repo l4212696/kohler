@@ -1,0 +1,592 @@
+{
+    "schema_version":  "1.0",
+    "brand":  {
+                  "name":  "Kohler",
+                  "short_name":  "Kohler",
+                  "category":  "Digital goods shop, in-house casino, and collectible avatar vault",
+                  "positioning":  "A premium, high-energy digital destination where players shop, play original games, and build a visual identity.",
+                  "personality":  [
+                                      "confident",
+                                      "electric",
+                                      "premium",
+                                      "playful",
+                                      "transparent",
+                                      "self-contained"
+                                  ],
+                  "promise":  "One balance. A full playground. Your look, your table, your moment.",
+                  "tagline_options":  [
+                                          "Play the moment.",
+                                          "Make your move.",
+                                          "Your table. Your style.",
+                                          "Shop it. Play it. Own it.",
+                                          "Built for the bold."
+                                      ]
+              },
+    "identity":  {
+                     "logo":  {
+                                  "concept":  "An ivory vertical stem and a cut gold geometric gem form a K.",
+                                  "primary_use":  "Use the full Kohler wordmark on flyers and campaign headers.",
+                                  "compact_use":  "Use the geometric K mark for avatars, badges, coins, favicons, and square social assets.",
+                                  "clear_space":  "Keep clear space equal to the width of the K stem on every side.",
+                                  "do_not":  [
+                                                 "Do not stretch, skew, rotate, redraw, or add effects to the mark.",
+                                                 "Do not place the gold mark on a low-contrast yellow background.",
+                                                 "Do not use the mark to imply a government, banking, or licensed gaming endorsement."
+                                             ]
+                              },
+                     "colors":  {
+                                    "obsidian":  "#07090D",
+                                    "ink":  "#0E131B",
+                                    "slate":  "#151C27",
+                                    "slate_light":  "#1D2634",
+                                    "text":  "#EEF2F8",
+                                    "muted":  "#8B96AA",
+                                    "faint":  "#5D6779",
+                                    "neon_green":  "#00FF66",
+                                    "action_green":  "#00E05A",
+                                    "action_green_dark":  "#00C94F",
+                                    "gold":  "#E8C46A",
+                                    "gold_dark":  "#C99A35",
+                                    "coral":  "#FF5C7A",
+                                    "violet":  "#A78BFA",
+                                    "sky":  "#38BDF8",
+                                    "rose":  "#F472B6",
+                                    "usage":  {
+                                                  "neon_green":  "Primary action, positive movement, deposits, active states, and energy.",
+                                                  "gold":  "Premium products, wins, rewards, VIP moments, and the geometric K.",
+                                                  "coral":  "Money out, warnings, risk notices, and destructive actions.",
+                                                  "obsidian_and_ink":  "Primary backgrounds and premium contrast surfaces.",
+                                                  "category_accents":  "Use supporting hues to distinguish game or shop categories without changing the core brand."
+                                              },
+                                    "contrast_rule":  "Use light text on dark surfaces. Use near-black text on neon green or gold buttons."
+                                },
+                     "typography":  {
+                                        "display":  {
+                                                        "family":  "Unbounded",
+                                                        "weights":  [
+                                                                        500,
+                                                                        600,
+                                                                        700,
+                                                                        800
+                                                                    ],
+                                                        "use":  "Headlines, campaign titles, game names, hero statements, and short labels."
+                                                    },
+                                        "body":  {
+                                                     "family":  "Inter",
+                                                     "weights":  [
+                                                                     400,
+                                                                     500,
+                                                                     600,
+                                                                     700
+                                                                 ],
+                                                     "use":  "Supporting copy, details, disclaimers, navigation, and calls to action."
+                                                 },
+                                        "numeric":  {
+                                                        "family":  "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+                                                        "use":  "Balances, odds, prices, limits, IDs, and technical values."
+                                                    },
+                                        "rules":  [
+                                                      "Use tight tracking and compact line lengths for display headlines.",
+                                                      "Keep body copy direct and scannable.",
+                                                      "Never use decorative script or novelty display fonts."
+                                                  ]
+                                    },
+                     "visual_language":  {
+                                             "surfaces":  "Obsidian panels with subtle borders, rounded corners, and soft depth.",
+                                             "lighting":  "Controlled neon green and warm gold glows against dark space.",
+                                             "shapes":  "Rounded cards, chips, coins, geometric gems, table circles, and crisp diagonal cuts.",
+                                             "imagery":  "Expressive, exaggerated, fully clothed characters and objects with a premium 3D or polished illustrated finish.",
+                                             "composition":  "One dominant subject, strong negative space, a clear headline, and one primary action.",
+                                             "motion_hint":  "Suggest momentum with streaks, sparks, falling coins, radial bursts, or a rising trajectory; keep the design legible when static."
+                                         },
+                     "voice":  {
+                                   "traits":  [
+                                                  "short",
+                                                  "decisive",
+                                                  "specific",
+                                                  "welcoming",
+                                                  "transparent"
+                                              ],
+                                   "sentence_style":  "Use active verbs, concrete nouns, and short punchy sentences.",
+                                   "preferred_words":  [
+                                                           "move",
+                                                           "moment",
+                                                           "table",
+                                                           "vault",
+                                                           "drop",
+                                                           "stack",
+                                                           "spin",
+                                                           "build",
+                                                           "discover",
+                                                           "play"
+                                                       ],
+                                   "avoid":  [
+                                                 "guaranteed win",
+                                                 "risk-free",
+                                                 "get rich",
+                                                 "easy money",
+                                                 "free money",
+                                                 "beat the house",
+                                                 "addiction",
+                                                 "desperate",
+                                                 "loser",
+                                                 "victim"
+                                             ],
+                                   "copy_rules":  [
+                                                      "Never promise a result or imply that a player can recover losses.",
+                                                      "Never hide fees, limits, eligibility, or jurisdictional restrictions.",
+                                                      "Describe paid games as entertainment and include the approved responsible-play footer where applicable.",
+                                                      "Use Bitcoin only when the specific asset is about deposits, withdrawals, or the wallet."
+                                                  ]
+                               }
+                 },
+    "asset_defaults":  {
+                           "flyer":  {
+                                         "recommended_sizes":  [
+                                                                   "1080x1350",
+                                                                   "1080x1080",
+                                                                   "1920x1080",
+                                                                   "A4 portrait"
+                                                               ],
+                                         "safe_margin_percent":  7,
+                                         "hierarchy":  [
+                                                           "Kohler mark or wordmark",
+                                                           "One-line headline",
+                                                           "Hero visual",
+                                                           "One supporting benefit",
+                                                           "Primary call to action",
+                                                           "Required legal or responsible-play footer"
+                                                       ],
+                                         "cta_examples":  [
+                                                              "Explore the Vault",
+                                                              "Enter the Casino",
+                                                              "Meet Survivor",
+                                                              "Shop the drop",
+                                                              "Build your look"
+                                                          ]
+                                     },
+                           "image_prompt_suffix":  "Premium Kohler campaign art, obsidian background, neon green and warm gold accents, polished 3D illustration, dramatic but clean lighting, expressive subject, fully clothed and family-friendly, no text, no logos, no watermark, high contrast, clear negative space for headline."
+                       },
+    "guardrails":  {
+                       "brand_safety":  [
+                                            "No minors, nudity, sexualized content, graphic violence, hate symbols, illegal drugs, or real-person likenesses.",
+                                            "Do not imitate another company\u0027s logo, mascot, campaign, or proprietary visual style.",
+                                            "Do not fabricate partnerships, licensing, certifications, jackpots, player counts, or financial outcomes."
+                                        ],
+                       "gambling_copy":  [
+                                             "Do not target minors or vulnerable people.",
+                                             "Do not suggest gambling is a solution to financial problems.",
+                                             "Do not describe wins as certain or losses as recoverable.",
+                                             "Add local age, licensing, availability, and responsible-play language before publishing."
+                                         ],
+                       "operational_disclaimer":  "Kohler\u0027s live-money features, game availability, payment methods, and legal status depend on configuration and local requirements. Confirm current details before publication."
+                   },
+    "context":  {
+                    "schema_version":  "1.0",
+                    "purpose":  "Context for designer and generative-design models creating Kohler flyers, social assets, landing pages, launch graphics, and in-product promotional art.",
+                    "source_of_truth":  {
+                                            "project":  "Kohler",
+                                            "source_files":  [
+                                                                 "README.md",
+                                                                 "public/kohler.css",
+                                                                 "public/assets/brand.js",
+                                                                 "lib/casino/catalog.js",
+                                                                 "lib/avatars/style.js"
+                                                             ],
+                                            "last_reviewed":  "2026-11-04",
+                                            "fact_policy":  "Use only facts in this file or facts supplied for the specific campaign. Do not invent prices, promotions, odds, legal approvals, availability, or performance claims."
+                                        },
+                    "brand_story":  {
+                                        "short":  "Kohler brings digital shopping, original casino play, and collectible self-expression into one connected destination.",
+                                        "long":  "Kohler is an in-house digital playground built around one balance and three connected experiences. The Shop handles digital goods such as gift cards, subscriptions, and top-ups. The Casino brings together Survivor, original instant games, table games, dice, plinko, wheels, slots, blackjack, and roulette. The Vault lets players collect AI-made avatars, frames, win effects, and the Kohler Pass. The feeling is premium, immediate, expressive, and transparent.",
+                                        "emotional_territory":  [
+                                                                    "anticipation before the move",
+                                                                    "the rush of a clean result",
+                                                                    "the identity of a chosen avatar",
+                                                                    "the status of a premium collection",
+                                                                    "the confidence of a clear, self-contained experience"
+                                                                ]
+                                    },
+                    "audiences":  [
+                                      {
+                                          "id":  "digital_shopper",
+                                          "description":  "A customer looking for convenient digital goods in one focused storefront.",
+                                          "needs":  [
+                                                        "clarity",
+                                                        "speed",
+                                                        "trust",
+                                                        "easy discovery"
+                                                    ],
+                                          "message":  "Get the digital goods you want without the clutter."
+                                      },
+                                      {
+                                          "id":  "game_player",
+                                          "description":  "An adult player drawn to original games, tables, competition, and high-energy moments.",
+                                          "needs":  [
+                                                        "variety",
+                                                        "clear rules",
+                                                        "responsive play",
+                                                        "visible limits"
+                                                    ],
+                                          "message":  "Find your game, make your move, and stay in control."
+                                      },
+                                      {
+                                          "id":  "survivor_player",
+                                          "description":  "A social player attracted to the main-event Survivor table and invite-led play.",
+                                          "needs":  [
+                                                        "drama",
+                                                        "social energy",
+                                                        "clear table status",
+                                                        "a memorable moment"
+                                                    ],
+                                          "message":  "The table fills. The moment starts."
+                                      },
+                                      {
+                                          "id":  "vault_collector",
+                                          "description":  "A style-conscious player who wants a recognizable avatar and collectible cosmetics.",
+                                          "needs":  [
+                                                        "originality",
+                                                        "self-expression",
+                                                        "rarity",
+                                                        "shareable identity"
+                                                    ],
+                                          "message":  "Make your seat unmistakably yours."
+                                      },
+                                      {
+                                          "id":  "high_intent_admin_or_partner",
+                                          "description":  "An operator or partner evaluating a controlled, auditable product.",
+                                          "needs":  [
+                                                        "reliability",
+                                                        "controls",
+                                                        "visibility",
+                                                        "responsible operations"
+                                                    ],
+                                          "message":  "Built in-house with visible controls from wallet to table."
+                                      }
+                                  ],
+                    "product_pillars":  [
+                                            {
+                                                "id":  "shop",
+                                                "name":  "Shop",
+                                                "route":  "/",
+                                                "role":  "A focused storefront for digital goods.",
+                                                "offers":  [
+                                                               "gift cards",
+                                                               "subscriptions",
+                                                               "top-ups"
+                                                           ],
+                                                "proof_points":  [
+                                                                     "single connected balance",
+                                                                     "clear categories",
+                                                                     "direct product discovery"
+                                                                 ],
+                                                "headline_options":  [
+                                                                         "Digital goods. No detour.",
+                                                                         "Top up your next move.",
+                                                                         "Find your next unlock."
+                                                                     ],
+                                                "supporting_copy":  "Browse digital goods designed to get you where you want to go faster.",
+                                                "visual_direction":  "Floating product tiles, crisp category color accents, dark storefront surfaces, and a green action glow."
+                                            },
+                                            {
+                                                "id":  "casino",
+                                                "name":  "Casino",
+                                                "route":  "/casino",
+                                                "role":  "A connected game space with Kohler originals and classic formats.",
+                                                "offers":  [
+                                                               "Survivor",
+                                                               "Rocket",
+                                                               "Mines",
+                                                               "Coin Flip",
+                                                               "Limbo",
+                                                               "dice",
+                                                               "plinko",
+                                                               "wheels",
+                                                               "slots",
+                                                               "blackjack",
+                                                               "roulette"
+                                                           ],
+                                                "headline_options":  [
+                                                                         "Find your table.",
+                                                                         "Pick a side. Make a move.",
+                                                                         "The next round is yours to enter."
+                                                                     ],
+                                                "supporting_copy":  "Originals, tables, and fast decisions in one in-house casino.",
+                                                "visual_direction":  "Obsidian gaming surfaces, neon trajectories, gold chips, clean table geometry, and one clear focal action."
+                                            },
+                                            {
+                                                "id":  "survivor",
+                                                "name":  "Survivor",
+                                                "route":  "/casino",
+                                                "role":  "Kohler\u0027s main-event social table.",
+                                                "headline_options":  [
+                                                                         "The table fills. The moment starts.",
+                                                                         "Survive the table.",
+                                                                         "Everybody brings a move."
+                                                                     ],
+                                                "supporting_copy":  "Invite the table, take your seat, and play the main event.",
+                                                "visual_direction":  "Circular table, spotlighted seats, avatars around the edge, rising tension, green active indicators, and gold winner emphasis."
+                                            },
+                                            {
+                                                "id":  "vault",
+                                                "name":  "Vault",
+                                                "route":  "/casino#/vault",
+                                                "role":  "A non-gambling collection for avatars and cosmetics.",
+                                                "offers":  [
+                                                               "AI avatars",
+                                                               "frames",
+                                                               "win effects",
+                                                               "Kohler Pass"
+                                                           ],
+                                                "facts":  [
+                                                              "Starter collection has 100 distinct characters.",
+                                                              "Custom avatar orders produce four versions from a player\u0027s description.",
+                                                              "Avatars are family-friendly, fully clothed, portrait-framed, and text-free.",
+                                                              "Frames and win effects change presentation, not game odds."
+                                                          ],
+                                                "headline_options":  [
+                                                                         "Your seat. Your signature.",
+                                                                         "Enter the Vault.",
+                                                                         "Collect a character with presence."
+                                                                     ],
+                                                "supporting_copy":  "Build a look that follows you from the shop to the table.",
+                                                "visual_direction":  "One exaggerated portrait, premium frame treatment, warm gold rarity cues, and a dark gallery-like background."
+                                            },
+                                            {
+                                                "id":  "wallet",
+                                                "name":  "Wallet",
+                                                "role":  "The connected balance layer.",
+                                                "facts":  [
+                                                              "Players fund one balance with Bitcoin.",
+                                                              "Deposits and withdrawals have status and confirmation states.",
+                                                              "Fees, minimums, and payout progress should be shown clearly."
+                                                          ],
+                                                "headline_options":  [
+                                                                         "One balance. More ways to play.",
+                                                                         "Know where your balance stands.",
+                                                                         "Move value with clarity."
+                                                                     ],
+                                                "visual_direction":  "Minimal wallet card, numeric hierarchy, green incoming state, coral outgoing state, and restrained Bitcoin references."
+                                            }
+                                        ],
+                    "campaign_playbooks":  [
+                                               {
+                                                   "name":  "Vault drop",
+                                                   "objective":  "Drive discovery of a new avatar or cosmetic collection.",
+                                                   "hero":  "A single expressive character portrait with a gold frame.",
+                                                   "headline":  "Meet the next face in your collection.",
+                                                   "cta":  "Explore the Vault",
+                                                   "footer":  "Cosmetic items change appearance, not game odds."
+                                               },
+                                               {
+                                                   "name":  "Survivor invite",
+                                                   "objective":  "Create social urgency around a table invitation.",
+                                                   "hero":  "A circular table with one highlighted open seat.",
+                                                   "headline":  "Your seat is waiting.",
+                                                   "cta":  "Join the table",
+                                                   "footer":  "Availability, eligibility, and rules apply."
+                                               },
+                                               {
+                                                   "name":  "Casino discovery",
+                                                   "objective":  "Introduce the breadth of the in-house casino.",
+                                                   "hero":  "A three-panel composition: original game, table, and slot.",
+                                                   "headline":  "One casino. Every kind of move.",
+                                                   "cta":  "Enter the Casino",
+                                                   "footer":  "Play responsibly. Local age, licensing, and availability rules apply."
+                                               },
+                                               {
+                                                   "name":  "Shop launch",
+                                                   "objective":  "Promote a digital-goods category or seasonal collection.",
+                                                   "hero":  "A clean product stack with one bright green highlight.",
+                                                   "headline":  "Your next digital unlock starts here.",
+                                                   "cta":  "Shop now",
+                                                   "footer":  "Product availability and terms apply."
+                                               }
+                                           ],
+                    "copy_library":  {
+                                         "short_descriptions":  [
+                                                                    "A digital shop, in-house casino, and collectible vault in one place.",
+                                                                    "Original games. Distinctive avatars. One connected Kohler experience.",
+                                                                    "Bring your balance, choose your move, and make the moment yours."
+                                                                ],
+                                         "headline_bank":  [
+                                                               "Play the moment.",
+                                                               "Make your move.",
+                                                               "Built for the bold.",
+                                                               "Your table. Your style.",
+                                                               "The next move looks good on you.",
+                                                               "A full playground, one balance.",
+                                                               "Find your game. Find your look.",
+                                                               "The table is live."
+                                                           ],
+                                         "cta_bank":  [
+                                                          "Explore Kohler",
+                                                          "Enter the Casino",
+                                                          "Meet Survivor",
+                                                          "Explore the Vault",
+                                                          "Shop the drop",
+                                                          "Build your look",
+                                                          "View the collection"
+                                                      ],
+                                         "approved_disclaimers":  [
+                                                                      "Play responsibly. Age, licensing, and availability rules vary by location.",
+                                                                      "Cosmetic items change appearance, not game odds.",
+                                                                      "Prices, promotions, limits, and availability apply as shown in the current product experience.",
+                                                                      "Bitcoin transactions can be irreversible. Review the destination and fee before confirming."
+                                                                  ]
+                                     },
+                    "designer_model_prompt":  {
+                                                  "base_prompt":  "Create a Kohler marketing flyer for {campaign}. Use the Kohler identity: obsidian dark background, neon green action accents, warm gold premium accents, Unbounded display typography, Inter body typography, geometric K mark, polished high-contrast composition, one dominant subject, strong negative space, and a clear CTA. The visual should feel premium, electric, playful, and controlled. Keep all characters fully clothed and family-friendly. Do not render text inside the image; reserve clean space for typesetting.",
+                                                  "variables":  {
+                                                                    "campaign":  "Replace with a campaign playbook name or custom brief.",
+                                                                    "headline":  "Add the approved headline during layout, not inside generated imagery.",
+                                                                    "cta":  "Use one CTA from the CTA bank.",
+                                                                    "subject":  "Use one product, avatar, table, or game as the focal subject.",
+                                                                    "format":  "Use one of the recommended flyer sizes."
+                                                                },
+                                                  "negative_prompt":  [
+                                                                          "unreadable text",
+                                                                          "fake logos",
+                                                                          "watermarks",
+                                                                          "photorealistic minors",
+                                                                          "nudity",
+                                                                          "graphic violence",
+                                                                          "drug use",
+                                                                          "hate symbols",
+                                                                          "copied brand identity",
+                                                                          "guaranteed-win imagery",
+                                                                          "cash-rain financial fantasy",
+                                                                          "cluttered layout",
+                                                                          "low contrast"
+                                                                      ]
+                                              },
+                    "publication_checklist":  [
+                                                  "Confirm the campaign\u0027s product, route, price, promotion, and availability against the live product.",
+                                                  "Use the correct Kohler logo treatment and color tokens.",
+                                                  "Keep one primary CTA and one dominant visual message.",
+                                                  "Add current legal, age, licensing, jurisdiction, and responsible-play language where relevant.",
+                                                  "Check contrast, mobile crops, safe margins, and legibility at thumbnail size.",
+                                                  "Do not publish unsupported performance, payout, partnership, scarcity, or financial claims."
+                                              ]
+                },
+    "content":  {
+                    "schema_version":  "1.0",
+                    "brand":  "Kohler",
+                    "content_type":  "flyer_and_campaign_copy",
+                    "default_language":  "en",
+                    "content":  {
+                                    "homepage":  {
+                                                     "eyebrow":  "THE DIGITAL PLAYGROUND",
+                                                     "headline":  "Shop it. Play it. Own your look.",
+                                                     "body":  "Digital goods, original games, and a vault of characters built for your next move.",
+                                                     "primary_cta":  "Explore Kohler",
+                                                     "secondary_cta":  "Enter the Casino"
+                                                 },
+                                    "shop":  {
+                                                 "eyebrow":  "SHOP",
+                                                 "headline":  "Your next digital unlock starts here.",
+                                                 "body":  "Find gift cards, subscriptions, and top-ups in one focused storefront.",
+                                                 "cta":  "Shop now"
+                                             },
+                                    "casino":  {
+                                                   "eyebrow":  "Kohler Casino",
+                                                   "headline":  "Find your game. Make your move.",
+                                                   "body":  "Survivor, Kohler originals, tables, slots, dice, wheels, and more in one in-house casino.",
+                                                   "cta":  "Enter the Casino"
+                                               },
+                                    "survivor":  {
+                                                     "eyebrow":  "THE MAIN EVENT",
+                                                     "headline":  "The table fills. The moment starts.",
+                                                     "body":  "Take your seat, bring your people, and play Survivor.",
+                                                     "cta":  "Meet Survivor"
+                                                 },
+                                    "vault":  {
+                                                  "eyebrow":  "THE VAULT",
+                                                  "headline":  "Your seat. Your signature.",
+                                                  "body":  "Collect expressive AI avatars, frames, win effects, and the Kohler Pass.",
+                                                  "cta":  "Explore the Vault",
+                                                  "supporting_lines":  [
+                                                                           "100 starter characters.",
+                                                                           "Custom avatars made from your idea.",
+                                                                           "Cosmetics that change your look, not the odds."
+                                                                       ]
+                                              },
+                                    "wallet":  {
+                                                   "eyebrow":  "ONE BALANCE",
+                                                   "headline":  "Move value with clarity.",
+                                                   "body":  "Fund one Kohler balance with Bitcoin and review fees, confirmations, and payout progress before you confirm.",
+                                                   "cta":  "Open your wallet"
+                                               },
+                                    "social":  {
+                                                   "short_posts":  [
+                                                                       "One balance. A full playground. Find your next move at Kohler.",
+                                                                       "Your seat is more than a seat. Build your look in the Vault.",
+                                                                       "Survivor is the main event. The table is waiting.",
+                                                                       "Original games, classic tables, and a character collection with attitude."
+                                                                   ],
+                                                   "caption_template":  "{headline} {supporting_copy} {cta}.",
+                                                   "hashtags":  [
+                                                                    "#Kohler",
+                                                                    "#PlayTheMoment",
+                                                                    "#TheVault",
+                                                                    "#Survivor"
+                                                                ]
+                                               },
+                                    "flyer_templates":  [
+                                                            {
+                                                                "id":  "vault_portrait",
+                                                                "name":  "Vault portrait drop",
+                                                                "headline":  "Meet the next face in your collection.",
+                                                                "body":  "A new character has entered the Vault.",
+                                                                "cta":  "Explore the Vault",
+                                                                "visual_brief":  "One exaggerated AI avatar portrait, gold collector frame, obsidian gallery background, neon green rim light, generous space on the left for typography.",
+                                                                "footer":  "Cosmetic items change appearance, not game odds."
+                                                            },
+                                                            {
+                                                                "id":  "survivor_open_seat",
+                                                                "name":  "Survivor open seat",
+                                                                "headline":  "Your seat is waiting.",
+                                                                "body":  "Invite the table. Take the moment.",
+                                                                "cta":  "Join the table",
+                                                                "visual_brief":  "Circular dark table, several expressive avatar seats, one open seat lit in neon green, gold tension highlights, no embedded text.",
+                                                                "footer":  "Availability, eligibility, and rules apply."
+                                                            },
+                                                            {
+                                                                "id":  "casino_overview",
+                                                                "name":  "Casino overview",
+                                                                "headline":  "One casino. Every kind of move.",
+                                                                "body":  "Originals, tables, slots, and fast decisions in one in-house experience.",
+                                                                "cta":  "Enter the Casino",
+                                                                "visual_brief":  "Three connected scenes: a rising Rocket trajectory, a polished roulette table, and a vivid slot reel; unify them with obsidian surfaces and green-gold light.",
+                                                                "footer":  "Play responsibly. Local age, licensing, and availability rules apply."
+                                                            },
+                                                            {
+                                                                "id":  "shop_unlock",
+                                                                "name":  "Shop digital unlock",
+                                                                "headline":  "Your next digital unlock starts here.",
+                                                                "body":  "Browse gift cards, subscriptions, and top-ups without the clutter.",
+                                                                "cta":  "Shop now",
+                                                                "visual_brief":  "Premium floating digital product cards, clean category accents, green action glow, gold edge highlights, dark storefront.",
+                                                                "footer":  "Product availability and terms apply."
+                                                            }
+                                                        ]
+                                },
+                    "required_review":  {
+                                            "before_publish":  [
+                                                                   "Replace generic claims with current, verifiable campaign facts.",
+                                                                   "Confirm any prices, limits, promotions, and dates.",
+                                                                   "Add jurisdiction-specific age, licensing, and responsible-play language.",
+                                                                   "Do not use an offer as active unless it is configured and approved."
+                                                               ],
+                                            "never_say":  [
+                                                              "guaranteed win",
+                                                              "risk-free",
+                                                              "easy money",
+                                                              "get rich",
+                                                              "recover your losses",
+                                                              "the safest casino",
+                                                              "licensed everywhere"
+                                                          ]
+                                        }
+                }
+}

@@ -199,7 +199,7 @@ const V = {};
 V.overview = async () => {
   const [s, ap, pay, sv] = await Promise.all([api('/admin/stats'), api('/admin/autopilot').catch(() => null), api('/admin/payouts').catch(() => null), api('/admin/pool').catch(() => null)]);
   A.stats = s; side();
-  const R = s.revenue, LABEL = { order: 'Shop fees', pool_fee: 'Survivor fees', withdrawal: 'Withdrawal fees', withdrawal_refund: 'Fee refunds', vault: 'Vault sales', avatar: 'Custom avatars' };
+  const R = s.revenue, LABEL = { order: 'Shop fees', pool_fee: 'Survivor fees', withdrawal: 'Withdrawal fees', withdrawal_refund: 'Fee refunds', vault: 'Vault sales', avatar: 'Custom avatars', bonus: 'Bonuses given' };
   const parts = [...R.fees.map((f) => ({ k: LABEL[f.kind] || f.kind, ...f })), { k: 'Casino (bets − wins)', ...R.casino }];
   const sum = (key) => parts.reduce((a, p) => a + p[key], 0);
   const max = Math.max(1, ...R.days.map((d) => Math.max(0, d.fees) + Math.max(0, d.ggr)));
@@ -627,7 +627,7 @@ V.support = async () => {
 };
 
 V.system = async () => {
-  const [set, ap, em, sec] = await Promise.all([api('/admin/settings'), api('/admin/autopilot'), api('/admin/email').catch(() => null), api('/admin/security').catch(() => null)]);
+  const [set, ap, em, sec, pr] = await Promise.all([api('/admin/settings'), api('/admin/autopilot'), api('/admin/email').catch(() => null), api('/admin/security').catch(() => null), api('/admin/promos').catch(() => null)]);
   const SECC = { ok: 'var(--neon)', critical: 'var(--rose)', warn: 'var(--gold)', info: 'var(--dim)' };
   const LV = { critical: 'var(--rose)', warn: 'var(--gold)', info: 'var(--dim)' };
   $('#view').innerHTML = `<div class="top"><div><h1>Switches &amp; health</h1><div class="sub">Autopilot checks the books, stuck rounds, payouts and cleanup on its own, at most every 30 minutes while the site has visitors.</div></div><button class="btn neon" id="apRun">Run checks now</button></div>
@@ -636,6 +636,22 @@ V.system = async () => {
       <div class="card"><div class="card-h"><h2>Last check</h2><span class="faint">${ago(ap.lastRun)}</span></div>
         ${ap.result ? Object.entries(ap.result.checks).map(([k, v]) => `<div class="sw" style="padding:8px 0"><span>${esc(k)}</span><span class="${v?.ok === false || v?.error ? 'down' : 'up'}" style="font-size:12.5px">${v?.error ? esc(v.error) : v?.ok === false ? 'needs attention' : 'ok'}</span></div>`).join('') : '<div class="empty">Runs within seconds of the first visit.</div>'}</div>
     </div>
+    ${pr ? `<div class="card" style="margin-top:14px"><div class="card-h"><h2>Bonuses &amp; referrals</h2><button class="btn sm neon" id="prSave">Save</button></div>
+      <div class="grid g4" style="margin-bottom:12px">
+        <div class="kpi"><div class="l">Bonus given, 30 days</div><div class="v num">${money(pr.stats.granted30)}</div></div>
+        <div class="kpi"><div class="l">Still locked</div><div class="v num">${money(pr.stats.lockedNow)}</div></div>
+        <div class="kpi"><div class="l">Referred players</div><div class="v num">${pr.stats.referred}</div><div class="s">${pr.stats.active} deposited</div></div>
+        <div class="kpi"><div class="l">Referral rewards paid</div><div class="v num">${pr.stats.rewards}</div></div></div>
+      ${sw('prFirst', pr.settings.firstEnabled, 'First-deposit bonus', 'Match a share of each player\'s first real deposit')}
+      ${sw('prRef', pr.settings.refEnabled, 'Referral rewards', 'Pay bonus money for every group of friends who deposit')}
+      <div class="fields" style="margin-top:12px">
+        <label class="field"><span>First deposit match (%)</span><input class="inp num" id="prPct" type="number" min="0" max="500" value="${pr.settings.firstPct}"></label>
+        <label class="field"><span>Match up to ($)</span><input class="inp num" id="prCap" type="number" min="0" step="1" value="${pr.settings.firstCap / 100}"></label>
+        <label class="field"><span>Play bonus this many times before withdrawing</span><input class="inp num" id="prX" type="number" min="0" max="50" value="${pr.settings.wagerX}"></label>
+        <label class="field"><span>Reward every N active referrals</span><input class="inp num" id="prEvery" type="number" min="1" value="${pr.settings.refEvery}"></label>
+        <label class="field"><span>Reward ($ bonus)</span><input class="inp num" id="prRew" type="number" min="0" step="0.5" value="${pr.settings.refReward / 100}"></label>
+        <label class="field"><span>A referral counts once they've deposited ($)</span><input class="inp num" id="prMin" type="number" min="0" step="1" value="${pr.settings.refMinDeposit / 100}"></label></div>
+      ${pr.top.length ? `<div class="faint" style="font-size:12.5px;margin:4px 0 6px">Top referrers</div>${pr.top.map((t) => `<div class="sw"><span>${esc(t.username)}</span><span class="num">${t.active} active · ${t.signed} joined</span></div>`).join('')}` : ''}</div>` : ''}
     ${sec ? `<div class="card" style="margin-top:14px"><div class="card-h"><h2>Security checklist</h2><span class="faint">${sec.items.filter((i) => i.ok).length} of ${sec.items.length} done</span></div>
       ${sec.items.map((i) => `<div class="alert"><span class="dot" style="background:${SECC[i.level]}"></span><div style="flex:1">${i.ok ? '' : '<b>'}${esc(i.label)}${i.ok ? '' : '</b>'}${i.fix ? `<div class="faint" style="font-size:12.5px">${esc(i.fix)}</div>` : ''}</div></div>`).join('')}</div>` : ''}
     ${em ? `<div class="card" style="margin-top:14px"><div class="card-h"><h2>Email</h2><span class="${!em.keySet || !em.from || em.sandbox || em.lastError ? 'down' : 'up'}" style="font-size:12.5px">${!em.keySet || !em.from ? 'not set up' : em.sandbox ? 'test sender only' : em.lastError && (!em.lastOkAt || new Date(em.lastErrorAt) > new Date(em.lastOkAt)) ? 'failing' : 'ready'}</span></div>
@@ -648,6 +664,9 @@ V.system = async () => {
     <div class="sec"><h2>Alerts</h2><span class="faint">last 30</span></div>
     <div class="card">${ap.alerts.length ? ap.alerts.map((x) => `<div class="alert"><span class="dot" style="background:${LV[x.detail?.level] || 'var(--gold)'}"></span><div style="flex:1">${esc(x.detail?.message || x.action)}<div class="faint" style="font-size:12px">${when(x.created_at)} · ${esc(x.action.replace('alert.', ''))}</div></div></div>`).join('') : '<div class="empty">No alerts. Everything checked out.</div>'}</div>`;
   bindTog('gam', (on) => api('/admin/settings', { method: 'PATCH', body: { gamblingEnabled: on } }));
+  bindTog('prFirst', (on) => api('/admin/promos', { method: 'PATCH', body: { firstEnabled: on } }));
+  bindTog('prRef', (on) => api('/admin/promos', { method: 'PATCH', body: { refEnabled: on } }));
+  $('#prSave') && ($('#prSave').onclick = async () => { try { await api('/admin/promos', { method: 'PATCH', body: { firstPct: +$('#prPct').value, firstCap: Math.round(+$('#prCap').value * 100), wagerX: +$('#prX').value, refEvery: +$('#prEvery').value, refReward: Math.round(+$('#prRew').value * 100), refMinDeposit: Math.round(+$('#prMin').value * 100) } }); toast('Saved'); V.system(); } catch (e) { toast(e.message, true); } });
   $('#emGo') && ($('#emGo').onclick = async () => {
     $('#emGo').disabled = true; $('#emGo').textContent = 'Sending…';
     try { await api('/admin/email/test', { method: 'POST', body: { to: $('#emTo').value } }); toast('Sent. Check that inbox (and spam).'); }

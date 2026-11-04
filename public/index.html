@@ -45,6 +45,8 @@
 .live .take{margin-top:14px;display:inline-flex;height:40px;align-items:center;padding:0 16px;border-radius:11px;background:linear-gradient(180deg,#3dff8c,#00d955);color:#03140a;font-weight:700}
 @media(max-width:520px){.live{grid-template-columns:110px 1fr}.live .ring{width:110px;height:110px}.live .ring .pot{font-size:23px}}
 
+.offer{display:flex;flex-direction:column;gap:3px;padding:12px 14px;border-radius:14px;border:1px solid rgba(232,196,106,.45);background:linear-gradient(135deg,rgba(232,196,106,.14),transparent 70%)}
+.offer b{color:var(--gold)}.offer span{font-size:13.5px;color:var(--muted)}
 .filters{display:flex;gap:16px;align-items:flex-end;margin-bottom:22px;border-bottom:1px solid var(--line)}
 /* categories: plain text tabs with an underline, no colour dots */
 .cats{display:flex;gap:26px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
@@ -250,6 +252,7 @@ function authSheet(mode = 'in', then) {
                <label class="field"><span>Username</span><input type="text" id="aUser" autocomplete="username" required minlength="3" maxlength="24"></label>`
             : `<label class="field"><span>Email or username</span><input type="text" id="aWho" autocomplete="username" required></label>`}
       <label class="field"><span>Password</span><input type="password" id="aPw" autocomplete="${reg ? 'new' : 'current'}-password" required minlength="${reg ? 8 : 1}"></label>
+      ${reg ? `<label class="field"><span>Referral code <span class="muted" style="font-weight:500">(optional)</span></span><input type="text" id="aRef" maxlength="12" autocapitalize="characters" value="${esc(window.KohlerRef?.() || '')}"></label>` : ''}
       <div class="err" id="aErr" role="alert"></div>
       <button class="btn go lg wide" type="submit">${reg ? 'Create account' : 'Sign in'}</button>
     </form>
@@ -259,7 +262,7 @@ function authSheet(mode = 'in', then) {
     e.preventDefault();
     const btn = b.querySelector('button[type=submit]'); btn.disabled = true; $('#aErr').textContent = '';
     try {
-      if (reg) await api('/auth/register', { method: 'POST', body: { email: $('#aEmail').value, username: $('#aUser').value, password: $('#aPw').value } });
+      if (reg) await api('/auth/register', { method: 'POST', body: { email: $('#aEmail').value, username: $('#aUser').value, password: $('#aPw').value, ref: $('#aRef')?.value || undefined } });
       else await api('/auth/login', { method: 'POST', body: { who: $('#aWho').value, password: $('#aPw').value } });
       closeSheet(); buzz(12); await refreshMe(); toast(`Signed in as ${S.user.username}`, 'good'); then ? then() : route();
     } catch (err) { $('#aErr').textContent = err.message; btn.disabled = false; buzz([30, 40, 30]); }
@@ -542,7 +545,7 @@ function depositSheet(need) {
 }
 
 /* ── wallet ── */
-const KIND = { deposit: 'Deposit', withdraw: 'Withdrawal', order: 'Purchase', bet: 'Game stake', payout: 'Game win', bonus: 'Daily bonus',
+const KIND = { deposit: 'Deposit', withdraw: 'Withdrawal', order: 'Purchase', bet: 'Game stake', payout: 'Game win', bonus: 'Daily bonus', bonus_first: 'First-deposit bonus', bonus_referral: 'Referral reward',
   adjust: 'Adjustment', pool_buyin: 'Survivor seat', pool_refund: 'Survivor refund', pool_payout: 'Survivor win', vault: 'Vault purchase', casino_bet: 'Casino bet', casino_win: 'Casino win' };
 async function viewWallet() {
   if (!S.user) return needAuth('see your wallet');
@@ -553,10 +556,12 @@ async function viewWallet() {
     <div class="wal">
       <div class="panel ${test ? 'testpanel' : ''}">
         <p class="muted" style="font-weight:600">${test ? 'Test balance (fake money)' : 'Balance'}</p>
-        <div class="balbig num" style="margin:6px 0 18px">${money(w.balance)}</div>
+        <div class="balbig num" style="margin:6px 0 ${w.bonusLocked ? 6 : 18}px">${money(w.balance)}</div>
+        ${w.bonusLocked ? `<p class="muted" style="font-size:13.5px;margin:0 0 16px">Includes <b style="color:var(--gold)">${money(w.bonusLocked)} bonus</b>. Play ${money(w.wagerLeft)} more and it's yours to withdraw.</p>` : ''}
         ${test ? `<p class="muted" style="margin-bottom:14px">Fake money for testing. Nothing here is real.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn warn" data-add="10000">Add $100</button><button class="btn" data-add="50000">Add $500</button><button class="btn" data-add="100000">Add $1,000</button></div>`
-        : `<button class="btn" id="bonus">Claim daily bonus</button>`}
+        : w.firstOffer ? `<div class="offer"><b>Your first deposit is doubled</b><span>We match ${w.firstOffer.pct}% of it, up to ${money(w.firstOffer.cap)}. Play the bonus ${w.firstOffer.wagerX}× and it's yours to withdraw.</span></div>`
+        : `<a class="btn" href="#/refer">Invite friends, earn bonus money</a>`}
       </div>
       ${test ? `<div class="panel"><h3>Deposits</h3><p class="muted" style="margin-top:8px">Test accounts use fake money.</p></div>`
       : `<div class="panel"><h3 style="margin-bottom:12px">Deposit Bitcoin</h3>${w.address ? `
@@ -573,10 +578,9 @@ async function viewWallet() {
         <b class="num ${Number(l.delta_cents) >= 0 ? 'in' : 'out'}">${Number(l.delta_cents) >= 0 ? '+' : ''}${money(l.delta_cents)}</b></div>`).join('') : '<div class="empty">Nothing yet. Your deposits, purchases and wins will show here.</div>'}</div></div>
     </div></div>`;
   $('#cpAddr')?.addEventListener('click', () => { navigator.clipboard?.writeText(w.address); toast('Address copied', 'good'); });
-  $('#bonus')?.addEventListener('click', async () => { try { const r = await api('/wallet/bonus', { method: 'POST' }); winSound(); toast('Daily bonus +' + money(r.amount), 'good'); refreshMe(); viewWallet(); } catch (e) { toast(e.message === 'not yet' ? 'Already claimed. Come back tomorrow.' : e.message, 'bad'); } });
   $('#view').querySelectorAll('[data-add]').forEach((b) => b.onclick = async () => { try { await api('/wallet/test-topup', { method: 'POST', body: { amountCents: +b.dataset.add } }); buzz(10); await refreshMe(); viewWallet(); } catch (e) { toast(e.message, 'bad'); } });
   const showList = () => KohlerWithdraw.list($('#kwList'), { api, money, esc });
-  KohlerWithdraw.mount($('#kwMount'), { api, money, esc, balance: w.balance, test, cls: { primary: 'btn go', ghost: 'btn' },
+  KohlerWithdraw.mount($('#kwMount'), { api, money, esc, balance: test ? w.balance : w.withdrawable ?? w.balance, test, cls: { primary: 'btn go', ghost: 'btn' },
     onDone: () => { refreshMe(); showList(); } });
   showList();
 }
@@ -631,6 +635,26 @@ async function loadThreads() {
 }
 
 /* ── account ── */
+async function viewRefer() {
+  if (!S.user) return needAuth('get your invite link');
+  const d = await api('/promos/referrals');
+  const pct = Math.round((d.every - d.toNext) / d.every * 100);
+  $('#view').innerHTML = `<div class="stack" style="max-width:760px">
+    <div><h1>Invite friends</h1><p class="muted" style="margin-top:6px">Every ${d.every} friends who join with your link and deposit ${money(d.minDeposit)} or more earn you ${money(d.reward)} of bonus money. Then the next ${d.every}, and so on.</p></div>
+    ${d.enabled ? '' : '<div class="panel"><p class="muted">Referrals are paused right now. Links you share still count when they come back.</p></div>'}
+    <div class="panel"><h3 style="margin-bottom:12px">Your link</h3>
+      <div class="addr" id="refLink" style="word-break:break-all">${esc(d.link)}</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"><button class="btn go" id="refCopy">Copy link</button>${navigator.share ? '<button class="btn" id="refShare">Share</button>' : ''}
+        <span class="muted" style="align-self:center;font-size:14px">or code <b class="mono" style="color:var(--text);letter-spacing:.08em">${esc(d.code)}</b></span></div></div>
+    <div class="panel"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><h3>Progress</h3><span class="muted num">${d.active} active · ${d.signedUp} joined</span></div>
+      <div style="height:8px;border-radius:4px;background:var(--ink-2);margin:14px 0 8px;overflow:hidden"><i style="display:block;height:100%;width:${pct}%;background:var(--mint);border-radius:4px"></i></div>
+      <p class="muted" style="font-size:14px">${d.toNext} more active ${d.toNext === 1 ? 'friend' : 'friends'} to your next ${money(d.reward)}.${d.earned ? ` Earned so far: <b style="color:var(--gold)">${money(d.earned)}</b>.` : ''}</p>
+      <p class="muted" style="font-size:12.5px;margin-top:6px">Bonus money is for playing: wager it ${d.wagerX}× and it's yours to withdraw.</p></div>
+    ${d.people.length ? `<div class="panel"><h3 style="margin-bottom:6px">Friends</h3><div class="rows">${d.people.map((x) => `<div><span><span class="k">${esc(x.name)}</span><small>Joined ${new Date(x.joined).toLocaleDateString()}</small></span><b style="font-size:13px;color:${x.active ? 'var(--mint)' : 'var(--muted)'}">${x.active ? 'Active' : 'Joined, no deposit yet'}</b></div>`).join('')}</div></div>` : ''}
+  </div>`;
+  $('#refCopy').onclick = () => { navigator.clipboard?.writeText(d.link); toast('Link copied', 'good'); };
+  $('#refShare') && ($('#refShare').onclick = () => navigator.share({ title: 'Kohler', text: 'Join me on Kohler', url: d.link }).catch(() => {}));
+}
 async function viewAccount() {
   if (!S.user) return needAuth('manage your account');
   const u = S.user;
@@ -643,7 +667,7 @@ async function viewAccount() {
       <label class="field"><span>Current password</span><input type="password" id="pCur" autocomplete="current-password"></label>
       <label class="field"><span>New password (8+ characters)</span><input type="password" id="pNew" autocomplete="new-password" minlength="8"></label>
       <button class="btn" type="submit">Change password</button></form>
-    <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn" href="/casino#/limits">Play limits and cool-off</a><a class="btn" href="#/support">Help</a><button class="btn danger" id="out">Sign out</button></div></div>`;
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn" href="#/refer">Invite friends</a><a class="btn" href="/casino#/limits">Play limits and cool-off</a><a class="btn" href="#/support">Help</a><button class="btn danger" id="out">Sign out</button></div></div>`;
   $('#uf').onsubmit = async (e) => { e.preventDefault(); try { await api('/auth/username', { method: 'POST', body: { username: $('#uName').value } }); toast('Username saved', 'good'); await refreshMe(); viewAccount(); } catch (err) { toast(err.message === 'taken' ? 'That username is taken' : err.message, 'bad'); } };
   $('#pf').onsubmit = async (e) => { e.preventDefault(); try { await api('/auth/password', { method: 'POST', body: { current: $('#pCur').value, next: $('#pNew').value } }); toast('Password changed', 'good'); $('#pCur').value = $('#pNew').value = ''; } catch (err) { toast(err.message, 'bad'); } };
   $('#out').onclick = async () => { await api('/auth/logout', { method: 'POST' }); S.user = null; paintUser(); location.hash = '#/shop'; };
@@ -663,6 +687,8 @@ async function route() {
     else if (p === 'orders') await viewOrders();
     else if (p === 'support') await viewSupport();
     else if (p === 'account') await viewAccount();
+    else if (p === 'refer') await viewRefer();
+    else if (p === 'signup') { await viewShop(); if (!S.user) authSheet('up'); }
     else await viewShop();
   } catch (e) {
     if (e.status === 401) needAuth();

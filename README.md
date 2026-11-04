@@ -235,6 +235,20 @@ provider later needs a gaming licence and a contract with them.
 Games have a **Turbo** switch (top bar) that roughly halves animation time; slots, roulette, the
 wheel, coin flip and limbo are also quicker by default.
 
+## 5b. Bonuses and referrals (`lib/promos.js`)
+
+- **First deposit doubled.** A player's first real deposit is matched 100% up to $50 (Admin → Switches &
+  health → Bonuses & referrals). The old daily bonus is gone.
+- **Bonus money is for playing.** It's added to the balance with a lock: it can be bet in the casino
+  and Survivor, but not withdrawn or spent in the shop until the player has wagered 5× the bonus. Every
+  bet counts down; when it's done (or the bonus is lost) the lock lifts. Wallets show "Includes $X bonus,
+  play $Y more". The Vault and custom avatars accept bonus money (it never leaves Kohler).
+- **Referrals.** Every account has a code and a link (`/r/CODE`). Sign-ups through it are linked to the
+  referrer; a referral becomes *active* when that friend has deposited $10. Every 10 active referrals pay
+  the referrer $10 of bonus money, then the next 10, and so on. Players see their link, progress and
+  friends on Account → Invite friends. All numbers are adjustable in admin; bonuses show as a cost on
+  the revenue overview.
+
 ## 6. The Vault and AI avatars (non-gambling purchases)
 
 `/casino#/vault`. Nothing here changes odds; it's how players look and show off.
@@ -332,7 +346,7 @@ hosting and Neon, and reading alerts.
   Vercel where many copies of the server run at once.
 - **Other websites can't act for a player.** Cookies are HttpOnly, SameSite=Lax and https-only on
   Vercel, and every change must come from Kohler's own pages. Pages can't be framed by other sites.
-- **Money.** The daily bonus pays once even if clicked many times at once, and only after a real deposit.
+- **Money.** Bonus money can be played but not withdrawn or spent in the shop until it's wagered (see Bonuses below).
   Automatic payouts also wait for a person when the password changed in the last 24 hours or the
   player's balance doesn't match their ledger. Banning someone signs them out everywhere.
 - **Checklist.** Admin → Switches & health lists what's set up and what isn't (KEY_ENC, https,

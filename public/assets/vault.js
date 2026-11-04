@@ -77,7 +77,7 @@
       ${tab === 'avatar' ? avatarsTab()
       : tab === 'pass' ? `<div class="pass-card"><div>${KohlerCharacter.frame({ ring: '#a78bfa', glow: true }, 96).replace('position:absolute;inset:0;', '')}</div>
           <div><h2>Kohler Pass</h2><div class="muted">30 days. Buy again any time to stack another 30.</div>
-            <ul><li>No service fee on shop orders</li><li>2× daily bonus</li><li>The Pass Holder frame and a Pass badge</li></ul>
+            <ul><li>No service fee on shop orders</li><li>The Pass Holder frame and a Pass badge</li></ul>
             ${u?.passUntil ? `<p style="color:#c4b5fd;margin:10px 0 0">Active until ${new Date(u.passUntil).toLocaleString()}</p>` : ''}</div>
           <div style="text-align:center"><div style="font-family:var(--display);font-size:30px;font-weight:800">${money(pass.price)}</div>
             ${u ? `<button class="btn gold lg" data-buy="${pass.id}" style="margin-top:8px">${u.passUntil ? 'Add 30 days' : 'Get the Pass'}</button>` : '<button class="btn neon" data-auth>Sign in</button>'}</div></div>

@@ -16,6 +16,7 @@ import { createCasino } from './lib/casino/index.js';
 import { migrate, ensureTestAccount } from './lib/boot.js';
 import { createVault } from './lib/vault.js';
 import { createAvatars } from './lib/avatars/index.js';
+import { createPromos, BET_KINDS } from './lib/promos.js';
 import { createLimiter, securityHeaders, sameOrigin, newTotpSecret, checkTotp, otpauthUrl } from './lib/security.js';
 import QRCode from 'qrcode';
 import { createPayouts } from './lib/payouts.js';
@@ -181,6 +182,7 @@ const pub = (u) => u && {
   id: u.id, email: u.email, username: u.username, balance: Number(u.balance_cents),
   xp: u.xp, streak: u.streak, isAdmin: u.is_admin, adminRole: u.admin_role, testMode: !!u.test_mode,
   equip: u.equip || {}, passUntil: u.pass_until && new Date(u.pass_until) > new Date() ? u.pass_until : null,
+  bonusLocked: Math.min(Number(u.bonus_locked_cents || 0), Math.max(0, Number(u.balance_cents))), wagerLeft: Number(u.bonus_locked_cents || 0) > 0 ? Number(u.wager_left_cents || 0) : 0,
 };
 const hasPass = (u) => !!u?.pass_until && new Date(u.pass_until) > new Date();
 
@@ -251,7 +253,22 @@ async function move(client, userId, delta, kind, ref = null, meta = {}) {
   await client.query('update users set balance_cents = balance_cents + $2 where id = $1', [userId, delta]);
   await client.query('insert into ledger (user_id, delta_cents, kind, ref, meta) values ($1,$2,$3,$4,$5)',
     [userId, delta, kind, ref, meta]);
+  // bonus money (lib/promos.js): every bet counts down what's left to wager, and the lock lifts
+  // when it reaches zero. Staking it all at once doesn't skip that. If the bonus was lost, the
+  // next deposit isn't held back: the lock shrinks to whatever balance was left before it.
+  // Only touches players who have a lock.
+  const bet = delta < 0 && BET_KINDS.has(kind), dep = delta > 0 && kind === 'deposit';
+  if (bet || dep) await client.query(`update users set
+      bonus_locked_cents = case when $3::boolean and wager_left_cents + $2::bigint <= 0 then 0
+                                when $4::boolean then greatest(0, least(bonus_locked_cents, balance_cents - $2::bigint)) else bonus_locked_cents end,
+      wager_left_cents = case when $3::boolean and wager_left_cents + $2::bigint <= 0 then 0
+                              when $3::boolean then wager_left_cents + $2::bigint
+                              when $4::boolean and least(bonus_locked_cents, balance_cents - $2::bigint) <= 0 then 0 else wager_left_cents end
+    where id = $1 and bonus_locked_cents > 0`, [userId, delta, bet, dep]);
 }
+// what a player can withdraw or spend in the shop: everything except locked bonus money
+const spendable = (u) => Math.max(0, Number(u.balance_cents) - Math.min(Number(u.bonus_locked_cents || 0), Math.max(0, Number(u.balance_cents))));
+const lockedMsg = (u) => `${usd(Math.min(Number(u.bonus_locked_cents || 0), Number(u.balance_cents)))} of your balance is bonus money: play ${usd(Number(u.wager_left_cents || 0))} more to unlock it`;
 
 async function withTx(fn) {
   const c = await pool.connect();
@@ -304,6 +321,7 @@ app.post('/api/auth/register', async (req, res) => {
       'insert into users (email, username, password_hash) values ($1,$2,$3) returning *',
       [email, username, hash]
     );
+    if (req.body.ref) await promos.attach(r.rows[0].id, req.body.ref).catch(() => null);
     await issueSession(res, r.rows[0].id);
     res.json({ user: pub(r.rows[0]) });
   } catch (e) {
@@ -489,12 +507,15 @@ app.post('/api/orders', requireUser, async (req, res) => {
       const p = pr.rows[0];
       if (!p) throw Object.assign(new Error('That product isn’t available any more.'), { code: 404 });
       if (p.stock !== null && p.stock <= 0) throw Object.assign(new Error('Sorry, that option just sold out.'), { code: 409 });
-      const ur = await c.query('select balance_cents from users where id = $1 for update', [req.user.id]);
+      const ur = await c.query('select balance_cents, bonus_locked_cents, wager_left_cents from users where id = $1 for update', [req.user.id]);
       // pg returns bigint as a string: without Number() this was "1500" + 15 = "150015"
       const price = Number(p.price_cents);
       const platformFee = hasPass(req.user) ? 0 : feeFor(price);
       const total = price + platformFee;
-      const balance = Number(ur.rows[0].balance_cents);
+      // bonus money is for playing, not for the shop
+      const balance = spendable(ur.rows[0]);
+      if (balance < total && Number(ur.rows[0].balance_cents) >= total)
+        throw Object.assign(new Error(`Bonus money can't be spent in the shop. You have ${usd(balance)} to spend; ${lockedMsg(ur.rows[0])}.`), { code: 402, need: total - balance });
       if (balance < total)
         throw Object.assign(new Error(`Not enough balance: this costs ${usd(total)} and you have ${usd(balance)}.`), { code: 402, need: total - balance });
 
@@ -581,8 +602,11 @@ app.get('/api/wallet', requireUser, async (req, res) => {
     chain.chainEnabled() ? chain.btcPriceUsd().catch(() => 0) : Promise.resolve(0),
   ]);
   const qr = address ? await QRCode.toDataURL(`bitcoin:${address}`, { margin: 1, width: 240 }) : null;
+  // the deposit check above may just have credited something: read the balance fresh
+  const fresh = (await q('select balance_cents, bonus_locked_cents, wager_left_cents, test_mode from users where id = $1', [req.user.id])).rows[0];
   res.json({
-    address, addressError, qr, balance: Number(req.user.balance_cents), incoming: address ? incomingFor(address) : [],
+    ...(await promos.walletInfo({ ...fresh, id: req.user.id })),
+    address, addressError, qr, balance: Number(fresh.balance_cents), incoming: address ? incomingFor(address) : [],
     minConfirmations: Number(process.env.MIN_CONFIRMATIONS || 2),
     ledger: led.rows, withdrawals: wd.rows.map(wdOut), claims: claims.rows, feeBps: feeBps(),
     nativePriceUsd: price, symbol: 'BTC',
@@ -627,7 +651,7 @@ const wdOut = (w) => ({ id: w.id, amount: Number(w.amount_cents), fee: Number(w.
   createdAt: w.created_at, handledAt: w.handled_at, auto: !!w.auto, test: !!w.test });
 async function withdrawQuote(user, amountCents) {
   const amount = cents(amountCents), test = !!user.test_mode;
-  const fee = test ? 0 : feeFor(amount), debit = amount + fee, balance = Number(user.balance_cents);
+  const fee = test ? 0 : feeFor(amount), debit = amount + fee, balance = test ? Number(user.balance_cents) : spendable(user);
   const q0 = { amount, fee, debit, balance, test, minCents: 500, feeBps: test ? 0 : feeBps(), testnet: chain.isTestnet(), emails: !!(process.env.RESEND_API_KEY && process.env.MAIL_FROM) };
   // the real minimum is set in BTC, so work it out in dollars first: the form shows it up front
   let price = 0, minCents = 500;
@@ -639,6 +663,7 @@ async function withdrawQuote(user, amountCents) {
   const base = { ...q0, minCents, price };
   if (!Number.isFinite(amount) || amount <= 0) return { ...base, error: 'Enter how much you want to withdraw.' };
   if (amount < minCents) return { ...base, error: minCents > 500 ? `The minimum withdrawal is ${usd(minCents)} right now (${+(minNet / 1e8).toFixed(8)} BTC after the network fee).` : 'The minimum withdrawal is $5.00.' };
+  if (debit > balance && !test && Number(user.bonus_locked_cents) > 0 && debit <= Number(user.balance_cents)) return { ...base, error: `You can withdraw up to ${usd(balance)} right now. ${lockedMsg(user)}.` };
   if (debit > balance) return { ...base, error: fee ? `You have ${usd(balance)}. Withdrawing ${usd(amount)} plus the ${usd(fee)} fee needs ${usd(debit)}.` : `You have ${usd(balance)}, so you can withdraw up to ${usd(balance)}.` };
   if (test) return { ...base, sats: 0, networkFeeSats: 0, netSats: 0 };
   if (!(price > 0)) return { ...base, error: 'We couldn’t get the Bitcoin price right now. Try again in a minute.' };
@@ -727,9 +752,9 @@ app.post('/api/wallet/withdraw', requireUser, async (req, res) => {
   }
   try {
     const w = await withTx(async (c) => {
-      const ur = await c.query('select balance_cents from users where id = $1 for update', [req.user.id]);
-      const bal = Number(ur.rows[0].balance_cents);
-      if (bal < quote.debit) throw Object.assign(new Error(`You have ${usd(bal)}. Withdrawing ${usd(quote.amount)} plus the ${usd(quote.fee)} fee needs ${usd(quote.debit)}.`), { code: 402 });
+      const ur = await c.query('select balance_cents, bonus_locked_cents, wager_left_cents from users where id = $1 for update', [req.user.id]);
+      const bal = spendable(ur.rows[0]);
+      if (bal < quote.debit) throw Object.assign(new Error(Number(ur.rows[0].bonus_locked_cents) > 0 ? `You can withdraw up to ${usd(bal)}. ${lockedMsg(ur.rows[0])}.` : `You have ${usd(bal)}. Withdrawing ${usd(quote.amount)} plus the ${usd(quote.fee)} fee needs ${usd(quote.debit)}.`), { code: 402 });
       await move(c, req.user.id, -quote.debit, 'withdraw', null, { address, netSats: quote.netSats, platformFee: quote.fee });
       const r = await c.query(
         `insert into withdrawals (user_id, amount_cents, platform_fee_cents, amount_sats, fee_sats, address)
@@ -745,25 +770,8 @@ app.post('/api/wallet/withdraw', requireUser, async (req, res) => {
   } catch (e) { res.status(e.code || 500).json({ error: e.code ? e.message : 'Something went wrong. Your balance was not touched.' }); }
 });
 
-app.post('/api/wallet/bonus', requireUser, async (req, res) => {
-  // free money can't be farmed with throwaway accounts: the bonus needs a real deposit first
-  if (!req.user.test_mode) {
-    const dep = (await q(`select (exists (select 1 from seen_deposits where user_id = $1)
-                                 or exists (select 1 from deposit_claims where user_id = $1 and status = 'approved')) as ok`, [req.user.id])).rows[0];
-    if (!dep?.ok) return res.status(403).json({ error: 'The daily bonus unlocks after your first deposit.' });
-  }
-  const amount = (100 + Math.floor(crypto.randomInt(100))) * (hasPass(req.user) ? 2 : 1);
-  // claimed in one statement, so ten clicks at once still pay one bonus
-  const paid = await withTx(async (c) => {
-    const ok = (await c.query(`update users set last_bonus_at = now() where id = $1
-                                 and (last_bonus_at is null or last_bonus_at < now() - interval '20 hours') returning id`, [req.user.id])).rows[0];
-    if (!ok) return false;
-    await move(c, req.user.id, amount, 'bonus', 'daily', { test: req.user.test_mode || undefined });
-    return true;
-  });
-  if (!paid) return res.status(429).json({ error: 'not yet' });
-  res.json({ amount });
-});
+// the daily bonus was replaced by the first-deposit bonus and referrals (lib/promos.js)
+app.post('/api/wallet/bonus', requireUser, (_req, res) => res.status(410).json({ error: 'The daily bonus is gone: your first deposit is doubled instead.' }));
 
 // Manual claims for fiat rails (which settle to a bank, not to BTC) or for a tx
 // the watcher hasn't seen. Admin verifies against the chain and credits by hand.
@@ -950,6 +958,10 @@ app.use('/api/vault', vault.router);
 // AI-painted avatars: the starter catalogue, purchases, custom orders and the image files
 const avatars = createAvatars({ q, withTx, move, audit, alert: (...a) => autopilot.alert(...a) });
 app.use('/api/avatars', avatars.router);
+// first-deposit bonus and referrals
+const promos = createPromos({ q, withTx, move, audit });
+app.use('/api/promos', promos.router);
+app.get('/r/:code', (req, res) => res.redirect(302, '/?ref=' + encodeURIComponent(String(req.params.code).replace(/[^A-Za-z0-9]/g, '').slice(0, 12)) + '#/signup'));
 app.use('/avatars', avatars.files);
 
 /* Casino host: seamless wallet for game providers + Kohler Studio games */
@@ -1476,6 +1488,7 @@ adminRouter.post('/claims/:id/approve', async (req, res) => {
   const credit = chain.satsToUsdCents(sats, price);
   await withTx(async (cl) => {
     await move(cl, c.user_id, credit, 'deposit', c.txid, { method: c.method, sats, price });
+    await promos.onDeposit(cl, c.user_id, credit, c.txid);
     await cl.query('update deposit_claims set status = $2, sats = $3, handled_at = now() where id = $1',
       [c.id, 'approved', sats]);
   });
@@ -1492,6 +1505,7 @@ adminRouter.use('/pool', poolPot.admin);   // god-only via the role middleware a
 adminRouter.use('/casino', casino.admin);
 adminRouter.use('/vault', vault.admin);
 adminRouter.use('/avatars', avatars.admin);
+adminRouter.use('/promos', promos.admin);
 
 /* payouts: manual by default, automatic when switched on */
 adminRouter.get('/payouts', async (_req, res) => {
@@ -1600,6 +1614,7 @@ if (chain.chainEnabled()) {
         );
         if (!ins.rows[0]) return false;
         await move(c, userId, credit, 'deposit', txKey, { sats, price, platformFee });
+        await promos.onDeposit(c, userId, credit, txKey);
         await c.query(
           'insert into platform_fees (user_id, kind, ref, amount_cents, amount_sats) values ($1,$2,$3,$4,$5)',
           [userId, 'deposit', txKey, platformFee, sats - chain.usdCentsToSats(credit, price)]

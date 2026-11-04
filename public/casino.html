@@ -361,6 +361,7 @@ body.test .game{top:calc(var(--top) + 28px)}
     <a href="#" data-w="deposit"><span class="i" style="--u:url(/assets/icons/wallet.svg)"></span>Wallet</a>
     <a href="#" data-w="history"><span class="i" style="--u:url(/assets/icons/receipt-text.svg)"></span>Transactions</a>
     <a href="#/limits" data-r="limits"><span class="i" style="--u:url(/assets/icons/shield-check.svg)"></span>Limits &amp; cool-off</a>
+    <a href="/#/refer"><span class="i" style="--u:url(/assets/icons/users.svg)"></span>Invite friends</a>
     <a href="/rules.html"><span class="i" style="--u:url(/assets/icons/info.svg)"></span>Rules &amp; fees</a>
     <a href="#" data-install hidden><span class="i" style="--u:url(/assets/icons/smartphone.svg)"></span>Install app</a>
     <a href="/"><span class="i" style="--u:url(/assets/icons/house.svg)"></span>Kohler shop</a>
@@ -628,7 +629,8 @@ async function wallet(tab = 'deposit') {
     if (tab === 'withdraw') {
       body.innerHTML = '<div id="kwMount"></div><div id="kwList"></div>';
       const showList = () => KohlerWithdraw.list($('#kwList'), { api, money, esc });
-      KohlerWithdraw.mount($('#kwMount'), { api, money, esc, balance: CS.user.balance, test: !!CS.user.testMode, cls: { primary: 'btn neon', ghost: 'btn' },
+      if (CS.user.bonusLocked) body.insertAdjacentHTML('afterbegin', `<p style="color:var(--dim);margin:0 0 12px;font-size:13.5px">${money(CS.user.bonusLocked)} of your balance is bonus money. Play ${money(CS.user.wagerLeft)} more to withdraw it.</p>`);
+      KohlerWithdraw.mount($('#kwMount'), { api, money, esc, balance: CS.user.testMode ? CS.user.balance : CS.user.balance - (CS.user.bonusLocked || 0), test: !!CS.user.testMode, cls: { primary: 'btn neon', ghost: 'btn' },
         onDone: () => { refreshMe(); showList(); } });
       showList();
       return;
@@ -648,7 +650,7 @@ async function wallet(tab = 'deposit') {
       body.innerHTML = w.test
         ? `<p style="color:var(--dim);margin-top:0">Test account. Fake money only.</p>
            <div class="row" style="flex-wrap:wrap">${[10000, 50000, 100000].map((c) => `<button class="btn neon" data-add="${c}">Add ${money(c).replace('.00', '')}</button>`).join('')}</div>`
-        : w.address ? `<p style="color:var(--dim);margin-top:0">Your personal Bitcoin address.</p>
+        : w.address ? `${w.firstOffer ? `<div style="padding:12px 14px;border-radius:14px;border:1px solid rgba(232,196,106,.5);background:linear-gradient(135deg,rgba(232,196,106,.14),transparent 70%);margin-bottom:12px"><b style="color:var(--gold)">Your first deposit is doubled</b><div style="color:var(--dim);font-size:13px">${w.firstOffer.pct}% match up to ${money(w.firstOffer.cap)}, played ${w.firstOffer.wagerX}× before withdrawing.</div></div>` : ''}<p style="color:var(--dim);margin-top:0">Your personal Bitcoin address.</p>
            <div style="display:flex;justify-content:center;margin:8px 0 14px"><img src="${w.qr}" alt="Deposit QR code" style="width:180px;height:180px;border-radius:14px;background:#fff;padding:8px"></div>
            <div class="addr" id="addr">${esc(w.address)}</div><button class="btn wide" style="margin-top:10px" id="cp">${ic('layers', 16)}Copy address</button>
            <div id="incoming">${KohlerWithdraw.incoming(w.incoming, esc)}</div>
@@ -695,7 +697,8 @@ function authModal(mode = 'in') {
     <p style="color:var(--dim);margin:0 0 18px">${reg ? '18+ only. Takes ten seconds.' : 'One account for the shop and the casino.'}</p>
     <form id="af">${reg ? `<label class="field"><span>Email</span><input class="inp" id="ae" type="email" required autocomplete="email"></label><label class="field"><span>Username</span><input class="inp" id="au" required minlength="3" autocomplete="username"></label>`
       : `<label class="field"><span>Email or username</span><input class="inp" id="aw" required autocomplete="username"></label>`}
-      <label class="field"><span>Password</span><input class="inp" id="ap" type="password" required autocomplete="${reg ? 'new-password' : 'current-password'}"></label><div class="err" id="aerr"></div>
+      <label class="field"><span>Password</span><input class="inp" id="ap" type="password" required autocomplete="${reg ? 'new-password' : 'current-password'}"></label>
+      ${reg ? `<label class="field"><span>Referral code (optional)</span><input class="inp" id="aref" maxlength="12" value="${esc(window.KohlerRef?.() || '')}"></label>` : ''}<div class="err" id="aerr"></div>
       <button class="btn neon wide lg" type="submit" id="asub">${reg ? 'Create account' : 'Sign in'}</button></form>
     <button class="btn ghost wide" style="margin-top:8px" id="asw">${reg ? 'I already have an account' : 'New here? Create an account'}</button>`;
   $('#modal').classList.add('on'); setTimeout(() => $('#mbox input')?.focus(), 30);
@@ -703,7 +706,7 @@ function authModal(mode = 'in') {
   $('#af').onsubmit = async (e) => {
     e.preventDefault(); $('#asub').disabled = true; $('#asub').textContent = reg ? 'Creating…' : 'Signing in…';
     try {
-      const out = reg ? await api('/auth/register', { method: 'POST', body: { email: $('#ae').value, username: $('#au').value, password: $('#ap').value } })
+      const out = reg ? await api('/auth/register', { method: 'POST', body: { email: $('#ae').value, username: $('#au').value, password: $('#ap').value, ref: $('#aref')?.value || undefined } })
         : await api('/auth/login', { method: 'POST', body: { who: $('#aw').value, password: $('#ap').value } });
       $('#modal').classList.remove('on');
       if (out.user) { CS.user = out.user; paintMe(); } else await refreshMe();
