@@ -138,6 +138,8 @@
 .orders .o{padding:16px 0;border-bottom:1px solid var(--line)}
 .orders .o:last-child{border:0}
 .filebanner{background:var(--coral);color:#2a0606;font-weight:650;padding:10px 16px;text-align:center}
+.tb-out{background:none;border:0;padding:0;margin-left:6px;color:inherit;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}
+.qrcard{display:inline-flex;flex-direction:column;align-items:center;gap:6px;background:#fff;border-radius:22px;padding:8px 8px 10px;box-shadow:0 12px 32px rgba(0,0,0,.35),inset 0 0 0 1px rgba(0,0,0,.06)}.qrwrap{position:relative;display:block;line-height:0}.qrwrap>.qrimg{display:block;width:100%;height:auto}.qrwrap>.qrbtc{position:absolute;left:50%;top:50%;width:21%;height:21%;transform:translate(-50%,-50%);filter:drop-shadow(0 2px 3px rgba(0,0,0,.25))}.qrfoot{display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:12px;line-height:1;color:#0b0f16;letter-spacing:.01em}.qrfoot b{font-weight:800}.qrfoot span{color:#6b7280;font-weight:600}
 .gateway{min-height:calc(100vh - 150px);display:grid;place-items:center;padding:56px 18px}
 .gateway-card{position:relative;overflow:hidden;width:min(760px,100%);padding:clamp(28px,6vw,72px);text-align:center;border:1px solid rgba(232,196,106,.42);border-radius:28px;background:
   radial-gradient(560px 280px at 15% 0,rgba(0,255,102,.14),transparent 70%),
@@ -164,7 +166,7 @@
     <a class="bal" id="bal" href="#/wallet"><i></i><span class="num">Sign in</span></a>
     <a class="avatar" id="av" href="#/account" aria-label="Account">?</a>
   </div>
-  <div class="testbar hide" id="testbar">Test mode: fake money and simulated players. Nothing you buy or win here is real.</div>
+  <div class="testbar hide" id="testbar">Test mode: fake money and simulated players. Nothing you buy or win here is real. <button type="button" class="tb-out" onclick="fetch('/api/auth/logout',{method:'POST'}).then(()=>location.reload())">Sign out of the test account</button></div>
 </header>
 
 <main id="view"></main>
@@ -564,7 +566,7 @@ function depositSheet(need) {
 }
 
 /* ── wallet ── */
-const KIND = { deposit: 'Deposit', withdraw: 'Withdrawal', order: 'Purchase', bet: 'Game stake', payout: 'Game win', bonus: 'Daily bonus', bonus_first: 'First-deposit bonus', bonus_referral: 'Referral reward',
+const KIND = { deposit: 'Deposit', withdraw: 'Withdrawal', order: 'Purchase', bet: 'Game stake', payout: 'Game win', bonus: 'Daily bonus', bonus_first: 'First-deposit bonus', bonus_referral: 'Referral reward', bonus_ref_friend: 'Invite bonus', bonus_deposit: 'Deposit bonus',
   adjust: 'Adjustment', pool_buyin: 'Survivor seat', pool_refund: 'Survivor refund', pool_payout: 'Survivor win', vault: 'Vault purchase', casino_bet: 'Casino bet', casino_win: 'Casino win' };
 async function viewWallet() {
   if (!S.user) return needAuth('see your wallet');
@@ -579,12 +581,12 @@ async function viewWallet() {
         ${w.bonusLocked ? `<p class="muted" style="font-size:13.5px;margin:0 0 16px">Includes <b style="color:var(--gold)">${money(w.bonusLocked)} bonus</b>. Play ${money(w.wagerLeft)} more and it's yours to withdraw.</p>` : ''}
         ${test ? `<p class="muted" style="margin-bottom:14px">Fake money for testing. Nothing here is real.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn warn" data-add="10000">Add $100</button><button class="btn" data-add="50000">Add $500</button><button class="btn" data-add="100000">Add $1,000</button></div>`
-        : w.firstOffer ? `<div class="offer"><b>Your first deposit is doubled</b><span>We match ${w.firstOffer.pct}% of it, up to ${money(w.firstOffer.cap)}. Play the bonus ${w.firstOffer.wagerX}× and it's yours to withdraw.</span></div>`
+        : w.firstOffer || w.friendOffer ? `${w.firstOffer ? `<div class="offer"><b>${w.firstOffer.pct === 100 ? 'Your first deposit is doubled' : `${w.firstOffer.pct}% bonus on your first deposit`}</b><span>We match ${w.firstOffer.pct}% of it, up to ${money(w.firstOffer.cap)}${w.firstOffer.minDeposit ? ` (deposit at least ${money(w.firstOffer.minDeposit)})` : ''}. Play the bonus ${w.firstOffer.wagerX}× and it's yours to withdraw.</span></div>` : ''}${w.friendOffer ? `<div class="offer" style="margin-top:8px"><b>${money(w.friendOffer.reward)} from your invite</b><span>Deposit ${money(w.friendOffer.minDeposit)} or more and get ${money(w.friendOffer.reward)} of bonus money. Play it ${w.friendOffer.wagerX}× and it's yours to withdraw.</span></div>` : ''}`
         : `<a class="btn" href="#/refer">Invite friends, earn bonus money</a>`}
       </div>
       ${test ? `<div class="panel"><h3>Deposits</h3><p class="muted" style="margin-top:8px">Test accounts use fake money.</p></div>`
-      : `<div class="panel"><h3 style="margin-bottom:12px">Deposit Bitcoin</h3>${w.address ? `
-        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><img class="qr" src="${w.qr}" alt="QR code for your deposit address">
+      : `<div class="panel"><h3 style="margin-bottom:12px;display:flex;align-items:center"><img src="/assets/btc.png" alt="" width="22" height="22" style="vertical-align:-5px;margin-right:8px">Deposit Bitcoin</h3>${w.address ? `
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div class="qrcard" style="flex:0 0 190px;width:190px"><span class="qrwrap"><img class="qrimg" src="${w.qr}" alt="QR code for your Bitcoin deposit address"><img class="qrbtc" src="/assets/btc.png" alt=""></span><div class="qrfoot"><img src="/assets/logo.svg" alt="" width="16" height="16"><b>Kohler</b><span>· Bitcoin deposit</span></div></div>
           <div style="flex:1;min-width:200px"><div class="addr" id="addr">${esc(w.address)}</div><button class="btn wide" id="cpAddr" style="margin-top:10px">Copy address</button></div></div>
         ${KohlerWithdraw.incoming(w.incoming, esc)}
         <p class="muted" style="font-size:13.5px;margin-top:14px">Send BTC only. Credited in dollars once confirmed.</p>`
@@ -657,19 +659,23 @@ async function loadThreads() {
 async function viewRefer() {
   if (!S.user) return needAuth('get your invite link');
   const d = await api('/promos/referrals');
-  const pct = Math.round((d.every - d.toNext) / d.every * 100);
+  const P = d.pair, M = d.milestone, wx = (P || M || {}).wagerX;
+  const pitch = [P && `When a friend joins with your link and deposits ${money(P.minDeposit)} or more${P.friendReward ? `, they get <b style="color:var(--gold)">${money(P.friendReward)}</b> of bonus money straight away` : ''}. You get <b style="color:var(--gold)">${money(P.referrerReward)}</b> ${P.friendWager ? `once they've played ${money(P.friendWager)} in games` : 'too'}.`,
+    M && `${P ? 'On top of that, every' : 'Every'} ${M.every} friends who deposit ${money(d.activeMin)} or more earn you ${money(M.reward)}, then the next ${M.every}, and so on.`].filter(Boolean).join(' ');
+  const STATUS = { paid: ['Paid', 'var(--gold)'], active: ['Deposited', 'var(--mint)'], playing: ['Deposited, still playing', 'var(--mint)'], joined: ['Joined, no deposit yet', 'var(--muted)'], held: ['Under review', 'var(--amber)'] };
+  const pct = M ? Math.round((M.every - M.toNext) / M.every * 100) : 0;
   $('#view').innerHTML = `<div class="stack" style="max-width:760px">
-    <div><h1>Invite friends</h1><p class="muted" style="margin-top:6px">Every ${d.every} friends who join with your link and deposit ${money(d.minDeposit)} or more earn you ${money(d.reward)} of bonus money. Then the next ${d.every}, and so on.</p></div>
-    ${d.enabled ? '' : '<div class="panel"><p class="muted">Referrals are paused right now. Links you share still count when they come back.</p></div>'}
+    <div><h1>Invite friends</h1><p class="muted" style="margin-top:6px">${pitch || 'Referral rewards are paused right now. Friends who join with your link still count when they come back.'}</p></div>
     <div class="panel"><h3 style="margin-bottom:12px">Your link</h3>
       <div class="addr" id="refLink" style="word-break:break-all">${esc(d.link)}</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"><button class="btn go" id="refCopy">Copy link</button>${navigator.share ? '<button class="btn" id="refShare">Share</button>' : ''}
         <span class="muted" style="align-self:center;font-size:14px">or code <b class="mono" style="color:var(--text);letter-spacing:.08em">${esc(d.code)}</b></span></div></div>
-    <div class="panel"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><h3>Progress</h3><span class="muted num">${d.active} active · ${d.signedUp} joined</span></div>
-      <div style="height:8px;border-radius:4px;background:var(--ink-2);margin:14px 0 8px;overflow:hidden"><i style="display:block;height:100%;width:${pct}%;background:var(--mint);border-radius:4px"></i></div>
-      <p class="muted" style="font-size:14px">${d.toNext} more active ${d.toNext === 1 ? 'friend' : 'friends'} to your next ${money(d.reward)}.${d.earned ? ` Earned so far: <b style="color:var(--gold)">${money(d.earned)}</b>.` : ''}</p>
-      <p class="muted" style="font-size:12.5px;margin-top:6px">Bonus money is for playing: wager it ${d.wagerX}× and it's yours to withdraw.</p></div>
-    ${d.people.length ? `<div class="panel"><h3 style="margin-bottom:6px">Friends</h3><div class="rows">${d.people.map((x) => `<div><span><span class="k">${esc(x.name)}</span><small>Joined ${new Date(x.joined).toLocaleDateString()}</small></span><b style="font-size:13px;color:${x.active ? 'var(--mint)' : 'var(--muted)'}">${x.active ? 'Active' : 'Joined, no deposit yet'}</b></div>`).join('')}</div></div>` : ''}
+    <div class="panel"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><h3>Progress</h3><span class="muted num">${d.active} deposited · ${d.signedUp} joined</span></div>
+      ${M ? `<div style="height:8px;border-radius:4px;background:var(--ink-2);margin:14px 0 8px;overflow:hidden"><i style="display:block;height:100%;width:${pct}%;background:var(--mint);border-radius:4px"></i></div>
+      <p class="muted" style="font-size:14px">${M.toNext} more ${M.toNext === 1 ? 'friend' : 'friends'} to your next ${money(M.reward)}.</p>` : ''}
+      <p class="muted" style="font-size:14px;margin-top:${M ? 4 : 10}px">Earned so far: <b style="color:var(--gold)">${money(d.earned)}</b></p>
+      ${wx ? `<p class="muted" style="font-size:12.5px;margin-top:6px">Bonus money is for playing: wager it ${wx}× and it's yours to withdraw.</p>` : ''}</div>
+    ${d.people.length ? `<div class="panel"><h3 style="margin-bottom:6px">Friends</h3><div class="rows">${d.people.map((x) => { const [t, c] = STATUS[x.status] || STATUS.joined; return `<div><span><span class="k" style="display:block;font-weight:600">${esc(x.name)}</span><small class="muted" style="font-size:12.5px">Joined ${new Date(x.joined).toLocaleDateString()}</small></span><b style="font-size:13px;color:${c}">${t}</b></div>`; }).join('')}</div></div>` : ''}
   </div>`;
   $('#refCopy').onclick = () => { navigator.clipboard?.writeText(d.link); toast('Link copied', 'good'); };
   $('#refShare') && ($('#refShare').onclick = () => navigator.share({ title: 'Kohler', text: 'Join me on Kohler', url: d.link }).catch(() => {}));

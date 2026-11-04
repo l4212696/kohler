@@ -113,19 +113,18 @@ footer{color:var(--faint);font-size:13px;margin-top:30px;text-align:center}
 
   <section id="bonus">
     <h2>Bonuses &amp; referrals</h2>
-    <h3>First deposit</h3>
-    <p>Your first deposit is matched <b class="v" data-promo="pct">100%</b>, up to <b class="v" data-promo="cap">$50</b>. The match is bonus money.</p>
+    <div id="promoNow"><h3>Running now</h3><p>Loading the current offers…</p></div>
     <h3>Bonus money</h3>
     <ul>
       <li>Bonus money can be played in the casino and Survivor straight away.</li>
-      <li>It can't be withdrawn or spent in the shop until you've played <b class="v" data-promo="x">5</b> times its amount. Every bet counts. After that it's ordinary money.</li>
+      <li>It can't be withdrawn or spent in the shop until you've played it the number of times its offer says (for example 5× means $10 of bonus needs $50 of bets). Every bet counts. After that it's ordinary money.</li>
       <li>Your own deposits and winnings are never locked: you can always withdraw what isn't bonus.</li>
+      <li>Offers can change or end at any time. Anything already credited to you stays yours under the terms it came with.</li>
     </ul>
     <h3>Referrals</h3>
     <ul>
-      <li>Share your link or code (Account → Invite friends). A friend counts once they've deposited at least <b class="v" data-promo="min">$10</b>.</li>
-      <li>Every <b class="v" data-promo="every">10</b> friends who count earns you <b class="v" data-promo="reward">$10</b> of bonus money, then the next group, and so on.</li>
-      <li>One account per person. Accounts made to refer yourself are closed and their rewards removed.</li>
+      <li>Share your link or code (Account → Invite friends). Your friend has to sign up with it; it can't be added later.</li>
+      <li>One account per person. Kohler can hold a referral for review, and accounts made to refer yourself can be closed and their rewards removed.</li>
     </ul>
   </section>
 
@@ -166,10 +165,16 @@ const pct = (bps) => (Math.round(bps) / 100).toString().replace(/\.0+$/, '') + '
 const set = (k, bps) => { if (Number.isFinite(bps)) document.querySelectorAll(`[data-fee="${k}"]`).forEach((e) => e.textContent = pct(bps)); };
 fetch('/api/pool/lobby').then((r) => r.ok ? r.json() : null).then((d) => d && set('pool', Number(d.settings?.feeBps))).catch(() => {});
 fetch('/api/promos/offer').then((r) => r.ok ? r.json() : null).then((d) => {
-  const money = (c) => '$' + (c / 100).toFixed(c % 100 ? 2 : 0), put = (k, v) => document.querySelectorAll(`[data-promo="${k}"]`).forEach((e) => (e.textContent = v));
-  if (d?.first) { put('pct', d.first.pct + '%'); put('cap', money(d.first.cap)); put('x', d.first.wagerX); }
-  if (d?.referral) { put('every', d.referral.every); put('reward', money(d.referral.reward)); put('min', money(d.referral.minDeposit)); }
-}).catch(() => {});
+  const money = (c) => '$' + (c / 100).toFixed(c % 100 ? 2 : 0), box = document.getElementById('promoNow');
+  const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const until = (p) => p.endsAt ? ` Ends ${new Date(p.endsAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}.` : '';
+  const line = (p) => p.kind === 'deposit_match'
+    ? `<b>${esc(p.name)}.</b> ${p.firstOnly ? 'Your first deposit' : 'One deposit'}${p.minDeposit ? ` of ${money(p.minDeposit)} or more` : ''} is matched <b class="v">${p.pct}%</b>, up to <b class="v">${money(p.cap)}</b>, as bonus money played ${p.wagerX}×.`
+    : p.kind === 'referral'
+    ? `<b>${esc(p.name)}.</b> A friend joins with your link and deposits <b class="v">${money(p.minDeposit)}</b> or more${p.friendReward ? `: they get <b class="v">${money(p.friendReward)}</b> straight away` : ''}. You get <b class="v">${money(p.referrerReward)}</b>${p.friendWager ? ` once they've played <b class="v">${money(p.friendWager)}</b> in games` : ''}. Both are bonus money, played ${p.wagerX}×.`
+    : `<b>${esc(p.name)}.</b> Every <b class="v">${p.every}</b> friends who deposit ${money(d.activeMin)} or more earn you <b class="v">${money(p.reward)}</b> of bonus money, played ${p.wagerX}×.`;
+  box.innerHTML = '<h3>Running now</h3>' + (d?.promos?.length ? `<ul>${d.promos.map((p) => `<li>${line(p)}${until(p)}</li>`).join('')}</ul>` : '<p>No offers are running right now.</p>');
+}).catch(() => { document.getElementById('promoNow').innerHTML = '<h3>Running now</h3><p>See your wallet for the current offers.</p>'; });
 fetch('/api/storefront').then((r) => r.ok ? r.json() : null).then((d) => d && set('shop', Number(d.feeBps))).catch(() => {});
 </script>
 </body>
