@@ -75,7 +75,8 @@
     const pend = d.pending.length ? `<div class="panelx" style="display:flex;align-items:center;gap:12px"><span class="live-dot"></span><b>Painting your custom avatars…</b><button class="btn sm" style="margin-left:auto" data-order="${d.pending[0].id}">Watch</button></div>` : '';
     const mine = d.mine.length ? `<div class="sect"><h2>Your custom avatars</h2><span>${d.mine.length}</span></div><div class="vt-grid">${d.mine.map((a) => avTile(a, true)).join('')}</div>` : '';
     const grid = d.avatars.length ? `<div class="sect"><h2>The collection</h2><span>${d.avatars.length} avatars</span></div>
-        <div class="filters">${tiers.map((t) => `<button class="pill ${t === tierFilter ? 'on' : ''}" data-tier="${t}">${t === 'all' ? 'All' : t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div>
+        <div class="filters">${tiers.map((t) => `<button class="pill ${t === tierFilter ? 'on' : ''}" data-tier="${t}">${t === 'all' ? 'All' : t[0].toUpperCase() + t.slice(1)}</button>`).join('')}
+          ${CS.user ? `<button class="pill ${CS.user.equip?.avatar_mode === 'default' ? 'on' : ''}" data-avdefault>Use default text avatar</button>` : ''}</div>
         <div class="vt-grid">${list.map((a) => avTile(a)).join('')}</div>`
       : `<div class="empty">${ic('sparkles', 40, 'color:var(--gold)')}<h3>The collection is being painted</h3><p>New avatars show up here as they're finished.</p>${d.review ? `<p style="margin-top:10px"><a class="btn gold" href="/admin#/avatars">${d.review} painted and waiting for your review</a></p>` : CS.user?.isAdmin ? '<p class="muted" style="font-size:13px">Progress: Admin → Avatar factory.</p>' : ''}</div>`;
     return create + pend + mine + grid;
@@ -168,7 +169,7 @@
       } });
   }
   async function equipAvatar(id) {
-    try { const out = await api('/avatars/equip', { method: 'POST', body: { id } }); CS.user.equip = out.equip; paintMe(); render(); buzz(10); toast(id ? 'Avatar equipped' : 'Back to your default avatar'); }
+    try { const out = await api('/avatars/equip', { method: 'POST', body: id === 'default' ? { default: true } : { id } }); CS.user.equip = out.equip; paintMe(); render(); buzz(10); toast(id && id !== 'default' ? 'Avatar equipped' : 'Back to your default avatar'); }
     catch (e) { toast(e.message); }
   }
   async function equip(slot, item) {
@@ -265,7 +266,7 @@
 
   document.addEventListener('click', (e) => {
     if (!location.hash.startsWith('#/vault') && !e.target.closest('#mbox')) return;
-    const t = e.target.closest('[data-tab],[data-buy],[data-eq],[data-uneq],[data-try],[data-auth],[data-avbuy],[data-aveq],[data-avuneq],[data-create],[data-tier],[data-order],[data-vcat]'); if (!t) return;
+    const t = e.target.closest('[data-tab],[data-buy],[data-eq],[data-uneq],[data-try],[data-auth],[data-avbuy],[data-aveq],[data-avuneq],[data-avdefault],[data-create],[data-tier],[data-order],[data-vcat]'); if (!t) return;
     if (t.closest('#mbox') && !t.matches('[data-buy],[data-auth]')) return;
     e.preventDefault();
     const d = t.dataset;
@@ -277,7 +278,8 @@
     else if (d.vcat) { cat = d.vcat; render(); }
     else if (d.avbuy) buyAvatar(d.avbuy);
     else if (d.aveq) equipAvatar(d.aveq);
-    else if (t.hasAttribute('data-avuneq')) equipAvatar(null);
+    else if (t.hasAttribute('data-avuneq')) equipAvatar('default');
+    else if (t.hasAttribute('data-avdefault')) equipAvatar('default');
     else if (t.hasAttribute('data-create')) builder();
     else if (d.tier) { tierFilter = d.tier; render(); }
     else if (d.order) watch(d.order);

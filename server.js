@@ -166,12 +166,12 @@ async function userFromReq(req) {
 
 app.use(async (req, res, next) => {
   req.user = await userFromReq(req);
+  const bypassEmail = String(process.env.TEST_ACCOUNT_EMAIL || 'testkohler@yopmail.com').trim().toLowerCase();
   if (!req.user && process.env.AUTH_DISABLED === 'true') {
-    const email = String(process.env.TEST_ACCOUNT_EMAIL || 'testkohler@yopmail.com').trim().toLowerCase();
-    const r = await q('select * from users where lower(email) = $1', [email]);
+    const r = await q('select * from users where lower(email) = $1', [bypassEmail]);
     req.user = r.rows[0] || null;
   }
-  if (req.user && process.env.AUTH_DISABLED === 'true') {
+  if (req.user && process.env.AUTH_DISABLED === 'true' && String(req.user.email).toLowerCase() === bypassEmail) {
     req.user.is_admin = true;
     req.user.admin_role = 'god';
     req.user.totp_enabled = true;
@@ -184,10 +184,12 @@ app.use(async (req, res, next) => {
 });
 
 const requireUser = (req, res, next) => (req.user ? next() : res.status(401).json({ error: 'sign in' }));
+const bypassAdmin = (req) => process.env.AUTH_DISABLED === 'true'
+  && String(req.user?.email || '').toLowerCase() === String(process.env.TEST_ACCOUNT_EMAIL || 'testkohler@yopmail.com').trim().toLowerCase();
 const requireAdmin = (req, res, next) =>
-  process.env.AUTH_DISABLED === 'true' || req.user?.is_admin ? next() : res.status(403).json({ error: 'admin only' });
+  req.user?.is_admin || bypassAdmin(req) ? next() : res.status(403).json({ error: 'admin only' });
 const requireGod = (req, res, next) =>
-  process.env.AUTH_DISABLED === 'true' || (req.user?.is_admin && req.user?.admin_role === 'god')
+  (req.user?.is_admin && req.user?.admin_role === 'god') || bypassAdmin(req)
     ? next() : res.status(403).json({ error: 'god admin only' });
 const requireGambling = (req, res, next) =>
   gamblingEnabled().then((enabled) => enabled ? next() : res.status(404).json({ error: 'not available' })).catch(next);

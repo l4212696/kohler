@@ -9,7 +9,7 @@
     list: [], free: [], byId: {},
     set(list) { this.list = list || []; this.free = this.list.filter((a) => !a.price); this.byId = Object.fromEntries(this.list.map((a) => [a.id, a])); },
     url: (id, size = 128) => `/avatars/${id}/${size}.webp`,
-    idFor(name, equip) { return equip?.avatar || (this.free.length ? this.free[hash(name) % this.free.length].id : null); },
+    idFor(name, equip) { return equip?.avatar_mode === 'default' ? null : (equip?.avatar || (this.free.length ? this.free[hash(name) % this.free.length].id : null)); },
     // avatar filters (Vault): a CSS filter from the item, looked up from the loaded Vault or the user's own equipArt
     filters: {},
     filterFor(equip) { const f = equip?.filter; return f ? window.KV?.[f]?.art?.css || this.filters[f] || '' : ''; },
