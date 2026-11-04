@@ -69,6 +69,13 @@ uploaded, so copy these across, then redeploy:
 that takes money needs Pro ($20/month). Vercel's Acceptable Use Policy also forbids content that promotes
 or facilitates *unlawful* online gambling, so get the licence question settled (§9) before going live there.
 
+## 1c. The installable app (PWA)
+
+Kohler installs like an app: Chrome/Edge/Android show **Install app** (store footer and casino sidebar);
+on iPhone it explains Share → Add to Home Screen. `public/sw.js` loads pages from the network first (so
+a new deploy shows at once) and only falls back to the last copy when offline; money and account calls
+are never cached. Change `VERSION` in `sw.js` if you ever need every phone to drop its cache.
+
 ## 2. Why buttons felt slow, and what changed
 
 Most of the delay was the database, not the site:
@@ -225,6 +232,9 @@ the house wallet). `/pool` and `/survivor` now redirect into the casino. The sea
 (`/api/casino/v1`, HMAC-signed) is still in place, because Kohler's own games use it. Adding an outside
 provider later needs a gaming licence and a contract with them.
 
+Games have a **Turbo** switch (top bar) that roughly halves animation time; slots, roulette, the
+wheel, coin flip and limbo are also quicker by default.
+
 ## 6. The Vault and AI avatars (non-gambling purchases)
 
 `/casino#/vault`. Nothing here changes odds; it's how players look and show off.
@@ -256,10 +266,19 @@ Every image is checked (decodes, not blank, not a near-duplicate), saved as the 
 128px WebP in your Neon database, and served from `/avatars/<id>/<size>.webp` with year-long caching.
 New starter avatars wait for your approval (or switch on "Publish without review").
 
-**On Vercel** nothing runs in the background, so painting happens in slices: while **Admin → Avatar
-factory** is open it paints continuously, the daily cron paints for a few minutes, and a player waiting
-on a custom order paints their own order just by watching it. Leave the admin page open for ~15 minutes
-to fill the first 100.
+**On Vercel** there's no always-on server, so painting borrows time from requests: visitors browsing
+the site keep it going in the background, the admin page paints continuously while it's open, the daily
+cron paints for a few minutes, and a player waiting on a custom order paints their own order by watching
+it. Set Settings → Functions → Function Max Duration to 60s so a picture always has time to finish.
+
+**Backup painter.** When Cloudflare is out of free allowance or refuses the key, Pollinations
+(free, no key) takes over at one picture every 2 minutes (`AVATAR_BACKUP_GAP_SECS`), and Cloudflare is
+tried again every 10 minutes. `AVATAR_BACKUP=off` turns the backup off. A picture that can't be painted
+four times is refunded; a refused key never leaves an order waiting silently.
+
+**The starter collection** is your own list of 100 characters (`STARTER` in `lib/avatars/style.js`).
+New starter avatars wait for your approval in Admin → Avatar factory; the Vault tells admins when some
+are waiting.
 
 **Free and paid are kept apart.** The starter collection only uses `CF_ACCOUNT_ID`. Set
 `CF_CUSTOM_ACCOUNT_ID` / `CF_CUSTOM_API_TOKEN` to paint custom avatars on a separate Workers Paid
@@ -318,6 +337,52 @@ hosting and Neon, and reading alerts.
   player's balance doesn't match their ledger. Banning someone signs them out everywhere.
 - **Checklist.** Admin → Switches & health lists what's set up and what isn't (KEY_ENC, https,
   CRON_SECRET, 2FA, email, mainnet).
+
+## 8c. Going live on Bitcoin mainnet
+
+Do this once the legal side is done. It takes about an hour, most of it waiting for confirmations.
+
+**How the money flows.** Every player gets their own deposit address, made from one recovery phrase
+(`DEPOSIT_MNEMONIC`). When a deposit confirms, the player is credited and the coins are swept to the
+**parent address**. Withdrawals are paid from the **hot wallet** (also made from the phrase, path
+`m/84'/0'/1'/0/0`). Admin → Payouts shows both.
+
+1. **Use a fresh database for launch.** Testnet balances are fake money and testnet deposit addresses
+   don't work on mainnet. In Neon, create a new project (or an empty branch), copy its connection
+   string, and set it as `DATABASE_URL` for Production. Kohler builds every table on first start.
+2. **Make a new recovery phrase** on your own computer, ideally offline:
+   `npm run newseed`. Write the 24 words on paper. Never reuse the testnet phrase or a personal wallet's.
+3. **Get a parent address from a wallet you control offline.** A hardware wallet (Trezor, Ledger,
+   Coldcard) or Sparrow Wallet: copy one receive address (`bc1q…`). This is where deposits end up, so
+   most of the money stays offline.
+4. **Set the environment variables** in Vercel (Settings → Environment Variables, Production), then redeploy:
+
+   | Variable | Value |
+   |---|---|
+   | `CHAIN_ENABLED` | `true` |
+   | `BTC_NETWORK` | `mainnet` (anything except `testnet` is mainnet) |
+   | `DEPOSIT_MNEMONIC` | the 24 words from step 2 |
+   | `MEMPOOL_API` | leave unset (uses `https://mempool.space/api`) |
+   | `MIN_CONFIRMATIONS` | `2` (raise to `3` if you take large deposits) |
+   | `MIN_DEPOSIT_SATS`, `MIN_WITHDRAW_SATS`, `WITHDRAW_FEE_SATS` | defaults 20000 / 50000 / 800 |
+   | `KEY_ENC` | 64 hex characters, set **before** launch and never changed |
+   | `PUBLIC_URL` | `https://your-domain` |
+   | `CRON_SECRET`, `TEST_ACCOUNT_PASSWORD` | long random strings |
+
+   Also in Vercel: Settings → Functions → **Function Max Duration** → 60 seconds (avatar painting needs it).
+5. **Sign in to Admin**, set up two-factor, then Admin → Payouts → **Where deposits go**: paste the
+   parent address from step 3 and check it character by character. (Or press **Sweep deposits here**
+   to use the hot wallet instead; simpler, but then all funds sit online.)
+6. **Fund the hot wallet** with about one day of withdrawals. Its address is on Admin → Payouts. Top it
+   up from your cold wallet when it runs low.
+7. **Test with your own money:** deposit about $10 from your own wallet; it should show as "on the way"
+   within a minute and be credited after 2 confirmations (~20 minutes), then appear on the parent address.
+   Withdraw $5 back to your own wallet and confirm it arrives. Check Admin → Switches & health has no alerts.
+8. **Keep automatic payouts off for the first week** and approve withdrawals by hand. Then switch them on
+   with small caps (e.g. $100 per withdrawal, $500 a day); anything larger still waits for you.
+
+If you ever think the phrase leaked: set `CHAIN_ENABLED=false`, sweep the hot wallet to your cold wallet,
+make a new phrase, set it, and run `delete from deposit_addresses;` in the Neon SQL editor so every player gets a new address.
 
 ## 9. Recommendations
 

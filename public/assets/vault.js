@@ -59,7 +59,7 @@
     const grid = d.avatars.length ? `<div class="sect"><h2>The collection</h2><span>${d.avatars.length} avatars</span></div>
         <div class="filters">${tiers.map((t) => `<button class="pill ${t === tierFilter ? 'on' : ''}" data-tier="${t}">${t === 'all' ? 'All' : t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div>
         <div class="vt-grid">${list.map((a) => avTile(a)).join('')}</div>`
-      : `<div class="empty">${ic('sparkles', 40, 'color:var(--gold)')}<h3>The collection is being painted</h3><p>New avatars show up here as they're finished.${CS.user?.isAdmin ? ' Admins: see Admin → Avatar factory.' : ''}</p></div>`;
+      : `<div class="empty">${ic('sparkles', 40, 'color:var(--gold)')}<h3>The collection is being painted</h3><p>New avatars show up here as they're finished.</p>${d.review ? `<p style="margin-top:10px"><a class="btn gold" href="/admin#/avatars">${d.review} painted and waiting for your review</a></p>` : CS.user?.isAdmin ? '<p class="muted" style="font-size:13px">Progress: Admin → Avatar factory.</p>' : ''}</div>`;
     return create + pend + mine + grid;
   }
 
@@ -191,7 +191,9 @@
           reload().then(() => location.hash.startsWith('#/vault') && !$('#modal').classList.contains('on') && render()).catch(() => {});
           return;
         }
-        setTimeout(loop, o ? 1500 : 5000);
+        // ask again soon while painting, or when the server says the next picture can start
+        const wait = !o ? 5000 : o.nextAt ? Math.min(30_000, Math.max(2000, new Date(o.nextAt) - Date.now() + 500)) : 1500;
+        setTimeout(loop, wait);
       })();
     } else if (onUpdate && w.last) onUpdate(w.last);
     return () => w.subs.delete(onUpdate);
@@ -207,6 +209,7 @@
       $('#mbox').innerHTML = `<h2 style="font-family:var(--display);margin:0 0 4px">${done ? (o.avatars.length ? 'Your avatars are ready' : 'That didn’t work') : 'Painting your avatars…'}</h2>
         <p class="muted" style="margin:0 0 14px">${done ? (o.avatars.length ? 'Tap one to wear it.' : `Nothing could be painted. ${money(o.refunded)} went back to your balance.`)
           : o.waitingUntil ? `The painter is resting until ${new Date(o.waitingUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. Your order is safe.`
+          : o.painter === 'backup' && o.nextAt ? `Busy painter: the next picture starts in about ${Math.max(1, Math.round((new Date(o.nextAt) - Date.now()) / 60000))} min. You can close this; we keep going.`
           : o.ahead ? `${o.ahead} ahead of you.` : `${Math.floor((Date.now() - t0) / 1000)}s`}</p>
         <div class="mk-grid">${slots.map((a) => a ? `<button class="mk-slot done" data-pick="${a.id}"><img src="${KohlerFace.url(a.id, 512)}" alt=""></button>` : `<div class="mk-slot ${done ? 'fail' : 'wait'}"></div>`).join('')}</div>
         ${done && o.refunded && o.avatars.length ? `<p class="muted" style="font-size:12.5px;margin:10px 0 0">${money(o.refunded)} refunded for the ones that didn’t come out.</p>` : ''}

@@ -17,6 +17,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .top .t{font-family:Unbounded,sans-serif;font-weight:700;font-size:14px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .top .meta{font-size:11.5px;color:var(--dim)}
 .grow{flex:1}
+.chipbtn.on{color:#03140a;background:var(--win);border-color:transparent}
 .chipbtn{height:30px;padding:0 10px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.05);font-size:12px;font-weight:600}
 .bal{font-weight:800;font-size:15px}
 .bal.up{color:var(--win);text-shadow:0 0 14px rgba(0,255,102,.6)}
@@ -97,7 +98,7 @@ body.embed #titleBox{display:none}
 .stats b{display:block;font-size:17px}.stats span{font-size:11.5px;color:var(--dim)}
 canvas{max-width:100%;max-height:100%}
 .wheelbox{position:relative;width:min(80vw,58vh,460px);aspect-ratio:1}
-.wheelbox svg{width:100%;height:100%;transition:transform 4.2s cubic-bezier(.12,.75,.15,1)}
+.wheelbox svg{width:100%;height:100%;transition:transform calc(2.8s * var(--spd, 1)) cubic-bezier(.12,.75,.15,1)}
 .pointer{position:absolute;left:50%;top:-8px;transform:translateX(-50%);width:0;height:0;border:14px solid transparent;border-top:24px solid var(--gold);filter:drop-shadow(0 2px 4px #000);z-index:2}
 
 /* coin flip */
@@ -151,6 +152,7 @@ canvas{max-width:100%;max-height:100%}
   <div class="grow"></div>
   <span class="demo" id="demoTag" hidden>DEMO</span>
   <button class="chipbtn" id="infoBtn">Rules</button>
+  <button class="chipbtn" id="turboBtn" title="Shorter animations">Turbo off</button>
   <button class="chipbtn" id="sndBtn">Sound on</button>
   <div style="text-align:right"><div class="meta">Balance</div><div class="bal num" id="bal">—</div></div>
 </div>
@@ -167,6 +169,10 @@ const hp = new URLSearchParams(location.hash.slice(1));
 const token = hp.get('token'); const isDemo = hp.get('demo') === '1' || !token;
 const demoId = isDemo ? (sessionStorage.getItem('ks-demo') || (() => { const v = 'demo-' + crypto.getRandomValues(new Uint32Array(2)).join(''); sessionStorage.setItem('ks-demo', v); return v; })()) : null;
 let G, balance = null, busy = false, sound = true;
+// Turbo: every animation runs at roughly half length. Remembered on this device.
+let turbo = false; try { turbo = localStorage.getItem('ks-turbo') === '1'; } catch {}
+const T = (ms) => Math.round(ms * (turbo ? 0.45 : 1));
+const applyTurbo = () => { document.documentElement.style.setProperty('--spd', turbo ? '.45' : '1'); const b = document.getElementById('turboBtn'); if (b) { b.textContent = turbo ? 'Turbo on' : 'Turbo off'; b.classList.toggle('on', turbo); } };
 const cents = (s) => Math.round(Number(s) * 100);
 const usd = (c) => '$' + (c / 100).toFixed(2);
 
@@ -189,6 +195,8 @@ function outcome(stake, payout, label) {
   loseFx(stake, label);
 }
 $('#sndBtn').onclick = () => { sound = !sound; $('#sndBtn').textContent = sound ? 'Sound on' : 'Sound off'; };
+$('#turboBtn').onclick = () => { turbo = !turbo; try { localStorage.setItem('ks-turbo', turbo ? '1' : '0'); } catch {} applyTurbo(); };
+applyTurbo();
 
 let msgT; function say(t, err) { const m = $('#msg'); m.textContent = t; m.className = 'msg on' + (err ? ' err' : ''); clearTimeout(msgT); msgT = setTimeout(() => (m.className = 'msg'), 2600); }
 function setBalance(b, won) {
@@ -246,10 +254,10 @@ const ENG = {
       reels.forEach((r) => r.classList.add('spin')); tone(220, .5, 'sawtooth', .015);
       const t0 = performance.now();
       const out = await play('spin', { bet: (bet / 100).toFixed(2) });
-      await new Promise((r) => setTimeout(r, Math.max(0, 500 - (performance.now() - t0))));
+      await new Promise((r) => setTimeout(r, Math.max(0, T(380) - (performance.now() - t0))));
       if (!out) { clearInterval(shuffle); reels.forEach((r) => r.classList.remove('spin')); busy = false; $('#go').disabled = false; return; }
       for (let i = 0; i < 5; i++) {
-        await new Promise((r) => setTimeout(r, 170));
+        await new Promise((r) => setTimeout(r, T(120)));
         reels[i].classList.remove('spin');
         reels[i].querySelectorAll('.cell').forEach((c, row) => (c.textContent = SYMS()[out.result.grid[i][row]]));
         tone(380 + i * 60, .06, 'square', .03); buzz(6);
@@ -301,7 +309,7 @@ const ENG = {
       if (!bets.length) return say('Tap the board to place chips first');
       if (busy) return; busy = true; $('#go').disabled = true;
       const ball = $('#ball'); let n = 0; const roll = setInterval(() => { n = Math.floor(Math.random() * 37); ball.textContent = n; ball.className = 'ball ' + (n === 0 ? 'green' : [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36].includes(n) ? 'red' : 'black'); tone(1200, .015, 'square', .01); }, 80);
-      const out = await play('spin', { bets }); await new Promise((r) => setTimeout(r, 1300)); clearInterval(roll);
+      const t0 = performance.now(); const out = await play('spin', { bets }); await new Promise((r) => setTimeout(r, Math.max(0, T(900) - (performance.now() - t0)))); clearInterval(roll);
       busy = false; $('#go').disabled = false;
       if (!out) return;
       const r = out.result; ball.textContent = r.number; ball.className = 'ball ' + r.color; tone(300, .25, 'sine', .08);
@@ -418,7 +426,7 @@ const ENG = {
       this.rot = this.rot - (this.rot % 360) + 360 * 5 + (360 - center);
       $('#wh').style.transform = `rotate(${this.rot}deg)`;
       const tick = setInterval(() => tone(1400, .012, 'square', .012), 90);
-      await new Promise((r) => setTimeout(r, 4250)); clearInterval(tick);
+      await new Promise((r) => setTimeout(r, T(2850))); clearInterval(tick);
       busy = false; $('#go').disabled = false;
       setBalance(out.balance, out.result.payoutCents); outcome(stake, out.result.payoutCents, `${G.wheel[out.result.index]}× segment`);
     },
@@ -443,11 +451,11 @@ const ENG = {
       const up = () => { ang += 22; coin.style.transform = `translateY(-${18 + 10 * Math.sin(ang / 90)}px) rotateY(${ang}deg)`; if (spin) raf = requestAnimationFrame(up); };
       up(); tone(300, .2, 'triangle', .03);
       const out = await play('flip', { bet: (bet / 100).toFixed(2), side: this.side });
-      await new Promise((r) => setTimeout(r, Math.max(0, 450 - (performance.now() - t0))));
+      await new Promise((r) => setTimeout(r, Math.max(0, T(280) - (performance.now() - t0))));
       spin = false; cancelAnimationFrame(raf);
       if (!out) { coin.style.transform = ''; busy = false; $('#go').disabled = false; return; }
       const r = out.result, base = Math.ceil(ang / 360) + 3, end = base * 360 + (r.result === 'tails' ? 180 : 0);
-      const from = ang, d0 = performance.now(), D = 1100;
+      const from = ang, d0 = performance.now(), D = T(850);
       await new Promise((res) => { (function f(t) { const k = Math.min(1, (t - d0) / D), e = 1 - Math.pow(1 - k, 3);
         coin.style.transform = `translateY(-${Math.sin(k * Math.PI) * 60}px) rotateY(${from + (end - from) * e}deg) scale(${1 + Math.sin(k * Math.PI) * .12})`;
         if (Math.floor(e * 12) !== Math.floor(((t - d0 - 16) / D) * 12)) tone(900, .015, 'square', .01);
@@ -482,7 +490,7 @@ const ENG = {
       const el = $('#ln'), stake = bet; el.className = 'lbnum num';
       const out = await play('play', { bet: (bet / 100).toFixed(2), target: this.target });
       if (!out) { busy = false; $('#go').disabled = false; return; }
-      const r = out.result, d0 = performance.now(), D = Math.min(1400, 400 + Math.log(r.result) * 260);
+      const r = out.result, d0 = performance.now(), D = T(Math.min(1400, 400 + Math.log(r.result) * 260));
       await new Promise((res) => { (function f(t) { const k = Math.min(1, (t - d0) / D), v = Math.exp(Math.log(r.result) * (1 - Math.pow(1 - k, 3)));
         el.textContent = v.toFixed(2) + '×'; if (k < 1) { if (Math.random() < .3) tone(400 + v * 20, .015, 'square', .008); requestAnimationFrame(f); } else res(); })(d0); });
       el.textContent = r.result.toFixed(2) + '×'; el.classList.add(r.win ? 'win' : 'lose');

@@ -130,6 +130,8 @@ app.use('/api', async (req, res, next) => {
 // and let it sleep 15 minutes after the last visitor. DB_KEEPWARM=false turns this off.
 let lastHit = 0;
 app.use('/api', (_req, _res, next) => { lastHit = Date.now(); next(); });
+// on Vercel, visitors' requests lend the avatar painter their spare time (see lib/avatars nudge)
+app.use('/api', (req, _res, next) => { if (booted && req.method === 'GET' && process.env.VERCEL) avatars.nudge().catch(() => {}); next(); });
 if (process.env.DB_KEEPWARM !== 'false') setInterval(() => { if (Date.now() - lastHit < 15 * 60_000) pool.query('select 1').catch(() => {}); }, 4 * 60_000).unref();
 
 // tiny read cache for public lists that every visitor loads
@@ -1368,7 +1370,7 @@ adminRouter.patch('/house', async (req, res) => {
   if (b.minChance !== undefined) put('min_chance', Number(b.minChance));
   if (b.maxMultiplier !== undefined) put('max_multiplier', Number(b.maxMultiplier));
   if (b.maxStakePct !== undefined) put('max_stake_pct', Number(b.maxStakePct));
-  if (b.walletAddress !== undefined) put('wallet_address', b.walletAddress);
+  if (b.walletAddress !== undefined) { if (b.walletAddress && !chain.isValidAddress(String(b.walletAddress))) return res.status(400).json({ error: 'Not a valid Bitcoin address.' }); put('wallet_address', b.walletAddress || null); }
   if (b.enabled !== undefined) put('enabled', !!b.enabled);
   if (!sets.length) return res.json({ ok: true });
   await q(`update house_state set ${sets.join(', ')}, updated_at = now() where id = 1`, vals);
@@ -1492,7 +1494,18 @@ adminRouter.use('/vault', vault.admin);
 adminRouter.use('/avatars', avatars.admin);
 
 /* payouts: manual by default, automatic when switched on */
-adminRouter.get('/payouts', async (_req, res) => res.json(await payouts.status()));
+adminRouter.get('/payouts', async (_req, res) => {
+  const parent = (await q('select wallet_address from house_state where id = 1')).rows[0]?.wallet_address || null;
+  res.json({ ...(await payouts.status()), parent, network: chain.isTestnet() ? 'testnet' : 'mainnet' });
+});
+// where every deposit is swept to (the "parent" address): your cold wallet, or the hot wallet
+adminRouter.post('/payouts/parent', async (req, res) => {
+  const addr = String(req.body?.address || '').trim();
+  if (!chain.isValidAddress(addr)) return res.status(400).json({ error: `That isn't a valid ${chain.isTestnet() ? 'testnet' : 'mainnet'} Bitcoin address (${chain.addressHint()}).` });
+  await q('update house_state set wallet_address = $1, updated_at = now() where id = 1', [addr]);
+  await audit(req, 'payouts.parent', { address: addr });
+  res.json({ parent: addr });
+});
 adminRouter.patch('/payouts', async (req, res) => {
   const b = req.body || {}, put = (k, v) => q(`insert into site_settings (key, value, updated_at) values ($1,$2,now())
     on conflict (key) do update set value = excluded.value, updated_at = now()`, [k, String(v)]);

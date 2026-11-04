@@ -267,6 +267,10 @@ V.payouts = async () => {
         ${hot ? `<div class="mono" style="margin-bottom:8px">${esc(hot.address)}</div><div class="row" style="justify-content:space-between"><b class="num">${hot.balanceSats != null ? (hot.balanceSats / 1e8).toFixed(6) + ' ₿' : 'balance unavailable'}</b><button class="btn sm" id="useHot">Sweep deposits here</button></div>
           <p class="faint" style="font-size:12.5px;margin:10px 0 0">Automatic payouts are sent from this address. Keep enough BTC in it to cover the daily limit.</p>`
           : '<p class="muted" style="margin:0">Set CHAIN_ENABLED=true and DEPOSIT_MNEMONIC in .env, then restart. Manual payouts work without it.</p>'}</div>
+      <div class="card"><div class="card-h"><h2>Where deposits go</h2><span class="tag ${st.network === 'mainnet' ? 'g' : 'y'}">${esc(st.network || '')}</span></div>
+        <p class="faint" style="font-size:12.5px;margin:0 0 8px">Every player deposit is swept to this "parent" address. Use your own cold wallet (safest), or the hot wallet if automatic payouts should spend deposits directly.</p>
+        <div class="mono" style="margin-bottom:8px;word-break:break-all">${st.parent ? esc(st.parent) : '<span style="color:var(--rose)">not set: deposits stay on their deposit addresses</span>'}</div>
+        <div class="row" style="flex-wrap:nowrap"><input class="inp mono" id="parentIn" placeholder="bc1q… your cold wallet address" style="flex:1"><button class="btn sm" id="parentGo">Save</button></div></div>
       <div class="card"><div class="card-h"><h2>Queue</h2></div>
         <div class="sw"><span>Waiting</span><b class="num">${st.queue.pending} · ${money(st.queue.pending_cents)}</b></div>
         <div class="sw"><span>Processing</span><b class="num ${st.queue.processing ? 'gold' : ''}">${st.queue.processing}</b></div>
@@ -283,6 +287,7 @@ V.payouts = async () => {
   bindTog('auto', async (on) => { if (on && !hot) throw new Error('Turn on Bitcoin first (see Hot wallet).'); if (on && !(await ask('Turn on automatic payouts?', 'Withdrawals inside your rules will be signed and broadcast from the hot wallet without you.', 'Turn on'))) throw new Error('Cancelled'); await api('/admin/payouts', { method: 'PATCH', body: { auto: on } }); });
   $('#saveRules').onclick = async () => { try { await api('/admin/payouts', { method: 'PATCH', body: { maxCents: Math.round(+$('#rMax').value * 100), dailyCents: Math.round(+$('#rDay').value * 100), minAgeHours: +$('#rAge').value, requireDeposit: $('#rDep').value === '1' } }); toast('Rules saved'); } catch (e) { toast(e.message, true); } };
   $('#runNow') && ($('#runNow').onclick = async () => { const r = await api('/admin/payouts/run', { method: 'POST' }).catch((e) => toast(e.message, true)); if (r) toast(`Sent ${r.sent ?? 0}, skipped ${r.skipped ?? 0}`); V.payouts(); });
+  $('#parentGo').onclick = async () => { const v = $('#parentIn').value.trim(); if (!v) return; if (!(await ask('Send all future deposits here?', `<span class="mono" style="word-break:break-all">${esc(v)}</span><br><br>Check it character by character against your wallet. Bitcoin sent to a wrong address is gone.`, 'Use this address'))) return; try { await api('/admin/payouts/parent', { method: 'POST', body: { address: v } }); toast('Saved'); V.payouts(); } catch (e) { toast(e.message, true); } };
   $('#useHot') && ($('#useHot').onclick = async () => { if (await ask('Use the hot wallet as the house address?', 'Deposits will be counted against this address, so automatic payouts draw from the same pot.', 'Use it')) { await api('/admin/payouts/use-hot-wallet', { method: 'POST' }); toast('House address updated'); } });
   $('#view').onclick = async (e) => {
     const b = e.target.closest('[data-paid],[data-rej],[data-rq]'); if (!b) return;
@@ -459,20 +464,21 @@ V.avatars = async () => {
   const used = d.usage.filter((u) => u.kind === 'catalogue').reduce((a, u) => a + u.images, 0), neur = d.usage.reduce((a, u) => a + u.neurons, 0);
   const pct = Math.min(100, Math.round(p.approved / Math.max(1, s.target) * 100));
   const TIERS = { free: 0, common: 99, rare: 299, epic: 699, legendary: 1999 };
-  const setup = !cat.configured ? `<div class="card hl" style="margin-bottom:14px"><h2 style="margin-bottom:8px">Connect the free painter (5 minutes)</h2>
+  const bk = d.providers.backup;
+  const setup = !cat.configured ? `<div class="card hl" style="margin-bottom:14px"><h2 style="margin-bottom:8px">Connect the fast free painter (5 minutes)</h2>${bk ? `<p class="muted" style="margin:0 0 8px">Until then the backup painter (Pollinations) paints, one picture every ${Math.round(bk.gapSecs / 60)} min.</p>` : ''}
       <ol style="margin:0;padding-left:20px;line-height:1.9;color:#d4dbe8">
         <li>Create a free account at <b>dash.cloudflare.com</b>.</li>
         <li>Copy your <b>Account ID</b> (Workers &amp; Pages → right-hand side, or the URL after <span class="mono">dash.cloudflare.com/</span>).</li>
         <li>Go to <b>My Profile → API Tokens → Create Token → "Workers AI"</b> template, create it and copy the token.</li>
         <li>Add <span class="mono">CF_ACCOUNT_ID</span> and <span class="mono">CF_API_TOKEN</span> to your environment variables (Vercel: Project → Settings → Environment Variables), then redeploy. Running it yourself? Put them in <span class="mono">.env</span> and restart.</li></ol>
       <p class="muted" style="margin:10px 0 0">The free plan paints about 150 avatars a day at no cost. The factory pauses when the allowance runs out and carries on after it resets at midnight UTC.</p></div>` : '';
-  const state = !cat.configured ? '<span class="tag r">not connected</span>' : cat.error ? '<span class="tag r">key refused</span>' : s.paused ? '<span class="tag">paused</span>'
+  const state = s.paused ? '<span class="tag">paused</span>' : (!cat.configured || cat.error || cat.quotaUntil) && bk && (p.queued || p.custom_queued) ? `<span class="tag y">backup painter${bk.nextAt ? ', next at ' + new Date(bk.nextAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>` : !cat.configured ? '<span class="tag r">not connected</span>' : cat.error ? '<span class="tag r">key refused</span>'
     : cat.quotaUntil ? `<span class="tag y">resting until ${new Date(cat.quotaUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>` : p.queued ? '<span class="tag g">painting</span>' : '<span class="tag g">idle, target reached</span>';
   $('#view').innerHTML = `<div class="top"><div><h1>Avatar factory</h1><div class="sub">AI-painted avatars: ${s.target} starter avatars on the free Cloudflare allowance, plus custom avatars players pay for. Style: hyper-exaggerated 3D meme portraits.</div></div>
       <div class="row">${cat.configured ? `<button class="btn" id="aTest">Test connection</button>` : ''}${s.paused ? '<button class="btn neon" id="aStart">Start painting</button>' : `<button class="btn" id="aPause">Pause</button>`}</div></div>
     ${setup}
-    ${cat.error ? `<div class="card bad" style="margin-bottom:14px"><b>Cloudflare refused the key.</b> <span class="muted">${esc(cat.error)}</span> Fix the environment variables, redeploy, then press Start.</div>` : ''}
-    ${d.serverless && cat.configured && !s.paused && !cat.error && !cat.quotaUntil && (p.queued || p.custom_queued) ? `<div class="card hl" style="margin-bottom:14px;display:flex;gap:10px;align-items:center"><span class="dot" style="background:var(--neon);width:9px;height:9px;border-radius:50%"></span><div><b>Painting while this page is open</b> <span class="muted" id="aLive"></span><div class="faint" style="font-size:12.5px">On Vercel nothing runs in the background, so this page drives the painter. Close it and the daily cron carries on.</div></div></div>` : ''}
+    ${cat.error ? `<div class="card bad" style="margin-bottom:14px"><b>Cloudflare said no.</b> <span class="muted">${esc(cat.error)}</span> It tries again every 10 minutes${bk ? '; the backup painter covers in the meantime' : ''}. Fix the environment variables and redeploy, or press Start to retry now.</div>` : ''}
+    ${d.serverless && (cat.configured || bk) && !s.paused && (p.queued || p.custom_queued) ? `<div class="card hl" style="margin-bottom:14px;display:flex;gap:10px;align-items:center"><span class="dot" style="background:var(--neon);width:9px;height:9px;border-radius:50%"></span><div><b>Painting while this page is open</b> <span class="muted" id="aLive"></span><div class="faint" style="font-size:12.5px">On Vercel nothing runs in the background, so this page drives the painter. Close it and the daily cron carries on.</div></div></div>` : ''}
     ${!d.providers.imageTools ? `<div class="card hl" style="margin-bottom:14px"><b>Image tools missing.</b> <span class="muted">Run <span class="mono">npm i</span> once so avatars get compressed, thumbnailed and checked for duplicates.</span></div>` : ''}
     <div class="grid g4">
       <div class="card hl kpi"><div class="l">Starter collection</div><div class="v num gold">${p.approved}/${s.target}</div><div style="height:6px;border-radius:3px;background:var(--slate3);margin:6px 0"><i style="display:block;height:100%;width:${pct}%;border-radius:3px;background:linear-gradient(90deg,#b8902e,#e8c46a)"></i></div><div class="s">${state} · ${p.queued} queued</div></div>
@@ -491,6 +497,7 @@ V.avatars = async () => {
       <div class="card"><div class="card-h"><h2>Health</h2>${p.failed ? `<button class="btn sm" id="aRetry">Retry ${p.failed} failed</button>` : ''}</div>
         <div class="sw"><span>Starter painter</span><span class="mono">${esc(cat.id)} · ${esc(cat.model)}</span></div>
         <div class="sw"><span>Custom painter</span><span class="mono">${cus ? esc(cus.id) : 'off'}</span></div>
+        <div class="sw"><span>Backup painter</span><span class="mono">${bk ? `pollinations · 1 per ${Math.round(bk.gapSecs / 60)} min` : 'off'}</span></div>
         <div class="sw"><span>Custom orders in the queue</span><b class="num">${p.custom_queued}</b></div>
         ${d.recentErrors.length ? d.recentErrors.map((e) => `<div class="alert"><span class="dot" style="background:var(--gold)"></span><div style="flex:1">${esc(e.last_error)}<div class="faint" style="font-size:12px">${e.n}× in 24h</div></div></div>`).join('') : '<div class="faint" style="padding:10px 0">No errors in the last 24 hours.</div>'}</div>
     </div>
@@ -521,14 +528,15 @@ V.avatars = async () => {
   });
   // serverless: keep painting in ~25s slices while this page stays open
   clearTimeout(A.avLoop);
-  if (d.serverless && cat.configured && !s.paused && !cat.error && !cat.quotaUntil && (p.queued || p.custom_queued) && !A.avBusy) {
+  if (d.serverless && (cat.configured || bk) && !s.paused && (p.queued || p.custom_queued) && !A.avBusy) {
     A.avLoop = setTimeout(async () => {
       if (location.hash !== '#/avatars') return;
       A.avBusy = true; const el = $('#aLive'); if (el) el.textContent = '· painting the next batch…';
-      try { const r = await api('/admin/avatars/work', { method: 'POST' }); if (r.painted) toast(`${r.painted} new avatar${r.painted === 1 ? '' : 's'} painted`); }
-      catch (e) { toast(e.message, true); }
+      let wait = 600;
+      try { const r = await api('/admin/avatars/work', { method: 'POST' }); if (r.painted) toast(`${r.painted} new avatar${r.painted === 1 ? '' : 's'} painted`); else wait = 15_000; }
+      catch (e) { toast(e.message, true); wait = 15_000; }
       finally { A.avBusy = false; }
-      if (location.hash === '#/avatars') V.avatars();
+      if (location.hash === '#/avatars') setTimeout(() => location.hash === '#/avatars' && V.avatars(), wait);
     }, 600);
   }
   $('#view').onclick = async (e) => {

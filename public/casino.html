@@ -7,6 +7,13 @@
 <!--og-->
 <title>Kohler Casino</title>
 <link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/assets/app/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kohler">
+<script src="/assets/pwa.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="/assets/avatar.js"></script>
@@ -17,6 +24,7 @@
 <script src="/assets/survivor.js" defer></script>
 <script src="/assets/vault.js" defer></script>
 <style>
+[hidden]{display:none!important}
 :root{
   --obs:#07090d; --slate:#0e131b; --slate2:#151c27; --slate3:#1d2634; --line:rgba(255,255,255,.07); --line2:rgba(255,255,255,.14);
   --txt:#eef2f8; --dim:#8b96aa; --faint:#5d6779; --gold:#e8c46a; --gold2:#b8902e; --neon:#00ff66; --rose:#ff4d6d; --ivory:#f6f1e4;
@@ -354,6 +362,7 @@ body.test .game{top:calc(var(--top) + 28px)}
     <a href="#" data-w="history"><span class="i" style="--u:url(/assets/icons/receipt-text.svg)"></span>Transactions</a>
     <a href="#/limits" data-r="limits"><span class="i" style="--u:url(/assets/icons/shield-check.svg)"></span>Limits &amp; cool-off</a>
     <a href="/rules.html"><span class="i" style="--u:url(/assets/icons/info.svg)"></span>Rules &amp; fees</a>
+    <a href="#" data-install hidden><span class="i" style="--u:url(/assets/icons/smartphone.svg)"></span>Install app</a>
     <a href="/"><span class="i" style="--u:url(/assets/icons/house.svg)"></span>Kohler shop</a>
   </nav>
   <div class="vip" id="vip"></div>
@@ -459,9 +468,34 @@ addEventListener('message', (e) => {
 function origArt(engine, a) {
   const S = (inner) => `<svg class="oa" viewBox="0 0 100 100">${inner}</svg>`;
   switch (engine) {
-    case 'rocket': return S(`<path d="M10 88Q55 86 86 18" fill="none" stroke="${a}" stroke-width="4" stroke-linecap="round" opacity=".9"/><path d="M10 88Q55 86 86 18V90H10Z" fill="${a}" opacity=".14"/>
-      <g transform="translate(80 22) rotate(35)"><path d="M0-15C7-9 7 6 5 12H-5C-7 6-7-9 0-15Z" fill="#f6f1e4"/><circle cy="-3" r="3.2" fill="#0e131b"/><path d="M-5 6-11 14-5 12ZM5 6l6 8-6-2Z" fill="${a}"/><path d="M-3 13Q0 26 3 13Z" fill="#ffd166"/></g>
-      <text x="14" y="30" font-family="Unbounded,sans-serif" font-weight="800" font-size="17" fill="#fff">2.41×</text>`);
+    case 'rocket': {
+      // shaded like a real object: lit from the upper left, metal body, gold trim, glass porthole, glowing flame
+      const k = 'rk' + (++origArt.n);
+      return S(`<defs>
+        <linearGradient id="${k}b" x1="0" x2="1"><stop offset="0" stop-color="#77705f"/><stop offset=".3" stop-color="#ffffff"/><stop offset=".62" stop-color="#ece3cf"/><stop offset="1" stop-color="#8f8774"/></linearGradient>
+        <linearGradient id="${k}g" x1="0" x2="1"><stop offset="0" stop-color="#6f5112"/><stop offset=".35" stop-color="#fff0b8"/><stop offset=".65" stop-color="#e8c46a"/><stop offset="1" stop-color="#7a5a16"/></linearGradient>
+        <linearGradient id="${k}f" x1="0" x2="1"><stop offset="0" stop-color="#5c430f"/><stop offset="1" stop-color="#c99a35"/></linearGradient>
+        <linearGradient id="${k}n" x1="0" x2="1"><stop offset="0" stop-color="#151a22"/><stop offset=".45" stop-color="#4a5262"/><stop offset="1" stop-color="#0e131b"/></linearGradient>
+        <radialGradient id="${k}w" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#e8fbff"/><stop offset=".35" stop-color="${a}"/><stop offset="1" stop-color="#0a1a2a"/></radialGradient>
+        <radialGradient id="${k}h"><stop offset="0" stop-color="#ffb347" stop-opacity=".9"/><stop offset="1" stop-color="#ff5a1f" stop-opacity="0"/></radialGradient>
+        <linearGradient id="${k}l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6d0"/><stop offset=".45" stop-color="#ffb347"/><stop offset="1" stop-color="#ff4d1f" stop-opacity="0"/></linearGradient>
+      </defs>
+      <path d="M8 90Q52 88 78 30" fill="none" stroke="${a}" stroke-width="3.5" stroke-linecap="round" opacity=".85"/><path d="M8 90Q52 88 78 30V92H8Z" fill="${a}" opacity=".12"/>
+      <g opacity=".5" stroke="#fff" stroke-width="1.4" stroke-linecap="round"><path d="M48 58l-9 6"/><path d="M55 64l-12 8"/><path d="M60 52l-7 5"/></g>
+      <g transform="translate(72 34) rotate(38) scale(1.45)">
+        <circle cy="21" r="12" fill="url(#${k}h)"/>
+        <path d="M-5.5 14Q0 40 5.5 14Z" fill="url(#${k}l)"/><path d="M-2.6 14Q0 27 2.6 14Z" fill="#fffbe8"/>
+        <path d="M-7 3-15.5 15.5-14 18.5-6.5 13.5Z" fill="url(#${k}f)"/><path d="M7 3 15.5 15.5 14 18.5 6.5 13.5Z" fill="#a8822c"/>
+        <rect x="-5" y="12.5" width="10" height="3.6" rx="1.2" fill="url(#${k}n)"/>
+        <path d="M0-22C9-14 10.4 2 7.2 13.4H-7.2C-10.4 2-9-14 0-22Z" fill="url(#${k}b)"/>
+        <path d="M0-22C5.2-18 7.6-14 8.3-11H-8.3C-7.6-14-5.2-18 0-22Z" fill="url(#${k}g)"/>
+        <rect x="-8.9" y="5.2" width="17.8" height="2.6" rx="1.3" fill="url(#${k}g)"/>
+        <circle cy="-3" r="4.8" fill="url(#${k}g)"/><circle cy="-3" r="3.3" fill="url(#${k}w)"/><ellipse cx="-1.3" cy="-4.4" rx="1.2" ry=".7" fill="#fff" opacity=".85"/>
+        <path d="M-1.3 6.2H1.3L1 18H-1Z" fill="#6f5112"/>
+        <path d="M-4.6-9C-5.6-3-5.4 4-4.3 11" stroke="#fff" stroke-width="1.1" stroke-linecap="round" fill="none" opacity=".7"/>
+      </g>
+      <text x="12" y="28" font-family="Unbounded,sans-serif" font-weight="800" font-size="16" fill="#fff">2.41×</text>`);
+    }
     case 'mines': return S([0, 1, 2].flatMap((r) => [0, 1, 2].map((c) => { const x = 14 + c * 25, y = 14 + r * 25, k = r * 3 + c;
       return `<rect x="${x}" y="${y}" width="22" height="22" rx="6" fill="${k === 4 ? '#1d2634' : k === 2 ? '#2a0d14' : '#1a3a26'}" stroke="${k === 2 ? '#ff4d6d' : a}" stroke-opacity=".6"/>${k === 2 ? `<circle cx="${x + 11}" cy="${y + 12}" r="6" fill="#ff4d6d"/><path d="M${x + 14} ${y + 6}l3-3" stroke="#ffd166" stroke-width="2"/>` : k === 4 ? '' : `<path d="M${x + 11} ${y + 4}l7 7-7 8-7-8Z" fill="${a}"/>`}`; })).join(''));
     case 'coinflip': return KohlerLogo.coin(100).replace('<svg', '<svg class="oa"');
@@ -481,6 +515,7 @@ function origArt(engine, a) {
   }
   return '';
 }
+origArt.n = 0;   // unique ids for each tile's gradients
 function art(g, big) {
   const t = g.theme || {}, a = t.a || '#00ff66', b = t.b || '#07090d';
   const bg = `background:radial-gradient(120% 80% at 50% 10%,${a}aa 0%,${a}22 40%,${b} 78%)`;

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07090d">
+<title>Offline · Kohler</title>
+<link rel="stylesheet" href="/kohler.css">
+<style>
+body{display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px}
+h1{font-family:var(--display);font-size:24px;margin:18px 0 6px}
+p{color:var(--muted);margin:0 0 20px}
+button{height:44px;padding:0 22px;border-radius:12px;background:linear-gradient(180deg,#3dff8c,#00d955);color:#03140a;font-weight:700}
+</style>
+</head>
+<body>
+<div>
+  <img src="/assets/logo.svg" alt="" width="64" height="64">
+  <h1>You're offline</h1>
+  <p>Kohler needs a connection for your balance, orders and games.</p>
+  <button onclick="location.reload()">Try again</button>
+</div>
+</body>
+</html>

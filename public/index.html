@@ -3,9 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0e1322">
+<meta name="theme-color" content="#07090d">
 <title>Kohler</title>
 <link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/assets/app/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kohler">
+<script src="/assets/pwa.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/kohler.css">
@@ -38,7 +45,16 @@
 .live .take{margin-top:14px;display:inline-flex;height:40px;align-items:center;padding:0 16px;border-radius:11px;background:linear-gradient(180deg,#3dff8c,#00d955);color:#03140a;font-weight:700}
 @media(max-width:520px){.live{grid-template-columns:110px 1fr}.live .ring{width:110px;height:110px}.live .ring .pot{font-size:23px}}
 
-.filters{display:flex;gap:10px;align-items:center;margin-bottom:18px}
+.filters{display:flex;gap:16px;align-items:flex-end;margin-bottom:22px;border-bottom:1px solid var(--line)}
+/* categories: plain text tabs with an underline, no colour dots */
+.cats{display:flex;gap:26px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
+.cats::-webkit-scrollbar{display:none}
+.cats button{position:relative;flex:0 0 auto;height:40px;padding:0;color:var(--muted);font-size:14.5px;font-weight:600;letter-spacing:-.005em;transition:color .15s}
+.cats button:hover{color:var(--text)}
+.cats button sup{margin-left:4px;font-size:10.5px;font-weight:600;color:var(--faint);font-variant-numeric:tabular-nums}
+.cats button.on{color:var(--text)}
+.cats button.on:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:2px;background:var(--mint)}
+.filters select{margin-bottom:6px}
 .filters select{width:auto;height:36px;border-radius:999px;padding:0 12px;font-size:13.5px;font-weight:600;background:var(--ink-1)}
 .shop{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
 .g{display:flex;flex-direction:column;border-radius:var(--r-md);background:var(--ink-1);border:1px solid var(--line);overflow:hidden;transition:border-color .15s,transform .15s}
@@ -58,7 +74,7 @@
 .g-body{padding:13px 14px 14px;display:flex;flex-direction:column;gap:4px;flex:1}
 .g-name{font-weight:650;font-size:15px;line-height:1.3}
 .g-cat{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted)}
-.g-cat i{width:7px;height:7px;border-radius:50%;background:var(--hue)}
+.g-cat i{display:none}
 .g-foot{margin-top:auto;padding-top:10px;display:flex;justify-content:space-between;align-items:baseline}
 .g-price{font-weight:700;font-size:16px}
 .g-opts{font-size:12.5px;color:var(--faint)}
@@ -150,7 +166,7 @@
   <a href="#/account" data-r="account"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="9" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>Account</a>
 </nav>
 
-<footer class="site"><span>© <span id="yr"></span> Kohler</span><a href="#/support">Help</a><a href="/rules.html">Rules &amp; fees</a><a href="/casino#/limits">Play limits</a><span>18+ for games.</span></footer>
+<footer class="site"><span>© <span id="yr"></span> Kohler</span><a href="#/support">Help</a><a href="#" data-install hidden>Install app</a><a href="/rules.html">Rules &amp; fees</a><a href="/casino#/limits">Play limits</a><span>18+ for games.</span></footer>
 <div class="toast" id="toast"></div>
 <div id="sheetHost"></div>
 
@@ -278,7 +294,7 @@ async function viewShop() {
       </div>
       <div id="liveSlot"></div>
     </section>
-    <div class="filters"><div class="chips" id="cats" style="flex:1"></div><select id="cc" aria-label="Region"><option value="">All regions</option></select></div>
+    <div class="filters"><nav class="cats" id="cats" aria-label="Categories"></nav><select id="cc" aria-label="Region"><option value="">All regions</option></select></div>
     <div class="sect"><h2>Marketplace</h2><p id="count"></p></div>
     <div class="shop" id="grid"><div class="empty">Loading the shelves…</div></div>
     <section id="playStrip" style="margin-top:40px"></section>`;
@@ -289,8 +305,9 @@ async function viewShop() {
   if (!groups.length) { $('#grid').innerHTML = '<div class="empty">Nothing on the shelves yet. Add product groups in the admin panel.</div>'; $('#count').textContent = ''; return; }
   const cats = [...new Set(groups.map((g) => g.category || 'Other'))].sort();
   const ccs = [...new Set(groups.map((g) => g.country).filter(Boolean))].sort();
-  $('#cats').innerHTML = `<button class="chip ${shopFilter.cat ? '' : 'on'}" data-c="">All</button>` +
-    cats.map((c) => `<button class="chip ${shopFilter.cat === c ? 'on' : ''}" data-c="${esc(c)}"><i style="background:${hueOf(c)}"></i>${esc(c)}</button>`).join('');
+  const nIn = (c) => groups.filter((g) => (g.category || 'Other') === c).length;
+  $('#cats').innerHTML = `<button class="${shopFilter.cat ? '' : 'on'}" data-c="">All<sup>${groups.length}</sup></button>` +
+    cats.map((c) => `<button class="${shopFilter.cat === c ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}<sup>${nIn(c)}</sup></button>`).join('');
   $('#cc').innerHTML += ccs.map((c) => `<option value="${esc(c)}" ${shopFilter.cc === c ? 'selected' : ''}>${esc(countryName(c))}</option>`).join('');
   const paint = () => {
     const t = shopFilter.q.trim().toLowerCase();
@@ -301,7 +318,7 @@ async function viewShop() {
   };
   $('#q').oninput = (e) => { shopFilter.q = e.target.value; paint(); };
   $('#cats').onclick = (e) => { const b = e.target.closest('[data-c]'); if (!b) return; shopFilter.cat = b.dataset.c;
-    $('#cats').querySelectorAll('.chip').forEach((x) => x.classList.toggle('on', x === b)); paint(); };
+    $('#cats').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); b.scrollIntoView({ inline: 'nearest', block: 'nearest' }); paint(); };
   $('#cc').onchange = (e) => { shopFilter.cc = e.target.value; paint(); };
   paint();
 }
