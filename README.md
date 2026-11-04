@@ -250,6 +250,18 @@ wheel, coin flip and limbo are also quicker by default.
   friends on Account → Invite friends. All numbers are adjustable in admin; bonuses show as a cost on
   the revenue overview.
 
+## 5c. XP, streaks and badges (`lib/achievements.js`)
+
+- **XP:** 1 per $1 bet in casino games and settled Survivor rounds (cents carry over). Tiers: Bronze 10,
+  Silver 50, Gold 200, Obsidian 1,000.
+- **Daily streak:** a day counts when the player places a real bet (UTC days). Missing a day resets it.
+  XP multiplier: ×1.1 day 2, ×1.25 days 3–6, ×1.5 days 7–13, ×1.75 days 14–29, ×2 from day 30. Shown in
+  the casino sidebar and on Vault → Badges.
+- **Badges (21):** first bet/win/deposit, streak 3/7/14/30, tiers, big wins ($10/$100/$1,000), high
+  roller, Survivor 1/25, referrals 1/10, collector 5/25. Some unlock earn-only Vault items (Ember, Blaze,
+  Phoenix, Eternal Flame, Chrome, Gilded, Obsidian Sky, Jackpot Siren, Last One Standing, Crowd Pleaser,
+  Gallery Gold). New badges pop up as a toast.
+
 ## 6. The Vault and AI avatars (non-gambling purchases)
 
 `/casino#/vault`. Nothing here changes odds; it's how players look and show off.
@@ -262,7 +274,14 @@ wheel, coin flip and limbo are also quicker by default.
   characters), optionally picks a mood and a scene, and gets four versions only they can use. Kohler's
   house style, the portrait framing and "family-friendly, fully clothed, no text" are always wrapped
   around their words. Failed paints are refunded; an order still unpainted after a day is refunded in full.
-- **Frames, win effects and the Kohler Pass** are unchanged. The old hand-drawn characters are retired.
+- **Frames (~320):** classic rings, textures (fire, galaxy, marble, camo, leopard…), world cultures (Kente,
+  Ankara, Bogolan, Shuka, Tartan, Sakura, Seigaiha, Talavera, Papel Picado, Carnaval, Rangoli, Azulejo),
+  funny and trending ones, and a flag frame for every country ($0.99, searchable).
+- **Win effects (25)**, **themes (11)** that decorate the player's own screen (money rain, code rain,
+  fireflies, snow…), and **avatar filters (10)** everyone sees (Noir black-and-white, Old Photo,
+  Thermal, Vaporwave…).
+- **Seasonal:** Halloween items are sold 1 Oct – 5 Nov, Christmas items 1 Dec – 6 Jan (`SEASONS` in
+  `lib/vault-items.js`). Anyone who has one keeps it forever. The whole catalog lives in that file.
 
 **What players can't make.** A word filter refuses nudity, violence, drugs, hate symbols, children,
 real people, brands and other franchises, then Llama Guard (on the same Cloudflare account) gets a

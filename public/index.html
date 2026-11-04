@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="/kohler.css">
 <script src="/assets/avatar.js"></script>
 <script src="/assets/faces.js"></script>
+<script src="/assets/cosmetics.js"></script>
 <script src="/assets/withdraw.js"></script>
 <style>
 /* home */
@@ -240,7 +241,18 @@ function paintUser() {
   if (from !== to) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
   (function s(t) { const k = Math.min(1, (t - t0) / 450); el.querySelector('span').textContent = money(Math.round(from + (to - from) * (1 - (1 - k) ** 3))); if (k < 1) requestAnimationFrame(s); })(t0);
 }
-async function refreshMe() { try { S.user = (await api('/me')).user; } catch { S.user = null; } paintUser(); return S.user; }
+async function refreshMe() {
+  let me = null;
+  try { me = await api('/me'); S.user = me.user; } catch { S.user = null; }
+  // your Vault theme and avatar filter follow you into the shop
+  const u = S.user;
+  if (u?.equip?.filter && u.equipArt?.filter) KohlerFace.filters[u.equip.filter] = u.equipArt.filter;
+  const key = u?.equip?.theme || '';
+  if (key !== S.themeKey) { S.themeKey = key; window.KohlerTheme?.set(u?.equipArt?.theme || null); }
+  paintUser();
+  for (const b of me?.newBadges || []) setTimeout(() => toast(`${b.icon} Badge unlocked: ${b.name}`, 'good'), 400);
+  return S.user;
+}
 
 /* ── auth ── */
 function authSheet(mode = 'in', then) {

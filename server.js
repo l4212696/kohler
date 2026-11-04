@@ -17,6 +17,8 @@ import { migrate, ensureTestAccount } from './lib/boot.js';
 import { createVault } from './lib/vault.js';
 import { createAvatars } from './lib/avatars/index.js';
 import { createPromos, BET_KINDS } from './lib/promos.js';
+import { createAchievements } from './lib/achievements.js';
+import { BY_ID as VAULT_ITEM } from './lib/vault-items.js';
 import { createLimiter, securityHeaders, sameOrigin, newTotpSecret, checkTotp, otpauthUrl } from './lib/security.js';
 import QRCode from 'qrcode';
 import { createPayouts } from './lib/payouts.js';
@@ -180,8 +182,11 @@ const requireGambling = (req, res, next) =>
 
 const pub = (u) => u && {
   id: u.id, email: u.email, username: u.username, balance: Number(u.balance_cents),
-  xp: u.xp, streak: u.streak, isAdmin: u.is_admin, adminRole: u.admin_role, testMode: !!u.test_mode,
+  xp: u.xp, ...achievements.progress(u), isAdmin: u.is_admin, adminRole: u.admin_role, testMode: !!u.test_mode,
   equip: u.equip || {}, passUntil: u.pass_until && new Date(u.pass_until) > new Date() ? u.pass_until : null,
+  // the art for what's equipped, so every page can draw it without loading the whole Vault
+  equipArt: { theme: VAULT_ITEM[u.equip?.theme]?.art || null, filter: VAULT_ITEM[u.equip?.filter]?.art?.css || null,
+    effect: VAULT_ITEM[u.equip?.effect]?.art || null, effectId: u.equip?.effect || null, frame: VAULT_ITEM[u.equip?.frame]?.art || null },
   bonusLocked: Math.min(Number(u.bonus_locked_cents || 0), Math.max(0, Number(u.balance_cents))), wagerLeft: Number(u.bonus_locked_cents || 0) > 0 ? Number(u.wager_left_cents || 0) : 0,
 };
 const hasPass = (u) => !!u?.pass_until && new Date(u.pass_until) > new Date();
@@ -250,7 +255,7 @@ async function sendEmail({ to, subject, html }) {
 /* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ ledger Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 
 async function move(client, userId, delta, kind, ref = null, meta = {}) {
-  await client.query('update users set balance_cents = balance_cents + $2 where id = $1', [userId, delta]);
+  const row = (await client.query('update users set balance_cents = balance_cents + $2 where id = $1 returning badges, test_mode', [userId, delta])).rows[0];
   await client.query('insert into ledger (user_id, delta_cents, kind, ref, meta) values ($1,$2,$3,$4,$5)',
     [userId, delta, kind, ref, meta]);
   // bonus money (lib/promos.js): every bet counts down what's left to wager, and the lock lifts
@@ -265,7 +270,10 @@ async function move(client, userId, delta, kind, ref = null, meta = {}) {
                               when $3::boolean then wager_left_cents + $2::bigint
                               when $4::boolean and least(bonus_locked_cents, balance_cents - $2::bigint) <= 0 then 0 else wager_left_cents end
     where id = $1 and bonus_locked_cents > 0`, [userId, delta, bet, dep]);
+  // streaks, XP and badges (lib/achievements.js)
+  await achievements.onMove(client, userId, delta, kind, row);
 }
+const achievements = createAchievements({ q });
 // what a player can withdraw or spend in the shop: everything except locked bonus money
 const spendable = (u) => Math.max(0, Number(u.balance_cents) - Math.min(Number(u.bonus_locked_cents || 0), Math.max(0, Number(u.balance_cents))));
 const lockedMsg = (u) => `${usd(Math.min(Number(u.bonus_locked_cents || 0), Number(u.balance_cents)))} of your balance is bonus money: play ${usd(Number(u.wager_left_cents || 0))} more to unlock it`;
@@ -412,7 +420,8 @@ app.post('/api/auth/username', requireUser, async (req, res) => {
   } catch { res.status(409).json({ error: 'taken' }); }
 });
 
-app.get('/api/me', (req, res) => res.json({ user: pub(req.user) }));
+app.get('/api/me', async (req, res) => res.json({ user: pub(req.user), newBadges: req.user ? await achievements.unseen(req.user.id).catch(() => []) : [] }));
+app.get('/api/badges', async (req, res) => res.json({ badges: await achievements.list(req.user?.id), progress: req.user ? achievements.progress(req.user) : null }));
 
 /* ── two-factor sign-in (TOTP) — required for every admin unless ADMIN_2FA=off ── */
 const sessionHash = (req) => sha(String(req.cookies?.kohler || ''));
@@ -947,19 +956,19 @@ app.get('/api/games/history', requireGambling, requireUser, async (req, res) => 
 
 /* Pool Pot: fair equal-stake pools. Separate engine; never reads house.js. */
 
-const poolPot = createPoolPot({ q, withTx, move, audit, gamblingEnabled, limit });
+const poolPot = createPoolPot({ q, withTx, move, audit, gamblingEnabled, limit, onPlay: (c, id, cents) => achievements.played(c, id, cents) });
 app.use('/api/pool', poolPot.router);
 
 let autopilot;
 const payouts = createPayouts({ q, withTx, chain, alert: (...a) => autopilot.alert(...a), notify: (id, ev) => notifyWithdrawal(id, ev) });
 autopilot = createAutopilot({ q, poolPot, payouts, sendEmail });
-const vault = createVault({ q, withTx, move, audit });
+const vault = createVault({ q, withTx, move, audit, onBuy: (c, id) => achievements.collector(c, id) });
 app.use('/api/vault', vault.router);
 // AI-painted avatars: the starter catalogue, purchases, custom orders and the image files
 const avatars = createAvatars({ q, withTx, move, audit, alert: (...a) => autopilot.alert(...a) });
 app.use('/api/avatars', avatars.router);
 // first-deposit bonus and referrals
-const promos = createPromos({ q, withTx, move, audit });
+const promos = createPromos({ q, withTx, move, audit, achievements });
 app.use('/api/promos', promos.router);
 app.get('/r/:code', (req, res) => res.redirect(302, '/?ref=' + encodeURIComponent(String(req.params.code).replace(/[^A-Za-z0-9]/g, '').slice(0, 12)) + '#/signup'));
 app.use('/avatars', avatars.files);

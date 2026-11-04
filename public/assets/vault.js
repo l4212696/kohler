@@ -2,8 +2,11 @@
 // Kohler Pass. Nothing here is a bet; every sale is plain revenue.
 // Uses casino page helpers (api, money, esc, ic, toast, CS, KV, KohlerFace…).
 (function () {
-  const TABS = [['avatar', 'Avatars', 'users'], ['frame', 'Frames', 'crown'], ['effect', 'Win effects', 'sparkles'], ['pass', 'Kohler Pass', 'ticket']];
-  const TIER_ORDER = { free: 0, common: 1, rare: 2, epic: 3, legendary: 4, pass: 5 };
+  const TABS = [['avatar', 'Avatars', 'users'], ['frame', 'Frames', 'crown'], ['effect', 'Win effects', 'sparkles'], ['theme', 'Themes', 'layers'], ['filter', 'Filters', 'gem'], ['badges', 'Badges', 'trophy'], ['pass', 'Kohler Pass', 'ticket']];
+  const TIER_ORDER = { free: 0, earned: 1, common: 2, rare: 3, epic: 4, legendary: 5, pass: 6 };
+  const CAT_ORDER = ['All', 'Mine', 'Earned', 'Seasonal', 'Classic', 'Textures', 'World', 'Funny', 'Trending', 'Flags', 'Themes', 'Filters'];
+  let cat = 'All', search = '', badges = null;
+  const seasonNote = (it) => it.season ? `${it.season.label} · ${it.season.live ? 'until ' + new Date(`${new Date().getFullYear() + (it.season.to < it.season.from && new Date().getMonth() > 6 ? 1 : 0)}-${it.season.to}T12:00:00Z`).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'back next year'}` : '';
   const TC = { free: '#14532d', common: '#1d2634', rare: '#0c3550', epic: '#2e1a5e', legendary: '#4a3510', pass: '#2e1a5e' };
   let tab = 'avatar', tierFilter = 'all', opts = null;
 
@@ -12,6 +15,19 @@
     if (it.kind === 'frame') {
       const u = CS.user;
       return `<span style="position:relative;display:block;width:${size}px;height:${size}px">${KohlerFace.html(u?.username || 'kohler', u?.equip, size, 30)}${KohlerCharacter.frame(it.art, size)}</span>`;
+    }
+    if (it.kind === 'filter') {
+      const u = CS.user;
+      return `<span style="display:block;width:${size}px;height:${size}px;filter:${it.art.css}">${KohlerFace.html(u?.username || 'kohler', { ...(u?.equip || {}), filter: null }, size, 30)}</span>`;
+    }
+    if (it.kind === 'theme') {
+      const a = it.art, c = a.colors || ['#ffffff'], bg = a.kind === 'aurora' ? `linear-gradient(160deg,#05070b,${c[1]}55,${c[0]}44)` : a.fog ? `linear-gradient(180deg,#0b0614,${a.fog})` : `radial-gradient(120% 90% at 50% 0,${c[0]}33,#07090d 70%)`;
+      const bits = a.emoji ? a.emoji.concat(a.emoji).slice(0, 5).map((e, i) => `<span style="position:absolute;left:${12 + i * 18}%;top:${10 + (i * 37) % 70}%;font-size:${size / 6}px">${e}</span>`).join('')
+        : Array.from({ length: 14 }, (_, i) => `<i style="position:absolute;left:${(i * 53) % 96}%;top:${(i * 29) % 92}%;width:${a.kind === 'snow' || a.kind === 'stars' ? 3 : 5}px;height:${a.kind === 'petals' ? 3 : a.kind === 'snow' || a.kind === 'stars' ? 3 : 5}px;border-radius:50%;background:${c[i % c.length]};${a.kind === 'bubbles' ? `border:1px solid ${c[0]};background:none;width:9px;height:9px` : ''};opacity:.85"></i>`).join('');
+      return `<span style="position:relative;display:block;width:${size}px;height:${size}px;border-radius:22px;overflow:hidden;background:${bg}">${a.kind === 'code' ? `<span style="position:absolute;inset:0;color:${c[0]};font:12px ui-monospace,monospace;opacity:.7;word-break:break-all;padding:6px;line-height:1.1">アカサ01KOHLER$タナ10ハマヤ</span>` : bits}</span>`;
+    }
+    if (it.kind === 'effect' && it.art.emoji) {
+      return `<span style="position:relative;display:grid;place-items:center;width:${size}px;height:${size}px;font-size:${size / 3.2}px">${it.art.emoji.slice(0, 3).map((e, i) => `<span style="position:absolute;transform:translate(${(i - 1) * size / 4}px,${i === 1 ? -size / 8 : size / 10}px) rotate(${(i - 1) * 14}deg)">${e}</span>`).join('')}</span>`;
     }
     if (it.kind === 'effect') {
       const fx = { confetti: ['#00ff66', '#e8c46a', '#ff4d6d', '#7c5cff'], coins: ['#e8c46a', '#f3d58a', '#b8902e'], fireworks: ['#ff4d6d', '#9be7ff', '#c084fc'], lightning: ['#00ff66'], royal: ['#e8c46a', '#fff1b8'] }[it.art.fx] || [];
@@ -26,11 +42,13 @@
     const act = !CS.user ? `<button class="btn sm" data-auth>Sign in</button>`
       : it.owned ? (eq ? `<button class="btn sm" data-uneq="${it.slot}">Equipped</button>` : `<button class="btn neon sm" data-eq="${it.id}">Use</button>`)
       : it.pass ? `<button class="btn sm" data-tab="pass">Get Pass</button>`
+      : it.earn ? `<span class="tier earned" style="white-space:nowrap">${ic('lock', 12)} Earn it</span>`
+      : it.season && !it.season.live ? `<span class="muted" style="font-size:12px">Back next year</span>`
       : `<button class="btn gold sm" data-buy="${it.id}">${money(it.price)}</button>`;
     return `<div class="vt ${it.tier} ${eq ? 'on' : ''}" style="--tc:${TC[it.tier]}">
-      <div class="show">${preview(it, 112)}${it.kind === 'effect' ? `<button class="btn sm" style="position:absolute;bottom:8px;left:8px;height:28px" data-try="${it.id}">Preview</button>` : ''}</div>
+      <div class="show">${preview(it, 112)}${it.kind === 'effect' || it.kind === 'theme' ? `<button class="btn sm" style="position:absolute;bottom:8px;left:8px;height:28px" data-try="${it.id}">Preview</button>` : ''}${it.season ? `<span class="tier seasonal" style="position:absolute;top:8px;left:8px">${esc(it.season.label)}</span>` : ''}</div>
       <div class="meta"><div class="row" style="justify-content:space-between"><b>${esc(it.name)}</b><span class="tier ${it.tier}">${it.tier}</span></div>
-        <small>${esc(it.blurb)}</small><div class="foot"><span class="muted num" style="font-size:12px">${it.price ? (it.owned ? 'Owned' : '') : it.pass ? 'Pass perk' : 'Free'}</span>${act}</div></div></div>`;
+        <small>${esc(it.earn && !it.owned ? 'How to get it: ' + it.blurb : it.blurb)}${it.season ? `<br><span style="color:var(--gold)">${esc(seasonNote(it))}</span>` : ''}</small><div class="foot"><span class="muted num" style="font-size:12px">${it.owned ? (it.earn ? 'Earned' : it.price ? 'Owned' : 'Free') : it.pass ? 'Pass perk' : it.earn ? '' : 'Free'}</span>${act}</div></div></div>`;
   }
 
   /* ── avatars ── */
@@ -66,10 +84,19 @@
   function render() {
     const V = CS.vault; if (!V) return;
     const u = CS.user;
-    const items = V.items.filter((i) => i.kind === tab).sort((a, b) => TIER_ORDER[a.tier] - TIER_ORDER[b.tier] || a.price - b.price);
+    const all = V.items.filter((i) => i.kind === tab);
+    const cats = ['All', ...(CS.user ? ['Mine'] : []), ...CAT_ORDER.filter((c) => c !== 'All' && c !== 'Mine' && all.some((i) => i.cat === c))];
+    if (!cats.includes(cat)) cat = 'All';
+    const qq = search.trim().toLowerCase();
+    const items = all.filter((i) => (cat === 'All' ? i.cat !== 'Flags' || qq : cat === 'Mine' ? i.owned && (i.price || i.earn || i.pass) : i.cat === cat) && (!qq || i.name.toLowerCase().includes(qq)))
+      .sort((a, b) => (b.season?.live ? 1 : 0) - (a.season?.live ? 1 : 0) || TIER_ORDER[a.tier] - TIER_ORDER[b.tier] || a.price - b.price || a.name.localeCompare(b.name));
+    const live = (V.seasons || []).find((x) => x.live);
+    const strip = ['frame', 'effect', 'theme', 'filter'].includes(tab) ? `${live ? `<div class="vt-season">${ic('sparkles', 15)}<b>${esc(live.label)} is here.</b> Seasonal items are only in the shop for a few weeks, and they're yours forever once you have them.</div>` : ''}
+      <div class="vt-filters"><div class="filters">${cats.map((c) => `<button class="pill ${c === cat ? 'on' : ''}" data-vcat="${c}">${c === 'Flags' ? 'Country flags' : c}</button>`).join('')}</div>
+        ${tab === 'frame' ? `<input class="inp vt-search" id="vtq" placeholder="Search frames or countries" value="${esc(search)}">` : ''}</div>` : '';
     const pass = V.items.find((i) => i.kind === 'pass');
     $('#view').innerHTML = `<section class="vt-hero"><div><span class="tag">${ic('gem', 14)}The Vault</span><h1>Look the part.</h1>
-        <p>Avatars, frames and win effects. Cosmetic only.</p></div>
+        <p>Avatars, frames, win effects, themes and filters. Cosmetic only, and yours forever.</p></div>
       ${u ? `<div class="vt-me"><div class="face">${(window.userFace || (() => ''))(u, 84)}</div><div><b style="font-family:var(--display)">${esc(u.username)}</b>
         <div class="muted" style="font-size:13px">${u.equip?.avatar ? esc(KohlerFace.byId[u.equip.avatar]?.name || 'Custom avatar') : 'Default avatar'}${u.passUntil ? ` · <span style="color:#c4b5fd">Pass until ${new Date(u.passUntil).toLocaleDateString()}</span>` : ''}</div>
         <div class="num" style="margin-top:4px;color:var(--neon);font-weight:700">${money(u.balance)}</div></div></div>` : `<button class="btn neon lg" data-auth>Sign in to collect</button>`}</section>
@@ -82,7 +109,21 @@
           <div style="text-align:center"><div style="font-family:var(--display);font-size:30px;font-weight:800">${money(pass.price)}</div>
             ${u ? `<button class="btn gold lg" data-buy="${pass.id}" style="margin-top:8px">${u.passUntil ? 'Add 30 days' : 'Get the Pass'}</button>` : '<button class="btn neon" data-auth>Sign in</button>'}</div></div>
         <div class="sect"><h2>Pass perks</h2></div><div class="vt-grid">${V.items.filter((i) => i.pass).map(tile).join('')}</div>`
-      : `<div class="vt-grid">${items.map(tile).join('')}</div>`}`;
+      : tab === 'badges' ? badgesTab()
+      : strip + (items.length ? `<div class="vt-grid">${items.slice(0, 240).map(tile).join('')}</div>` : `<div class="empty">${cat === 'Mine' ? 'Nothing here yet.' : 'Nothing matches that.'}</div>`)}`;
+    const qin = $('#vtq'); if (qin) { qin.oninput = () => { search = qin.value; const pos = qin.selectionStart; render(); const n = $('#vtq'); n.focus(); n.setSelectionRange(pos, pos); }; }
+    if (tab === 'badges' && !badges) api('/badges').then((b) => { badges = b; if (tab === 'badges' && location.hash.startsWith('#/vault')) render(); }).catch(() => {});
+  }
+  function badgesTab() {
+    if (!badges) return '<div class="empty" style="border:0">Loading badges…</div>';
+    const p = badges.progress, have = badges.badges.filter((b) => b.earned).length;
+    const steps = [[1, 1], [2, 1.1], [3, 1.25], [7, 1.5], [14, 1.75], [30, 2]];
+    const streakCard = p ? `<div class="vt-streak"><div class="flame">${ic('flame', 30)}</div><div style="flex:1;min-width:200px"><div class="big num">${p.streak}<span>-day streak</span></div>
+        <div class="muted" style="font-size:13.5px">${p.playedToday ? 'Today counts. ' : p.streak ? 'Play today to keep it going. ' : 'Play today to start one. '}XP ×${p.mult}${p.nextStep ? ` · ×${p.nextStep.mult} at ${p.nextStep.days} days` : ' (the max)'}. Best: ${p.bestStreak} days.</div>
+        <div class="vt-steps">${steps.map(([d, m]) => `<span class="${p.streak >= d ? 'on' : ''}"><b>${d}d</b>×${m}</span>`).join('')}</div></div></div>` : '';
+    return `${streakCard}<div class="sect"><h2>Badges</h2><span>${have} of ${badges.badges.length}</span></div>
+      <div class="vt-badges">${badges.badges.map((b) => `<div class="vb ${b.earned ? 'on' : ''}"><div class="ico">${b.icon}</div><b>${esc(b.name)}</b><small>${esc(b.desc)}</small>
+        ${b.reward && KV[b.reward] ? `<small class="rw">${b.earned ? 'Unlocked' : 'Unlocks'}: ${esc(KV[b.reward].name)}</small>` : ''}${b.earned ? `<small class="when">${new Date(b.earnedAt).toLocaleDateString()}</small>` : ''}</div>`).join('')}</div>`;
   }
   async function reload() {
     const [v, a] = await Promise.all([api('/vault'), api('/avatars').catch(() => null)]);
@@ -224,15 +265,16 @@
 
   document.addEventListener('click', (e) => {
     if (!location.hash.startsWith('#/vault') && !e.target.closest('#mbox')) return;
-    const t = e.target.closest('[data-tab],[data-buy],[data-eq],[data-uneq],[data-try],[data-auth],[data-avbuy],[data-aveq],[data-avuneq],[data-create],[data-tier],[data-order]'); if (!t) return;
+    const t = e.target.closest('[data-tab],[data-buy],[data-eq],[data-uneq],[data-try],[data-auth],[data-avbuy],[data-aveq],[data-avuneq],[data-create],[data-tier],[data-order],[data-vcat]'); if (!t) return;
     if (t.closest('#mbox') && !t.matches('[data-buy],[data-auth]')) return;
     e.preventDefault();
     const d = t.dataset;
-    if (d.tab) { tab = d.tab; render(); }
+    if (d.tab) { tab = d.tab; cat = 'All'; search = ''; if (tab === 'badges') badges = null; render(); }
     else if (d.buy) buyItem(d.buy);
     else if (d.eq) equip(KV[d.eq].slot, d.eq);
     else if (d.uneq) equip(d.uneq, null);
-    else if (d.try) KohlerFX.play(d.try);
+    else if (d.try) { const it = KV[d.try]; if (it?.kind === 'theme') { window.KohlerTheme?.set(it.art); toast(`Previewing ${it.name}`); clearTimeout(window.__thPrev); window.__thPrev = setTimeout(() => window.KohlerTheme?.set(CS.user?.equipArt?.theme || null), 6000); } else KohlerFX.play(d.try, it?.art); }
+    else if (d.vcat) { cat = d.vcat; render(); }
     else if (d.avbuy) buyAvatar(d.avbuy);
     else if (d.aveq) equipAvatar(d.aveq);
     else if (t.hasAttribute('data-avuneq')) equipAvatar(null);

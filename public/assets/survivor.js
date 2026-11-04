@@ -11,7 +11,7 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const face = (seat, size) => {
     if (seat.isHouse) return KohlerLogo.mark(size, true);
-    return KohlerFace.html(seat.name, { avatar: seat.avatar }, size, Math.round(size * 0.3));
+    return KohlerFace.html(seat.name, { avatar: seat.avatar, filter: seat.filter }, size, Math.round(size * 0.3));
   };
 
   function connect(code) {
