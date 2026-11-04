@@ -381,9 +381,9 @@ body.test .game{top:calc(var(--top) + 28px)}
     <a href="#" data-w="history"><span class="i" style="--u:url(/assets/icons/receipt-text.svg)"></span>Transactions</a>
     <a href="#/limits" data-r="limits"><span class="i" style="--u:url(/assets/icons/shield-check.svg)"></span>Limits &amp; cool-off</a>
     <a href="/#/refer"><span class="i" style="--u:url(/assets/icons/users.svg)"></span>Invite friends</a>
+    <a href="#/account" data-r="account"><span class="i" style="--u:url(/assets/icons/user-round.svg)"></span>Profile &amp; settings</a>
     <a href="/rules.html"><span class="i" style="--u:url(/assets/icons/info.svg)"></span>Rules &amp; fees</a>
     <a href="#" data-install hidden><span class="i" style="--u:url(/assets/icons/smartphone.svg)"></span>Install app</a>
-    <a href="/"><span class="i" style="--u:url(/assets/icons/house.svg)"></span>Kohler shop</a>
   </nav>
   <div class="vip" id="vip"></div>
 </aside>
@@ -739,6 +739,23 @@ async function limits() {
 }
 
 /* ── auth ── */
+function viewAccount() {
+  if (!CS.user) return authModal();
+  const u = CS.user;
+  $('#view').innerHTML = `<div class="stack" style="max-width:760px">
+    <div style="display:flex;align-items:center;gap:16px"><div style="width:64px;height:64px">${userFace(u, 64)}</div>
+      <div><h1 style="font-size:32px">${esc(u.username)}</h1><p class="muted">${esc(u.email)}${u.isAdmin ? ` <span class="pill">${u.adminRole === 'god' ? 'Full admin' : 'Catalog admin'}</span>` : ''}${u.testMode ? ' <span class="pill" style="color:var(--gold)">Test account</span>' : ''}</p></div></div>
+    ${u.isAdmin ? `<a class="panel" href="/admin" style="display:flex;justify-content:space-between;align-items:center"><div><h3>Admin panel</h3><p class="muted" style="font-size:14px">Manage the Kohler casino and its content.</p></div><span class="btn neon">Open</span></a>` : ''}
+    <div class="panel"><h3 style="margin-bottom:14px">Username</h3><form id="uf" style="display:flex;gap:10px"><input class="inp" type="text" id="uName" value="${esc(u.username)}" minlength="3" maxlength="24"><button class="btn" type="submit">Save</button></form></div>
+    <form class="panel" id="pf"><h3 style="margin-bottom:14px">Password</h3>
+      <label class="field"><span>Current password</span><input class="inp" type="password" id="pCur" autocomplete="current-password"></label>
+      <label class="field"><span>New password (8+ characters)</span><input class="inp" type="password" id="pNew" autocomplete="new-password" minlength="8"></label>
+      <button class="btn" type="submit">Change password</button></form>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn" href="#/vault">Customize profile</a><a class="btn" href="#/limits">Play limits and cool-off</a><button class="btn danger" id="out">Sign out</button></div></div>`;
+  $('#uf').onsubmit = async (e) => { e.preventDefault(); try { await api('/auth/username', { method: 'POST', body: { username: $('#uName').value } }); toast('Username saved'); await refreshMe(); viewAccount(); } catch (err) { toast(err.message === 'taken' ? 'That username is taken' : err.message); } };
+  $('#pf').onsubmit = async (e) => { e.preventDefault(); try { await api('/auth/password', { method: 'POST', body: { current: $('#pCur').value, next: $('#pNew').value } }); toast('Password changed'); $('#pCur').value = ''; $('#pNew').value = ''; } catch (err) { toast(err.message); } };
+  $('#out').onclick = async () => { const b = $('#out'); b.disabled = true; try { await api('/auth/logout', { method: 'POST' }); CS.user = null; paintMe(); location.hash = '#/'; toast('Signed out'); } catch (err) { b.disabled = false; toast(err.message); } };
+}
 function authModal(mode = 'in') {
   const reg = mode === 'up';
   $('#mbox').innerHTML = `<div style="margin-bottom:14px">${KohlerLogo.mark(44, true)}</div><h2 style="font-family:var(--display);margin:0 0 4px;letter-spacing:-.02em">${reg ? 'Create your account' : 'Welcome back'}</h2>
@@ -779,7 +796,7 @@ $('#dep').onclick = () => (CS.user ? wallet('deposit') : authModal());
 $('#wd').onclick = () => wallet('withdraw');
 $('#dclose').onclick = () => $('#drawer').classList.remove('on');
 document.querySelectorAll('.dtabs button').forEach((b) => (b.onclick = () => wallet(b.dataset.t)));
-$('#me').onclick = () => (CS.user ? (location.hash = '#/vault') : authModal());
+$('#me').onclick = () => (CS.user ? (location.hash = '#/account') : authModal());
 $('#burger').onclick = () => document.body.classList.toggle('nav-open');
 $('#scrim').onclick = () => document.body.classList.remove('nav-open');
 $('#q').oninput = (e) => { CS.q = e.target.value; if (!$('#sections') || !['all', 'slots', 'table', 'originals'].includes(CS.cat)) { location.hash = '#/'; return; } paintSections(); };
@@ -794,6 +811,7 @@ function route() {
   if (p === 'survivor') { CS.cat = 'survivor'; nav('survivor'); scrollTo(0, 0); return a ? Survivor.table(a.toUpperCase()).catch((e) => { toast(e.message); location.hash = '#/survivor'; }) : Survivor.lobby(); }
   if (p === 'vault') { nav('vault'); scrollTo(0, 0); Survivor.stop(); return Vault.show(); }
   if (p === 'limits') { nav('limits'); return limits(); }
+  if (p === 'account') { nav('account'); scrollTo(0, 0); Survivor.stop(); return viewAccount(); }
   CS.cat = p === 'c' && a ? a : 'all';
   nav(CS.cat);
   lobby();
