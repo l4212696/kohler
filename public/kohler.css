@@ -114,8 +114,9 @@ input:focus,select:focus,textarea:focus{outline:0;border-color:var(--cobalt);box
 .pill{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:999px;font-size:12px;font-weight:650;background:var(--ink-2);color:var(--muted)}
 
 /* sheet + toast */
-.sheet{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center}
-.sheet>.box{background:var(--ink-1);border:1px solid var(--line);border-radius:24px 24px 0 0;width:100%;max-width:460px;padding:24px;max-height:92vh;overflow:auto;animation:rise .22s ease}
+.sheet{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;pointer-events:auto}
+.sheet>.box{background:var(--ink-1);border:1px solid var(--line);border-radius:24px 24px 0 0;width:100%;max-width:460px;padding:24px;max-height:92vh;overflow:auto;animation:rise .22s ease;pointer-events:auto}
+.sheet input,.sheet select,.sheet textarea{pointer-events:auto;user-select:text;-webkit-user-select:text}
 @keyframes rise{from{transform:translateY(24px);opacity:.5}}
 @media(min-width:620px){.sheet{align-items:center}.sheet>.box{border-radius:24px}}
 .toast{position:fixed;left:50%;top:78px;transform:translate(-50%,-10px);opacity:0;z-index:100;background:var(--ink-2);border:1px solid var(--line-2);
