@@ -217,6 +217,7 @@ slots and table games.
 | Mines | 5×5 grid with 1–24 mines. Payout after k gems = 0.99 ÷ P(surviving k picks). | 99% |
 | Coin Flip | The Kohler coin: Gold or Crown, pays 1.96×. | 98% |
 | Limbo | Pick a target t. Pays t× with probability 0.99/t. | 99% |
+| Keno Boss | Pick 1–10 of 40 numbers, 10 are drawn; pays by hits. Classic pays often (top 500×), Boss pays rarely and big (top 2,500×). Each table is built from the exact odds and rounded down. Max bet $50. | 96.8–97% |
 | Dice, Plinko, Wheels | | 96–99% |
 | Slots (34) | Exact by construction | 95.8–96.5% |
 | Roulette / Blackjack | European single zero / basic strategy | 97.3% / ≈98.9% |

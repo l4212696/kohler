@@ -497,6 +497,19 @@ function origArt(engine, a) {
       </g>
       <text x="12" y="28" font-family="Unbounded,sans-serif" font-weight="800" font-size="16" fill="#fff">2.41×</text>`);
     }
+    case 'keno': {
+      // glossy lottery balls on a board, three of them hit (gold), under a crown: the Boss
+      const k = 'kn' + (++origArt.n);
+      const balls = [[22, 46, 7, 0], [41, 46, 12, 1], [60, 46, 19, 0], [79, 46, 23, 0], [22, 66, 28, 0], [41, 66, 31, 1], [60, 66, 36, 0], [79, 66, 40, 1]];
+      return S(`<defs><radialGradient id="${k}g" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff8d6"/><stop offset=".45" stop-color="#f5c542"/><stop offset="1" stop-color="#8a5a08"/></radialGradient>
+        <radialGradient id="${k}w" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#d9dee8"/><stop offset="1" stop-color="#6b7383"/></radialGradient>
+        <linearGradient id="${k}c" x1="0" x2="1"><stop offset="0" stop-color="#7a5a16"/><stop offset=".4" stop-color="#fff0b8"/><stop offset=".7" stop-color="#e8c46a"/><stop offset="1" stop-color="#7a5a16"/></linearGradient></defs>
+        <path d="M33 30 30 14 40 21 50 9 60 21 70 14 67 30Z" fill="url(#${k}c)" stroke="#5c430f" stroke-width=".8"/><rect x="32" y="29" width="36" height="5" rx="2" fill="url(#${k}c)"/>
+        <circle cx="50" cy="9" r="2.6" fill="#ff4d6d"/><circle cx="30" cy="14" r="2" fill="${a}"/><circle cx="70" cy="14" r="2" fill="${a}"/>
+        ${balls.map(([x, y, n, hit]) => `<circle cx="${x}" cy="${y + 2}" r="8.6" fill="#000" opacity=".3"/><circle cx="${x}" cy="${y}" r="8.6" fill="url(#${k}${hit ? 'g' : 'w'})"/>
+          <text x="${x}" y="${y + 3.3}" text-anchor="middle" font-family="Unbounded,sans-serif" font-weight="800" font-size="8" fill="${hit ? '#3a2400' : '#1d2634'}">${n}</text>`).join('')}
+        <text x="50" y="92" text-anchor="middle" font-family="Unbounded,sans-serif" font-weight="800" font-size="10" fill="#fff" opacity=".9">3 HITS</text>`);
+    }
     case 'mines': return S([0, 1, 2].flatMap((r) => [0, 1, 2].map((c) => { const x = 14 + c * 25, y = 14 + r * 25, k = r * 3 + c;
       return `<rect x="${x}" y="${y}" width="22" height="22" rx="6" fill="${k === 4 ? '#1d2634' : k === 2 ? '#2a0d14' : '#1a3a26'}" stroke="${k === 2 ? '#ff4d6d' : a}" stroke-opacity=".6"/>${k === 2 ? `<circle cx="${x + 11}" cy="${y + 12}" r="6" fill="#ff4d6d"/><path d="M${x + 14} ${y + 6}l3-3" stroke="#ffd166" stroke-width="2"/>` : k === 4 ? '' : `<path d="M${x + 11} ${y + 4}l7 7-7 8-7-8Z" fill="${a}"/>`}`; })).join(''));
     case 'coinflip': return KohlerLogo.coin(100).replace('<svg', '<svg class="oa"');
@@ -565,7 +578,7 @@ function lobby() {
       <div class="side-cards">
         ${mini('ks-rocket', 'Ride the multiplier. Cash out before it blows.')}
         ${mini('ks-mines', 'Find gems, dodge mines, bank whenever you like.')}
-        ${mini('ks-coinflip', 'Our own coin. Call it, flip it, double it.')}
+        ${mini('ks-keno-boss', 'New: pick your numbers, up to 2,500× on Boss.')}
       </div></section>` : ''}
     <div class="tabs" id="tabs">${CATS.map(([k, l, i]) => `<button class="tab ${CS.cat === k ? 'on' : ''}" data-cat="${k}">${ic(i, 18)}${l}</button>`).join('')}</div>
     ${CS.cat === 'slots' ? `<div class="filters">${[['', 'Any volatility'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High']].map(([v, l]) => `<button class="pill ${CS.vol === v ? 'on' : ''}" data-vol="${v}">${l}</button>`).join('')}</div>` : ''}

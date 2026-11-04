@@ -18,7 +18,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .top .meta{font-size:11.5px;color:var(--dim)}
 .grow{flex:1}
 .chipbtn.on{color:#03140a;background:var(--win);border-color:transparent}
-.chipbtn{height:30px;padding:0 10px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.05);font-size:12px;font-weight:600}
+.chipbtn{white-space:nowrap;height:30px;padding:0 10px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.05);font-size:12px;font-weight:600}
 .bal{font-weight:800;font-size:15px}
 .bal.up{color:var(--win);text-shadow:0 0 14px rgba(0,255,102,.6)}
 .demo{font-size:11px;font-weight:700;color:#0b0d12;background:var(--gold);padding:3px 8px;border-radius:6px}
@@ -131,6 +131,31 @@ canvas{max-width:100%;max-height:100%}
 .rkh span{font-size:12px;font-weight:700;padding:3px 8px;border-radius:7px;background:rgba(255,255,255,.07)}
 .rkh span.g{color:var(--win)}.rkh span.r{color:#ff8fa3}
 .go.cash{background:linear-gradient(180deg,#f3d58a,#c99a35);color:#241800;box-shadow:0 8px 26px rgba(232,196,106,.35)}
+/* keno boss */
+.kn{display:flex;flex-direction:column;align-items:center;gap:12px;width:min(96vw,620px)}
+.kgrid{display:grid;grid-template-columns:repeat(8,1fr);gap:7px;width:100%}
+.kt{aspect-ratio:1;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:linear-gradient(180deg,#232c3b,#161d28);box-shadow:inset 0 -4px 0 rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.06);
+  font:800 clamp(13px,3.4vw,18px) Unbounded,sans-serif;color:#c9d1de;display:grid;place-items:center;transition:transform .12s,background .15s,border-color .15s;position:relative}
+.kt:not(:disabled):hover{transform:translateY(-2px);background:linear-gradient(180deg,#2b3648,#1c2431)}
+.kt.pick{background:linear-gradient(180deg,color-mix(in srgb,var(--a) 34%,#1b2230),color-mix(in srgb,var(--a) 16%,#10151e));border-color:color-mix(in srgb,var(--a) 75%,transparent);color:#fff;box-shadow:inset 0 -4px 0 rgba(0,0,0,.35),0 0 18px color-mix(in srgb,var(--a) 30%,transparent)}
+.kt.drawn{border-color:rgba(255,255,255,.35);color:#fff}
+.kt.drawn:after{content:"";position:absolute;inset:18%;border-radius:50%;border:2px solid rgba(255,255,255,.45);animation:kpop .25s ease}
+.kt.hit{background:radial-gradient(circle at 35% 30%,#fff6cf,#f5c542 45%,#a87410);color:#2a1a00;border-color:#ffe08a;box-shadow:inset 0 -4px 0 rgba(0,0,0,.25),0 0 26px rgba(245,197,66,.55);animation:kpop .3s cubic-bezier(.2,1.6,.4,1)}
+.kt.hit:after{display:none}
+.kn.done .kt:not(.pick):not(.drawn){opacity:.45}
+.kt:disabled{cursor:default}
+@keyframes kpop{from{transform:scale(.6)}}
+.ktop{display:flex;gap:8px;align-items:center;justify-content:space-between;width:100%;flex-wrap:wrap}
+.seg{display:inline-flex;padding:3px;border-radius:11px;background:rgba(0,0,0,.35);border:1px solid var(--line)}
+.seg button{height:30px;padding:0 12px;border-radius:8px;font-size:12.5px;font-weight:700;color:var(--dim)}
+.seg button.on{background:var(--a);color:#1a1003}
+.kpay{display:flex;gap:6px;overflow-x:auto;width:100%;scrollbar-width:none;padding-bottom:2px}
+.kpay::-webkit-scrollbar{display:none}
+.kpay span{flex:1 0 auto;min-width:54px;text-align:center;padding:6px 8px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid var(--line);font-size:11px;color:var(--dim)}
+.kpay span b{display:block;font:800 13px Unbounded,sans-serif;color:var(--txt)}
+.kpay span.z b{color:var(--dim);font-weight:600}
+.kpay span.on{border-color:var(--a);background:color-mix(in srgb,var(--a) 22%,transparent)}
+.kpay span.on b{color:#fff}
 /* mines */
 .mn{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;width:min(92vw,56vh,460px)}
 .tile{aspect-ratio:1;border-radius:14px;background:linear-gradient(180deg,#232c3b,#171e29);border:1px solid rgba(255,255,255,.1);box-shadow:inset 0 -4px 0 rgba(0,0,0,.35);display:grid;place-items:center;transition:transform .12s,background .2s}
@@ -152,7 +177,7 @@ canvas{max-width:100%;max-height:100%}
   <div class="grow"></div>
   <span class="demo" id="demoTag" hidden>DEMO</span>
   <button class="chipbtn" id="infoBtn">Rules</button>
-  <button class="chipbtn" id="turboBtn" title="Shorter animations">Turbo off</button>
+  <button class="chipbtn" id="turboBtn" title="Shorter animations" aria-pressed="false">Turbo</button>
   <button class="chipbtn" id="sndBtn">Sound on</button>
   <div style="text-align:right"><div class="meta">Balance</div><div class="bal num" id="bal">—</div></div>
 </div>
@@ -172,7 +197,7 @@ let G, balance = null, busy = false, sound = true;
 // Turbo: every animation runs at roughly half length. Remembered on this device.
 let turbo = false; try { turbo = localStorage.getItem('ks-turbo') === '1'; } catch {}
 const T = (ms) => Math.round(ms * (turbo ? 0.45 : 1));
-const applyTurbo = () => { document.documentElement.style.setProperty('--spd', turbo ? '.45' : '1'); const b = document.getElementById('turboBtn'); if (b) { b.textContent = turbo ? 'Turbo on' : 'Turbo off'; b.classList.toggle('on', turbo); } };
+const applyTurbo = () => { document.documentElement.style.setProperty('--spd', turbo ? '.45' : '1'); const b = document.getElementById('turboBtn'); if (b) { b.classList.toggle('on', turbo); b.setAttribute('aria-pressed', String(turbo)); } };
 const cents = (s) => Math.round(Number(s) * 100);
 const usd = (c) => '$' + (c / 100).toFixed(2);
 
@@ -583,6 +608,69 @@ const ENG = {
       this.bar();
     },
     rules: () => `<p class="meta">The rocket's multiplier climbs from 1.00×. Cash out before it blows up to win bet × the multiplier at that moment. Set an auto cash-out and the server cashes you out even if you close the page. The blow-up point is fixed before launch: 1% of flights end at 1.00×, and the chance of reaching m× is 99 ÷ m percent.</p>`,
+  },
+
+  keno: {
+    picks: [], risk: 'classic', last: null,
+    init() {
+      const K = G.keno;
+      $('#stage').innerHTML = `<div class="kn" id="kn">
+        <div class="ktop"><div class="seg" id="kr"><button data-r="classic" class="on">Classic</button><button data-r="boss">Boss</button></div>
+          <div style="display:flex;gap:6px"><button class="chipbtn" id="kauto">Auto pick</button><button class="chipbtn" id="kclr">Clear</button></div></div>
+        <div class="kgrid" id="kg">${Array.from({ length: K.size }, (_, i) => `<button class="kt" data-n="${i + 1}">${i + 1}</button>`).join('')}</div>
+        <div class="kpay" id="kp"></div>
+        <div class="meta" id="kh">Pick up to ${K.maxPicks} numbers. We draw ${K.draw}.</div></div>`;
+      $('#bar').innerHTML = betBox() + `<button class="go" id="go">PLAY</button>`;
+      wireBet(); $('#go').onclick = () => this.go();
+      $('#kg').onclick = (e) => { const b = e.target.closest('[data-n]'); if (!b || busy) return; this.toggle(+b.dataset.n); };
+      $('#kr').onclick = (e) => { const b = e.target.closest('[data-r]'); if (!b || busy) return; this.risk = b.dataset.r; $('#kr').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); tone(520, .03); this.paint(); };
+      $('#kauto').onclick = () => { if (busy) return; const n = this.picks.length || 5, all = Array.from({ length: K.size }, (_, i) => i + 1);
+        for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
+        this.picks = all.slice(0, n).sort((a, b) => a - b); this.clearRound(); this.paint(); tone(660, .04); };
+      $('#kclr').onclick = () => { if (busy) return; this.picks = []; this.clearRound(); this.paint(); };
+      addEventListener('keydown', (e) => { if (e.code === 'Space' && G.engine === 'keno') { e.preventDefault(); this.go(); } });
+      this.paint();
+    },
+    toggle(n) {
+      this.clearRound();
+      const i = this.picks.indexOf(n);
+      if (i >= 0) this.picks.splice(i, 1);
+      else if (this.picks.length >= G.keno.maxPicks) return say(`${G.keno.maxPicks} numbers is the most`);
+      else this.picks.push(n);
+      tone(i >= 0 ? 380 : 560 + this.picks.length * 30, .035, 'triangle', .03); buzz(6);
+      this.paint();
+    },
+    clearRound() { this.last = null; $('#kn')?.classList.remove('done'); document.querySelectorAll('.kt').forEach((t) => t.classList.remove('drawn', 'hit')); },
+    paint(hits = null) {
+      document.querySelectorAll('.kt').forEach((t) => t.classList.toggle('pick', this.picks.includes(+t.dataset.n)));
+      const n = this.picks.length;
+      if (!n) { $('#kp').innerHTML = ''; $('#kh').textContent = `Pick up to ${G.keno.maxPicks} numbers. We draw ${G.keno.draw}.`; return; }
+      const t = G.keno.tables[this.risk][n - 1];
+      $('#kp').innerHTML = t.mult.map((m, k) => `<span class="${m ? '' : 'z'} ${hits === k ? 'on' : ''}">${k} hit${k === 1 ? '' : 's'}<b class="num">${m ? m + '×' : '—'}</b></span>`).join('');
+      if (hits === null) $('#kh').textContent = `${n} picked · top prize ${Math.max(...t.mult)}× · RTP ${t.rtp}%`;
+    },
+    async go() {
+      if (busy) return;
+      if (!this.picks.length) return say('Pick at least one number', true);
+      busy = true; $('#go').disabled = true; this.clearRound();
+      const stake = bet, picks = [...this.picks];
+      const out = await play('play', { bet: (bet / 100).toFixed(2), picks, risk: this.risk });
+      if (!out) { busy = false; $('#go').disabled = false; return; }
+      const r = out.result; let h = 0;
+      $('#kn').classList.add('done');
+      for (const n of r.drawn) {
+        const el = document.querySelector(`.kt[data-n="${n}"]`), hit = picks.includes(n);
+        el.classList.add('drawn'); if (hit) { el.classList.add('hit'); h++; tone(700 + h * 70, .07, 'triangle', .05); buzz(10); } else tone(300, .02, 'sine', .015);
+        $('#kh').textContent = `${h} hit${h === 1 ? '' : 's'} so far`;
+        this.paint(h);
+        await new Promise((res) => setTimeout(res, T(hit ? 150 : 95)));
+      }
+      this.last = r;
+      $('#kh').textContent = r.win ? `${r.hits.length} hits · ${r.mult}×` : `${r.hits.length} hit${r.hits.length === 1 ? '' : 's'}`;
+      setBalance(out.balance, r.payoutCents); outcome(stake, r.payoutCents, `${r.hits.length} of ${picks.length} hit`);
+      busy = false; $('#go').disabled = false;
+    },
+    rules: () => `<p class="meta">Pick 1 to ${G.keno.maxPicks} numbers from 1 to ${G.keno.size}. We draw ${G.keno.draw} numbers at random; the more of yours we draw, the more you win, as shown under the board for the number of picks you made. <b>Classic</b> pays more often; <b>Boss</b> pays less often but much bigger (up to ${Math.max(...G.keno.tables.boss.map((t) => Math.max(...t.mult)))}×). Every table returns about 97% over time.</p>`,
   },
 
   mines: {

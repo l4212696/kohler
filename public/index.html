@@ -389,7 +389,7 @@ async function paintPlayStrip() {
   const el = $('#playStrip'); if (!el || !S.store?.gamblingEnabled) return;
   el.innerHTML = `<div class="sect"><h2>Play</h2><a class="btn ghost" href="/casino">Open the casino</a></div>
     <div class="games"><a class="gt feature" href="/casino" style="--hue:var(--mint)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="16" height="15" rx="2.5"/><rect x="4.5" y="8.5" width="11" height="7" rx="1"/><path d="M8.2 8.5v7M11.8 8.5v7M18 9h2.2a1 1 0 0 1 1 1v3"/></svg>
-      <div><h3>Kohler Casino</h3><p>Rocket, Mines, Coin Flip, slots and tables.</p></div><span class="btn go">Enter the lobby</span></a>
+      <div><h3>Kohler Casino</h3><p>Rocket, Mines, Keno Boss, slots and tables.</p></div><span class="btn go">Enter the lobby</span></a>
       ${S.store.poolEnabled ? poolTile(S.pool) : ''}</div>`;
 }
 
