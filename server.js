@@ -17,10 +17,10 @@ import { migrate, ensureTestAccount } from './lib/boot.js';
 import { createVault } from './lib/vault.js';
 import { createAvatars } from './lib/avatars/index.js';
 import { createPromos, BET_KINDS } from './lib/promos.js';
+import { qrDataUrl } from './lib/qr-art.js';
 import { createAchievements } from './lib/achievements.js';
 import { BY_ID as VAULT_ITEM } from './lib/vault-items.js';
 import { createLimiter, securityHeaders, sameOrigin, newTotpSecret, checkTotp, otpauthUrl } from './lib/security.js';
-import QRCode from 'qrcode';
 import { createPayouts } from './lib/payouts.js';
 import fs from 'node:fs/promises';
 import { appendFileSync, existsSync } from 'node:fs';
@@ -166,17 +166,6 @@ async function userFromReq(req) {
 
 app.use(async (req, res, next) => {
   req.user = await userFromReq(req);
-  const bypassEmail = String(process.env.TEST_ACCOUNT_EMAIL || 'testkohler@yopmail.com').trim().toLowerCase();
-  if (!req.user && process.env.AUTH_DISABLED === 'true') {
-    const r = await q('select * from users where lower(email) = $1', [bypassEmail]);
-    req.user = r.rows[0] || null;
-  }
-  if (req.user && process.env.AUTH_DISABLED === 'true' && String(req.user.email).toLowerCase() === bypassEmail) {
-    req.user.is_admin = true;
-    req.user.admin_role = 'god';
-    req.user.totp_enabled = true;
-    req.user.session_mfa_at = new Date();
-  }
   // a suspended account can still look, but can't move money or change anything
   if (req.user?.banned && !['GET', 'HEAD'].includes(req.method) && req.path.startsWith('/api/') && req.path !== '/api/auth/logout')
     return res.status(403).json({ error: 'Account suspended.' });
@@ -184,12 +173,10 @@ app.use(async (req, res, next) => {
 });
 
 const requireUser = (req, res, next) => (req.user ? next() : res.status(401).json({ error: 'sign in' }));
-const bypassAdmin = (req) => process.env.AUTH_DISABLED === 'true'
-  && String(req.user?.email || '').toLowerCase() === String(process.env.TEST_ACCOUNT_EMAIL || 'testkohler@yopmail.com').trim().toLowerCase();
 const requireAdmin = (req, res, next) =>
-  req.user?.is_admin || bypassAdmin(req) ? next() : res.status(403).json({ error: 'admin only' });
+  req.user?.is_admin ? next() : res.status(403).json({ error: 'admin only' });
 const requireGod = (req, res, next) =>
-  (req.user?.is_admin && req.user?.admin_role === 'god') || bypassAdmin(req)
+  req.user?.is_admin && req.user?.admin_role === 'god'
     ? next() : res.status(403).json({ error: 'god admin only' });
 const requireGambling = (req, res, next) =>
   gamblingEnabled().then((enabled) => enabled ? next() : res.status(404).json({ error: 'not available' })).catch(next);
@@ -207,7 +194,9 @@ const hasPass = (u) => !!u?.pass_until && new Date(u.pass_until) > new Date();
 
 async function issueSession(res, userId) {
   const token = chain.randomHex(32);
-  await q("insert into sessions (token_hash, user_id, expires_at) values ($1,$2, now() + interval '30 days')",
+  // the shared test account signs out after a day, so a browser doesn't stay on it by accident
+  await q(`insert into sessions (token_hash, user_id, expires_at)
+           values ($1, $2, now() + case when (select test_mode from users where id = $2) then interval '1 day' else interval '30 days' end)`,
     [sha(token), userId]);
   res.cookie('kohler', token, {
     httpOnly: true, sameSite: 'lax', maxAge: 30 * 864e5, path: '/',
@@ -218,7 +207,7 @@ async function issueSession(res, userId) {
 }
 // compared against when the account doesn't exist, so both cases take the same time
 const DUMMY_HASH = bcrypt.hashSync('kohler-no-such-account', 10);
-const adminNeeds2fa = (u) => process.env.AUTH_DISABLED !== 'true' && !!u?.is_admin && process.env.ADMIN_2FA !== 'off';
+const adminNeeds2fa = (u) => !!u?.is_admin && process.env.ADMIN_2FA !== 'off';
 
 async function audit(req, action, detail = {}) {
   await q('insert into admin_audit (user_id, action, detail) values ($1,$2,$3)',
@@ -269,7 +258,7 @@ async function sendEmail({ to, subject, html }) {
 /* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ ledger Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 
 async function move(client, userId, delta, kind, ref = null, meta = {}) {
-  const row = (await client.query('update users set balance_cents = balance_cents + $2 where id = $1 returning badges, test_mode', [userId, delta])).rows[0];
+  const row = (await client.query('update users set balance_cents = balance_cents + $2 where id = $1 returning badges, test_mode, referred_by, ref_flag', [userId, delta])).rows[0];
   await client.query('insert into ledger (user_id, delta_cents, kind, ref, meta) values ($1,$2,$3,$4,$5)',
     [userId, delta, kind, ref, meta]);
   // bonus money (lib/promos.js): every bet counts down what's left to wager, and the lock lifts
@@ -284,8 +273,13 @@ async function move(client, userId, delta, kind, ref = null, meta = {}) {
                               when $3::boolean then wager_left_cents + $2::bigint
                               when $4::boolean and least(bonus_locked_cents, balance_cents - $2::bigint) <= 0 then 0 else wager_left_cents end
     where id = $1 and bonus_locked_cents > 0`, [userId, delta, bet, dep]);
+  // a refunded seat or rolled-back bet un-counts what it counted, so join-then-leave can't unlock bonus
+  if (delta > 0 && (kind === 'pool_refund' || kind === 'casino_rollback'))
+    await client.query('update users set wager_left_cents = wager_left_cents + $2 where id = $1 and bonus_locked_cents > 0', [userId, delta]);
   // streaks, XP and badges (lib/achievements.js)
   await achievements.onMove(client, userId, delta, kind, row);
+  // refer-a-friend: the referrer is paid once their friend has bet enough (lib/promos.js)
+  if (bet && kind !== 'pool_buyin' && row?.referred_by) await promos.onBet(client, userId, row);
 }
 const achievements = createAchievements({ q });
 // what a player can withdraw or spend in the shop: everything except locked bonus money
@@ -343,7 +337,7 @@ app.post('/api/auth/register', async (req, res) => {
       'insert into users (email, username, password_hash) values ($1,$2,$3) returning *',
       [email, username, hash]
     );
-    if (req.body.ref) await promos.attach(r.rows[0].id, req.body.ref).catch(() => null);
+    await promos.attach(r.rows[0].id, req.body.ref, req.ip).catch(() => null);
     await issueSession(res, r.rows[0].id);
     res.json({ user: pub(r.rows[0]) });
   } catch (e) {
@@ -454,7 +448,7 @@ app.post('/api/auth/2fa/setup', requireUser, async (req, res) => {
   const secret = newTotpSecret();
   await q('update users set totp_pending_enc = $2 where id = $1', [req.user.id, seal(secret)]);
   const url = otpauthUrl(secret, req.user.email || req.user.username);
-  res.json({ secret, url, qr: await QRCode.toDataURL(url, { margin: 1, width: 220 }) });
+  res.json({ secret, url, qr: qrDataUrl(url, { hole: false }) });
 });
 app.post('/api/auth/2fa/enable', requireUser, async (req, res) => {
   if (!req.user.is_admin || req.user.totp_enabled) return res.status(400).json({ error: 'Nothing to turn on.' });
@@ -624,9 +618,9 @@ app.get('/api/wallet', requireUser, async (req, res) => {
     q('select id, txid, method, status, created_at from deposit_claims where user_id = $1 order by created_at desc limit 20', [req.user.id]),
     chain.chainEnabled() ? chain.btcPriceUsd().catch(() => 0) : Promise.resolve(0),
   ]);
-  const qr = address ? await QRCode.toDataURL(`bitcoin:${address}`, { margin: 1, width: 240 }) : null;
+  const qr = address ? await qrDataUrl(`bitcoin:${address}`) : null;   // Kohler-styled, with a hole for the BTC logo (lib/qr-art.js)
   // the deposit check above may just have credited something: read the balance fresh
-  const fresh = (await q('select balance_cents, bonus_locked_cents, wager_left_cents, test_mode from users where id = $1', [req.user.id])).rows[0];
+  const fresh = (await q('select balance_cents, bonus_locked_cents, wager_left_cents, test_mode, referred_by from users where id = $1', [req.user.id])).rows[0];
   res.json({
     ...(await promos.walletInfo({ ...fresh, id: req.user.id })),
     address, addressError, qr, balance: Number(fresh.balance_cents), incoming: address ? incomingFor(address) : [],
@@ -970,7 +964,12 @@ app.get('/api/games/history', requireGambling, requireUser, async (req, res) => 
 
 /* Pool Pot: fair equal-stake pools. Separate engine; never reads house.js. */
 
-const poolPot = createPoolPot({ q, withTx, move, audit, gamblingEnabled, limit, onPlay: (c, id, cents) => achievements.played(c, id, cents) });
+const poolPot = createPoolPot({ q, withTx, move, audit, gamblingEnabled, limit, onPlay: async (c, id, cents) => {
+  const out = await achievements.played(c, id, cents);
+  const u = (await c.query('select referred_by, ref_flag, test_mode from users where id = $1', [id])).rows[0];
+  if (u?.referred_by) await promos.onBet(c, id, u);   // a settled seat counts toward a referrer's reward
+  return out;
+} });
 app.use('/api/pool', poolPot.router);
 
 let autopilot;
@@ -1078,7 +1077,6 @@ const adminRouter = express.Router();
 asyncSafe(adminRouter);
 adminRouter.use(requireAdmin);
 adminRouter.use((req, res, next) => {
-  if (process.env.AUTH_DISABLED === 'true') return next();
   if (!adminNeeds2fa(req.user)) return next();
   if (!req.user.totp_enabled) return res.status(403).json({ error: 'Turn on two-factor sign-in to use Kohler Control.', need2fa: 'setup' });
   if (!mfaFresh(req.user)) return res.status(403).json({ error: 'Enter the 6-digit code from your authenticator app.', need2fa: 'verify' });
