@@ -115,6 +115,10 @@ textarea.inp{height:auto;min-height:80px;padding:10px 12px;resize:vertical}
 .alert{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}.alert:last-child{border-bottom:0}
 .dot{width:8px;height:8px;border-radius:50%;flex:0 0 8px;margin-top:6px}
 
+.avg{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+.avg.sm{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
+.avc{padding:0;overflow:hidden}.avc img{display:block;width:100%;aspect-ratio:1;object-fit:cover;background:var(--slate2)}
+.avc.rejected{opacity:.45}.avc.pending{border-color:rgba(232,196,106,.5)}
 .modal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:16px}
 .modal.on{display:flex}
 .modal .box{width:100%;max-width:480px;max-height:92vh;overflow:auto;padding:22px;border-radius:20px;background:var(--slate);border:1px solid var(--line2)}
@@ -142,7 +146,8 @@ let tT; const toast = (m, bad) => { const t = $('#toast'); t.textContent = m; t.
 async function api(p, o = {}) {
   const r = await fetch('/api' + p, { method: o.method || 'GET', headers: { 'content-type': 'application/json' }, body: o.body ? JSON.stringify(o.body) : undefined, credentials: 'same-origin' });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw Object.assign(new Error(j.error || (r.status === 503 ? 'Kohler is still starting up.' : 'Request failed')), { status: r.status });
+  if (r.status === 403 && j.need2fa && !o.quiet) { setTimeout(() => twoFactor(j.need2fa), 0); }
+  if (!r.ok) throw Object.assign(new Error(j.error || (r.status === 503 ? 'Kohler is still starting up.' : 'Request failed')), { status: r.status, need2fa: j.need2fa });
   return j;
 }
 const I = (d) => `<svg class="ico" viewBox="0 0 24 24">${d}</svg>`;
@@ -157,10 +162,11 @@ const ICO = {
   catalog: I('<path d="M4 7h16l-1.2 11.2a2 2 0 0 1-2 1.8H7.2a2 2 0 0 1-2-1.8z"/><path d="M9 7a3 3 0 0 1 6 0"/>'),
   orders: I('<rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M9 8h6M9 12h6M9 16h4"/>'),
   support: I('<path d="M4 5h16v11H9l-5 4z"/>'),
+  avatars: I('<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="10" r="3.5"/><path d="M6.5 19a6 6 0 0 1 11 0"/>'),
   system: I('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>'),
 };
 const NAV = [['Run the business', [['overview', 'Overview'], ['payouts', 'Payouts'], ['deposits', 'Deposits'], ['users', 'Players']]],
-  ['Games', [['survivor', 'Survivor'], ['casino', 'Casino'], ['vault', 'Vault sales']]],
+  ['Games', [['survivor', 'Survivor'], ['casino', 'Casino'], ['avatars', 'Avatar factory'], ['vault', 'Vault sales']]],
   ['Shop', [['catalog', 'Catalog'], ['orders', 'Orders'], ['support', 'Support']]],
   ['Platform', [['system', 'Switches & health']]]];
 const A = { me: null, stats: null, tab: 'overview' };
@@ -168,7 +174,7 @@ const god = () => A.me?.adminRole === 'god';
 
 function side() {
   const o = A.stats?.ops || {};
-  const badge = { payouts: o.payouts_pending + o.payouts_processing, deposits: o.claims_pending, support: A.stats?.open_tickets, system: o.alerts_24h };
+  const badge = { payouts: o.payouts_pending + o.payouts_processing, deposits: o.claims_pending, support: A.stats?.open_tickets, system: o.alerts_24h, avatars: o.avatars_pending };
   const groups = god() ? NAV : [['Shop', [['catalog', 'Catalog']]]];
   $('#side').innerHTML = `<a class="brand" href="/" style="height:auto;padding:0 8px 18px;background:none">${KohlerLogo.mark(32, true)}<span>Kohler<small>Control</small></span></a>
     ${groups.map(([h, items]) => `<div class="navh">${h}</div>${items.map(([k, l]) => `<a href="#/${k}" class="${A.tab === k ? 'on' : ''}">${ICO[k]}${l}${badge[k] ? `<span class="badge ${k === 'system' ? 'red' : ''}">${badge[k]}</span>` : ''}</a>`).join('')}`).join('')}
@@ -193,11 +199,11 @@ const V = {};
 V.overview = async () => {
   const [s, ap, pay, sv] = await Promise.all([api('/admin/stats'), api('/admin/autopilot').catch(() => null), api('/admin/payouts').catch(() => null), api('/admin/pool').catch(() => null)]);
   A.stats = s; side();
-  const R = s.revenue, LABEL = { order: 'Shop fees', pool_fee: 'Survivor fees', withdrawal: 'Withdrawal fees', withdrawal_refund: 'Fee refunds', vault: 'Vault sales' };
+  const R = s.revenue, LABEL = { order: 'Shop fees', pool_fee: 'Survivor fees', withdrawal: 'Withdrawal fees', withdrawal_refund: 'Fee refunds', vault: 'Vault sales', avatar: 'Custom avatars' };
   const parts = [...R.fees.map((f) => ({ k: LABEL[f.kind] || f.kind, ...f })), { k: 'Casino (bets − wins)', ...R.casino }];
   const sum = (key) => parts.reduce((a, p) => a + p[key], 0);
   const max = Math.max(1, ...R.days.map((d) => Math.max(0, d.fees) + Math.max(0, d.ggr)));
-  const colors = { 'Shop fees': 'var(--sky)', 'Survivor fees': 'var(--gold)', 'Withdrawal fees': 'var(--violet)', 'Vault sales': '#f472b6', 'Casino (bets − wins)': 'var(--neon)' };
+  const colors = { 'Custom avatars': '#fb923c', 'Shop fees': 'var(--sky)', 'Survivor fees': 'var(--gold)', 'Withdrawal fees': 'var(--violet)', 'Vault sales': '#f472b6', 'Casino (bets − wins)': 'var(--neon)' };
   const liveSv = sv ? sv.tables.reduce((a, t) => a + (t.round?.seats || 0), 0) : 0;
   const crit = (ap?.alerts || []).filter((x) => x.detail?.level === 'critical' && Date.now() - new Date(x.created_at) < 6 * 3600e3);
   const p = pay?.settings, hot = pay?.hotWallet;
@@ -225,7 +231,7 @@ V.overview = async () => {
         ${sv ? sw('qPause', !sv.settings.paused, 'Survivor open', 'Off pauses new seats; live tables still finish') : ''}
         ${p ? sw('qAuto', p.auto, 'Automatic BTC payouts', hot ? `From the hot wallet, up to ${money(p.maxCents)} each` : 'Needs Bitcoin enabled on the server') : ''}</div>
       <div class="card"><div class="card-h"><h2>Needs you</h2></div>
-        ${[[s.ops.payouts_pending, 'withdrawals to pay', '#/payouts'], [s.ops.payouts_processing, 'payouts stuck in processing', '#/payouts'], [s.ops.claims_pending, 'deposit claims to check', '#/deposits'], [s.open_tickets, 'open support tickets', '#/support']]
+        ${[[s.ops.payouts_pending, 'withdrawals to pay', '#/payouts'], [s.ops.payouts_processing, 'payouts stuck in processing', '#/payouts'], [s.ops.claims_pending, 'deposit claims to check', '#/deposits'], [s.ops.avatars_pending, 'new avatars to review', '#/avatars'], [s.open_tickets, 'open support tickets', '#/support']]
           .filter(([n]) => n).map(([n, l, h]) => `<a class="sw" href="${h}"><div><b class="num">${n} ${l}</b></div><span class="btn sm">Open</span></a>`).join('') || '<div class="empty">Nothing waiting. Enjoy it.</div>'}</div>
       <div class="card"><div class="card-h"><h2>Recent alerts</h2><a class="btn sm ghost" href="#/system">All</a></div>
         ${(ap?.alerts || []).slice(0, 5).map((x) => `<div class="alert"><span class="dot" style="background:${x.detail?.level === 'critical' ? 'var(--rose)' : x.detail?.level === 'info' ? 'var(--dim)' : 'var(--gold)'}"></span><div>${esc(x.detail?.message || x.action)}<div class="faint" style="font-size:12px">${ago(x.created_at)}</div></div></div>`).join('') || '<div class="empty">No alerts.</div>'}</div>
@@ -336,13 +342,15 @@ V.users = async () => {
       <label class="field"><span>Adjust balance (+ adds, − removes), in $</span><div class="row" style="flex-wrap:nowrap"><input class="inp num" id="adj" type="number" step="0.01" placeholder="e.g. 25 or -10"><button class="btn neon" id="adjGo">Apply</button></div></label>
       ${self ? '' : sw('mAdmin', u.is_admin && u.admin_role === 'god', 'Owner admin', 'Full access to money, payouts and games') + sw('mCat', u.is_admin && u.admin_role !== 'god', 'Catalog editor', 'Can add and edit shop products only')}
       ${sw('mTest', u.test_mode, 'Test account', 'Fake money; switching zeroes the balance through the ledger')}
-      ${self ? '' : sw('mBan', u.banned, 'Banned', 'Blocks play, orders and withdrawals')}
+      ${self ? '' : sw('mBan', u.banned, 'Banned', 'Blocks play, orders and withdrawals, and signs them out everywhere')}
+      ${!self && u.is_admin && u.totp_enabled ? `<div class="sw"><span>Two-factor sign-in<div class="faint" style="font-size:12px">On. Reset it if they lost their phone.</div></span><button class="btn sm red" id="r2fa">Reset</button></div>` : ''}
       <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" onclick="close();V.users()">Done</button></div>`);
     $('#adjGo').onclick = async () => { const v = Math.round(+$('#adj').value * 100); if (!v) return; if (!(await ask('Adjust balance?', `${v > 0 ? 'Add' : 'Remove'} ${money(Math.abs(v))} ${v > 0 ? 'to' : 'from'} ${esc(u.username)}.`, 'Apply'))) return; await api(`/admin/users/${u.id}/balance`, { method: 'POST', body: { deltaCents: v } }).then(() => toast('Balance updated')).catch((er) => toast(er.message, true)); V.users(); };
     bindTog('mAdmin', (on) => api(`/admin/users/${u.id}/role`, { method: 'POST', body: { isAdmin: on, role: 'god' } }));
     bindTog('mCat', (on) => api(`/admin/users/${u.id}/role`, { method: 'POST', body: { isAdmin: on, role: 'catalog' } }));
     bindTog('mTest', (on) => api(`/admin/users/${u.id}/test-mode`, { method: 'POST', body: { testMode: on } }));
     bindTog('mBan', (on) => api(`/admin/users/${u.id}/ban`, { method: 'POST', body: { banned: on } }));
+    $('#r2fa') && ($('#r2fa').onclick = async () => { if (!(await ask('Reset two-factor?', `${esc(u.username)} sets it up again at their next admin sign-in.`, 'Reset', 'red'))) return; await api(`/admin/users/${u.id}/reset-2fa`, { method: 'POST' }); toast('Reset'); close(); V.users(); });
   };
   $('#newTest').onclick = () => {
     modal(`<h2>New test account</h2><p class="muted">Starts with $1,000 of fake money. Its games use simulated players and nothing it does touches real books.</p>
@@ -444,6 +452,98 @@ V.vault = async () => {
     <div class="card" style="margin-top:14px"><h2 style="margin-bottom:6px">Selling more</h2><p class="muted" style="margin:0">Characters show in every Survivor seat, so each sale advertises the next one. Legendary characters glow; the Pass pays for itself for anyone who shops twice a month. Prices live in <span class="mono">lib/vault.js</span>.</p></div>`;
 };
 
+V.avatars = async () => {
+  const filter = A.avFilter || 'pending';
+  const d = await api('/admin/avatars' + (filter === 'all' ? '' : '?status=' + filter));
+  const p = d.progress, s = d.settings, cat = d.providers.catalogue, cus = d.providers.custom;
+  const used = d.usage.filter((u) => u.kind === 'catalogue').reduce((a, u) => a + u.images, 0), neur = d.usage.reduce((a, u) => a + u.neurons, 0);
+  const pct = Math.min(100, Math.round(p.approved / Math.max(1, s.target) * 100));
+  const TIERS = { free: 0, common: 99, rare: 299, epic: 699, legendary: 1999 };
+  const setup = !cat.configured ? `<div class="card hl" style="margin-bottom:14px"><h2 style="margin-bottom:8px">Connect the free painter (5 minutes)</h2>
+      <ol style="margin:0;padding-left:20px;line-height:1.9;color:#d4dbe8">
+        <li>Create a free account at <b>dash.cloudflare.com</b>.</li>
+        <li>Copy your <b>Account ID</b> (Workers &amp; Pages → right-hand side, or the URL after <span class="mono">dash.cloudflare.com/</span>).</li>
+        <li>Go to <b>My Profile → API Tokens → Create Token → "Workers AI"</b> template, create it and copy the token.</li>
+        <li>Add <span class="mono">CF_ACCOUNT_ID</span> and <span class="mono">CF_API_TOKEN</span> to your environment variables (Vercel: Project → Settings → Environment Variables), then redeploy. Running it yourself? Put them in <span class="mono">.env</span> and restart.</li></ol>
+      <p class="muted" style="margin:10px 0 0">The free plan paints about 150 avatars a day at no cost. The factory pauses when the allowance runs out and carries on after it resets at midnight UTC.</p></div>` : '';
+  const state = !cat.configured ? '<span class="tag r">not connected</span>' : cat.error ? '<span class="tag r">key refused</span>' : s.paused ? '<span class="tag">paused</span>'
+    : cat.quotaUntil ? `<span class="tag y">resting until ${new Date(cat.quotaUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>` : p.queued ? '<span class="tag g">painting</span>' : '<span class="tag g">idle, target reached</span>';
+  $('#view').innerHTML = `<div class="top"><div><h1>Avatar factory</h1><div class="sub">AI-painted avatars: ${s.target} starter avatars on the free Cloudflare allowance, plus custom avatars players pay for. Style: hyper-exaggerated 3D meme portraits.</div></div>
+      <div class="row">${cat.configured ? `<button class="btn" id="aTest">Test connection</button>` : ''}${s.paused ? '<button class="btn neon" id="aStart">Start painting</button>' : `<button class="btn" id="aPause">Pause</button>`}</div></div>
+    ${setup}
+    ${cat.error ? `<div class="card bad" style="margin-bottom:14px"><b>Cloudflare refused the key.</b> <span class="muted">${esc(cat.error)}</span> Fix the environment variables, redeploy, then press Start.</div>` : ''}
+    ${d.serverless && cat.configured && !s.paused && !cat.error && !cat.quotaUntil && (p.queued || p.custom_queued) ? `<div class="card hl" style="margin-bottom:14px;display:flex;gap:10px;align-items:center"><span class="dot" style="background:var(--neon);width:9px;height:9px;border-radius:50%"></span><div><b>Painting while this page is open</b> <span class="muted" id="aLive"></span><div class="faint" style="font-size:12.5px">On Vercel nothing runs in the background, so this page drives the painter. Close it and the daily cron carries on.</div></div></div>` : ''}
+    ${!d.providers.imageTools ? `<div class="card hl" style="margin-bottom:14px"><b>Image tools missing.</b> <span class="muted">Run <span class="mono">npm i</span> once so avatars get compressed, thumbnailed and checked for duplicates.</span></div>` : ''}
+    <div class="grid g4">
+      <div class="card hl kpi"><div class="l">Starter collection</div><div class="v num gold">${p.approved}/${s.target}</div><div style="height:6px;border-radius:3px;background:var(--slate3);margin:6px 0"><i style="display:block;height:100%;width:${pct}%;border-radius:3px;background:linear-gradient(90deg,#b8902e,#e8c46a)"></i></div><div class="s">${state} · ${p.queued} queued</div></div>
+      <a class="card kpi ${p.pending ? 'hl' : ''}" href="#/avatars" data-af="pending"><div class="l">Waiting for your review</div><div class="v num">${p.pending}</div><div class="s">${s.autoApprove ? 'auto-approve is on' : 'approve them below'}</div></a>
+      <div class="card kpi"><div class="l">Painted today</div><div class="v num">${used}<span class="faint" style="font-size:15px"> / ${s.dailyImages}</span></div><div class="s">≈ ${neur.toLocaleString()} of ${d.freeNeurons.toLocaleString()} free neurons</div></div>
+      <div class="card kpi"><div class="l">Custom avatar sales</div><div class="v num">${money(d.sales.revenue30)}</div><div class="s">${d.sales.orders} orders · ${money(d.sales.revenue)} all-time</div></div>
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card"><div class="card-h"><h2>Settings</h2><button class="btn sm neon" id="aSave">Save</button></div>
+        ${sw('aAuto', s.autoApprove, 'Publish without review', 'Off: new starter avatars wait for you to approve them')}
+        ${sw('aCus', s.customEnabled, 'Sell custom avatars', cus?.configured ? `Painted on ${cus.id === 'cloudflare-paid' ? 'your separate paid account' : 'the same Cloudflare account'}` : 'Needs the Cloudflare keys')}
+        <div class="fields" style="margin-top:12px"><label class="field"><span>Custom avatar price ($ for ${s.customImages})</span><input class="inp num" id="aPrice" type="number" min="0" step="0.01" value="${s.customPrice / 100}"></label>
+          <label class="field"><span>Starter collection size</span><input class="inp num" id="aTarget" type="number" min="0" max="1000" value="${s.target}"></label>
+          <label class="field"><span>Max painted per day (free plan ≈ 170)</span><input class="inp num" id="aDaily" type="number" min="0" max="170" value="${s.dailyImages}"></label></div>
+        <p class="faint" style="font-size:12.5px;margin:0">Each custom order costs you about $0.003 to paint. Rejecting a starter avatar makes the factory paint a replacement.</p></div>
+      <div class="card"><div class="card-h"><h2>Health</h2>${p.failed ? `<button class="btn sm" id="aRetry">Retry ${p.failed} failed</button>` : ''}</div>
+        <div class="sw"><span>Starter painter</span><span class="mono">${esc(cat.id)} · ${esc(cat.model)}</span></div>
+        <div class="sw"><span>Custom painter</span><span class="mono">${cus ? esc(cus.id) : 'off'}</span></div>
+        <div class="sw"><span>Custom orders in the queue</span><b class="num">${p.custom_queued}</b></div>
+        ${d.recentErrors.length ? d.recentErrors.map((e) => `<div class="alert"><span class="dot" style="background:var(--gold)"></span><div style="flex:1">${esc(e.last_error)}<div class="faint" style="font-size:12px">${e.n}× in 24h</div></div></div>`).join('') : '<div class="faint" style="padding:10px 0">No errors in the last 24 hours.</div>'}</div>
+    </div>
+    <div class="sec"><div class="row">${['pending', 'approved', 'rejected', 'all'].map((x) => `<button class="btn sm ${x === filter ? 'neon' : ''}" data-af="${x}">${x === 'pending' ? `To review (${p.pending})` : x === 'approved' ? `Live (${p.approved})` : x === 'rejected' ? `Rejected (${p.rejected})` : 'All'}</button>`).join('')}</div>
+      ${filter === 'pending' && p.pending ? '<button class="btn neon" id="aAll">Approve all</button>' : ''}</div>
+    <div class="avg">${d.avatars.length ? d.avatars.map((a) => `<div class="card avc ${a.status}">
+        <img src="/avatars/${a.id}/512.webp" alt="" loading="lazy">
+        <div style="padding:10px"><input class="inp" style="height:32px;font-weight:700" value="${esc(a.name)}" data-nm="${a.id}">
+          <div class="faint" style="font-size:11.5px;margin:6px 0">${esc((a.subject || '').replace(/^(a|an) /, ''))} · ${esc((a.personality || '').replace(/_/g, ' '))}</div>
+          <div class="row" style="flex-wrap:nowrap"><select class="inp" style="height:32px" data-tr="${a.id}">${Object.keys(TIERS).map((t) => `<option value="${t}" ${t === a.tier ? 'selected' : ''}>${t} · ${TIERS[t] ? money(TIERS[t]) : 'free'}</option>`).join('')}</select></div>
+          <div class="row" style="margin-top:8px">${a.status !== 'approved' ? `<button class="btn sm neon" data-ok="${a.id}">Approve</button>` : '<span class="tag g">live</span>'}${a.status !== 'rejected' ? `<button class="btn sm red" data-no="${a.id}">Reject</button>` : ''}<span class="faint num" style="margin-left:auto;font-size:12px">${a.price_cents ? money(a.price_cents) : 'free'}</span></div></div></div>`).join('')
+      : `<div class="card empty" style="grid-column:1/-1">${filter === 'pending' ? 'Nothing to review.' : 'No avatars here yet.'}</div>`}</div>
+    <div class="sec"><h2>Custom avatars players made</h2><span class="faint">latest 60</span></div>
+    <div class="avg sm">${d.customs.length ? d.customs.map((a) => `<div class="card avc"><img src="/avatars/${a.id}/128.webp" alt="" loading="lazy"><div style="padding:8px;font-size:12px"><b>${esc(a.username || '')}</b>${a.extra ? `<div class="faint">“${esc(a.extra)}”</div>` : ''}<button class="btn sm red" style="margin-top:6px;width:100%" data-rm="${a.id}">Remove</button></div></div>`).join('')
+      : '<div class="card empty" style="grid-column:1/-1">No custom avatars yet.</div>'}</div>`;
+  bindTog('aAuto', (on) => api('/admin/avatars/settings', { method: 'PATCH', body: { autoApprove: on } }));
+  bindTog('aCus', (on) => api('/admin/avatars/settings', { method: 'PATCH', body: { customEnabled: on } }));
+  $('#aSave').onclick = async () => { try { await api('/admin/avatars/settings', { method: 'PATCH', body: { customPrice: Math.round(+$('#aPrice').value * 100), target: +$('#aTarget').value, dailyImages: +$('#aDaily').value } }); toast('Saved'); V.avatars(); } catch (e) { toast(e.message, true); } };
+  $('#aStart') && ($('#aStart').onclick = async () => { await api('/admin/avatars/start', { method: 'POST' }); toast('Painting started'); V.avatars(); });
+  $('#aPause') && ($('#aPause').onclick = async () => { await api('/admin/avatars/pause', { method: 'POST' }); toast('Paused'); V.avatars(); });
+  $('#aRetry') && ($('#aRetry').onclick = async () => { await api('/admin/avatars/retry-failed', { method: 'POST' }); toast('Back in the queue'); V.avatars(); });
+  $('#aAll') && ($('#aAll').onclick = async () => { const r = await api('/admin/avatars/approve-all', { method: 'POST' }); toast(`${r.approved} avatars are live`); V.avatars(); });
+  $('#aTest') && ($('#aTest').onclick = async () => {
+    $('#aTest').disabled = true; $('#aTest').textContent = 'Painting a test pug…';
+    try { const r = await api('/admin/avatars/test', { method: 'POST' }); modal(`<h2>It works</h2><p class="muted">Painted in ${(r.ms / 1000).toFixed(1)}s. Test images aren't saved.</p><img src="${r.preview}" alt="" style="width:100%;border-radius:16px;margin:8px 0 14px"><div class="row" style="justify-content:flex-end"><button class="btn neon" onclick="close()">Nice</button></div>`); }
+    catch (e) { modal(`<h2>Cloudflare said no</h2><p class="muted">${esc(e.message)}</p><div class="row" style="justify-content:flex-end"><button class="btn" onclick="close()">Close</button></div>`); }
+    V.avatars();
+  });
+  // serverless: keep painting in ~25s slices while this page stays open
+  clearTimeout(A.avLoop);
+  if (d.serverless && cat.configured && !s.paused && !cat.error && !cat.quotaUntil && (p.queued || p.custom_queued) && !A.avBusy) {
+    A.avLoop = setTimeout(async () => {
+      if (location.hash !== '#/avatars') return;
+      A.avBusy = true; const el = $('#aLive'); if (el) el.textContent = '· painting the next batch…';
+      try { const r = await api('/admin/avatars/work', { method: 'POST' }); if (r.painted) toast(`${r.painted} new avatar${r.painted === 1 ? '' : 's'} painted`); }
+      catch (e) { toast(e.message, true); }
+      finally { A.avBusy = false; }
+      if (location.hash === '#/avatars') V.avatars();
+    }, 600);
+  }
+  $('#view').onclick = async (e) => {
+    const af = e.target.closest('[data-af]'); if (af) { e.preventDefault(); A.avFilter = af.dataset.af; return V.avatars(); }
+    const ok = e.target.closest('[data-ok]'), no = e.target.closest('[data-no]'), rm = e.target.closest('[data-rm]');
+    if (ok || no) { await api('/admin/avatars/' + (ok || no).dataset[ok ? 'ok' : 'no'], { method: 'PATCH', body: { status: ok ? 'approved' : 'rejected' } }); toast(ok ? 'Live' : 'Rejected. A replacement will be painted.'); V.avatars(); }
+    if (rm && await ask('Remove this custom avatar?', 'It disappears everywhere and the player goes back to a default avatar. They are not refunded automatically.', 'Remove', 'red')) { await api(`/admin/avatars/custom/${rm.dataset.rm}/remove`, { method: 'POST' }); toast('Removed'); V.avatars(); }
+  };
+  $('#view').onchange = async (e) => {
+    const tr = e.target.closest('[data-tr]'), nm = e.target.closest('[data-nm]');
+    if (tr) { await api('/admin/avatars/' + tr.dataset.tr, { method: 'PATCH', body: { tier: tr.value } }); toast('Price updated'); }
+    if (nm) { await api('/admin/avatars/' + nm.dataset.nm, { method: 'PATCH', body: { name: nm.value } }); toast('Renamed'); }
+  };
+};
+
 V.catalog = async () => {
   const { groups } = await api('/admin/groups');
   $('#view').innerHTML = `<div class="top"><div><h1>Catalog</h1><div class="sub">Brands (gift cards, subscriptions, top-ups) and the options inside each one.</div></div><button class="btn neon" id="newG">New brand</button></div>
@@ -491,8 +591,10 @@ V.orders = async () => {
   const { orders } = await api('/admin/orders');
   const real = orders.filter((o) => !o.is_test);
   $('#view').innerHTML = `<div class="top"><div><h1>Orders</h1><div class="sub">Last 200 orders. ${money(real.reduce((a, o) => a + Number(o.price_cents), 0))} from real accounts in this list.</div></div></div>
-    <div class="card scroll" style="padding:6px 8px">${orders.length ? `<table class="tbl"><tr><th>When</th><th>Player</th><th>Item</th><th class="r">Price</th><th>Status</th></tr>${orders.map((o) => `<tr>
-      <td class="faint">${when(o.created_at)}</td><td>${who(o.username)}</td><td>${esc(o.name || 'deleted item')}</td><td class="r num"><b>${money(o.price_cents)}</b></td>
+    <div class="card scroll" style="padding:6px 8px">${orders.length ? `<table class="tbl"><tr><th>When</th><th>Buyer</th><th>Reach them at</th><th>Item</th><th class="r">Price</th><th>Status</th></tr>${orders.map((o) => `<tr>
+      <td class="faint">${when(o.created_at)}</td><td>${who(o.username)}<div class="faint" style="font-size:12px">${esc(o.email || '')}</div></td>
+      <td>${o.contact ? `<b style="font-weight:600">${esc(o.contact)}</b>` : `<span class="faint">${esc(o.email || '—')}</span>`}${o.note ? `<div style="font-size:12px;color:var(--gold);max-width:260px">“${esc(o.note)}”</div>` : ''}</td>
+      <td>${esc(o.group_name ? o.group_name + ' · ' : '')}${esc(o.name || 'deleted item')}</td><td class="r num"><b>${money(o.price_cents)}</b></td>
       <td><span class="tag ${o.status === 'delivered' ? 'g' : o.status === 'refunded' ? 'r' : 'y'}">${esc(o.status)}</span>${o.is_test ? ' <span class="tag">test</span>' : ''}</td></tr>`).join('')}</table>` : '<div class="empty">No orders yet.</div>'}</div>`;
 };
 
@@ -517,7 +619,8 @@ V.support = async () => {
 };
 
 V.system = async () => {
-  const [set, ap] = await Promise.all([api('/admin/settings'), api('/admin/autopilot')]);
+  const [set, ap, em, sec] = await Promise.all([api('/admin/settings'), api('/admin/autopilot'), api('/admin/email').catch(() => null), api('/admin/security').catch(() => null)]);
+  const SECC = { ok: 'var(--neon)', critical: 'var(--rose)', warn: 'var(--gold)', info: 'var(--dim)' };
   const LV = { critical: 'var(--rose)', warn: 'var(--gold)', info: 'var(--dim)' };
   $('#view').innerHTML = `<div class="top"><div><h1>Switches &amp; health</h1><div class="sub">Autopilot checks the books, stuck rounds, payouts and cleanup on its own, at most every 30 minutes while the site has visitors.</div></div><button class="btn neon" id="apRun">Run checks now</button></div>
     <div class="grid g2">
@@ -525,11 +628,56 @@ V.system = async () => {
       <div class="card"><div class="card-h"><h2>Last check</h2><span class="faint">${ago(ap.lastRun)}</span></div>
         ${ap.result ? Object.entries(ap.result.checks).map(([k, v]) => `<div class="sw" style="padding:8px 0"><span>${esc(k)}</span><span class="${v?.ok === false || v?.error ? 'down' : 'up'}" style="font-size:12.5px">${v?.error ? esc(v.error) : v?.ok === false ? 'needs attention' : 'ok'}</span></div>`).join('') : '<div class="empty">Runs within seconds of the first visit.</div>'}</div>
     </div>
+    ${sec ? `<div class="card" style="margin-top:14px"><div class="card-h"><h2>Security checklist</h2><span class="faint">${sec.items.filter((i) => i.ok).length} of ${sec.items.length} done</span></div>
+      ${sec.items.map((i) => `<div class="alert"><span class="dot" style="background:${SECC[i.level]}"></span><div style="flex:1">${i.ok ? '' : '<b>'}${esc(i.label)}${i.ok ? '' : '</b>'}${i.fix ? `<div class="faint" style="font-size:12.5px">${esc(i.fix)}</div>` : ''}</div></div>`).join('')}</div>` : ''}
+    ${em ? `<div class="card" style="margin-top:14px"><div class="card-h"><h2>Email</h2><span class="${!em.keySet || !em.from || em.sandbox || em.lastError ? 'down' : 'up'}" style="font-size:12.5px">${!em.keySet || !em.from ? 'not set up' : em.sandbox ? 'test sender only' : em.lastError && (!em.lastOkAt || new Date(em.lastErrorAt) > new Date(em.lastOkAt)) ? 'failing' : 'ready'}</span></div>
+      <div class="sw"><span>Sender (MAIL_FROM)</span><span class="mono">${esc(em.from || 'missing')}</span></div>
+      <div class="sw"><span>API key (RESEND_API_KEY)</span><span>${em.keySet ? 'set' : 'missing'}</span></div>
+      <div class="sw"><span>New orders go to (ORDER_EMAIL)</span><span class="mono">${esc(em.orderTo || 'not set')}</span></div>
+      ${em.sandbox ? `<div class="alert"><span class="dot" style="background:var(--gold)"></span><div style="flex:1">Your sender is Resend's test address. It can only email the address you signed up to Resend with, so receipts, withdrawal emails and sign-in links to players fail. Verify your own domain at <b>resend.com/domains</b> and set MAIL_FROM to e.g. <span class="mono">Kohler &lt;hello@yourdomain.com&gt;</span>.</div></div>` : ''}
+      ${em.lastError ? `<div class="alert"><span class="dot" style="background:var(--rose)"></span><div style="flex:1">${esc(em.lastError)}<div class="faint" style="font-size:12px">last failure ${when(em.lastErrorAt)}${em.lastOkAt ? ` · last success ${when(em.lastOkAt)}` : ''}</div></div></div>` : ''}
+      <div class="row" style="margin-top:12px"><input class="inp" id="emTo" placeholder="send a test to…" value="${esc(A.me.email || '')}" style="flex:1"><button class="btn" id="emGo">Send test email</button></div></div>` : ''}
     <div class="sec"><h2>Alerts</h2><span class="faint">last 30</span></div>
     <div class="card">${ap.alerts.length ? ap.alerts.map((x) => `<div class="alert"><span class="dot" style="background:${LV[x.detail?.level] || 'var(--gold)'}"></span><div style="flex:1">${esc(x.detail?.message || x.action)}<div class="faint" style="font-size:12px">${when(x.created_at)} · ${esc(x.action.replace('alert.', ''))}</div></div></div>`).join('') : '<div class="empty">No alerts. Everything checked out.</div>'}</div>`;
   bindTog('gam', (on) => api('/admin/settings', { method: 'PATCH', body: { gamblingEnabled: on } }));
+  $('#emGo') && ($('#emGo').onclick = async () => {
+    $('#emGo').disabled = true; $('#emGo').textContent = 'Sending…';
+    try { await api('/admin/email/test', { method: 'POST', body: { to: $('#emTo').value } }); toast('Sent. Check that inbox (and spam).'); }
+    catch (e) { modal(`<h2>The email didn't send</h2><p class="muted">${esc(e.message)}</p><div class="row" style="justify-content:flex-end"><button class="btn" onclick="close()">Close</button></div>`); }
+    V.system();
+  });
   $('#apRun').onclick = async () => { $('#apRun').disabled = true; await api('/admin/autopilot/run', { method: 'POST' }).catch((e) => toast(e.message, true)); toast('Checks done'); V.system(); };
 };
+
+/* ═════════ two-factor sign-in ═════════ */
+function twoFactor(mode) {
+  if (A.tfOpen === mode) return; A.tfOpen = mode;
+  $('#side').classList.add('hide'); $('#main').style.marginLeft = '0';
+  const shell = (inner) => `<div class="gate"><div class="card" style="max-width:420px"><div style="margin-bottom:14px">${KohlerLogo.mark(44, true)}</div>${inner}</div></div>`;
+  const done = () => { A.tfOpen = null; boot(); };
+  const codeForm = (btn) => `<label class="field"><span>6-digit code</span><input class="inp num" id="tfc" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123 456" style="font-size:22px;letter-spacing:.2em;text-align:center"></label><div class="err" id="tfe"></div><button class="btn neon" style="width:100%;height:44px" id="tfb">${btn}</button>`;
+  if (mode === 'verify') {
+    $('#view').innerHTML = shell(`<h1 style="font-size:22px">Enter your code</h1><p class="muted" style="margin:6px 0 16px">Open your authenticator app and type the 6-digit code for Kohler.</p>${codeForm('Continue')}
+      <p class="faint" style="font-size:12.5px;margin:12px 0 0">Lost your phone? Another owner can reset it from Players, or set ADMIN_2FA=off in your environment variables for a moment.</p>`);
+    const go = async () => { $('#tfb').disabled = true; try { await api('/auth/2fa/verify', { method: 'POST', body: { code: $('#tfc').value } }); done(); } catch (e) { $('#tfe').textContent = e.message; $('#tfb').disabled = false; $('#tfc').select(); } };
+    $('#tfb').onclick = go; $('#tfc').onkeydown = (e) => e.key === 'Enter' && go(); $('#tfc').focus();
+    return;
+  }
+  $('#view').innerHTML = shell(`<h1 style="font-size:22px">Turn on two-factor sign-in</h1><p class="muted" style="margin:6px 0 16px">Kohler Control moves real money, so admins sign in with a password <b>and</b> a code from an app on their phone (Google Authenticator, 1Password, Authy…).</p>
+    <label class="field"><span>Your password</span><input class="inp" id="tfp" type="password" autocomplete="current-password"></label><div class="err" id="tfe"></div><button class="btn neon" style="width:100%;height:44px" id="tfb">Next</button>`);
+  $('#tfb').onclick = async () => {
+    $('#tfb').disabled = true;
+    try {
+      const s = await api('/auth/2fa/setup', { method: 'POST', body: { password: $('#tfp').value } });
+      $('#view').innerHTML = shell(`<h1 style="font-size:22px">Scan this with your app</h1><p class="muted" style="margin:6px 0 12px">Then type the code it shows.</p>
+        <div style="display:grid;place-items:center;margin-bottom:10px"><img src="${s.qr}" alt="QR code" width="200" height="200" style="border-radius:12px;background:#fff;padding:6px"></div>
+        <p class="faint" style="font-size:12px;text-align:center;margin:0 0 14px">Can't scan? Enter this key: <span class="mono" style="color:var(--text);word-break:break-all">${esc(s.secret.replace(/(.{4})/g, '$1 ').trim())}</span></p>${codeForm('Turn it on')}`);
+      const go = async () => { $('#tfb').disabled = true; try { await api('/auth/2fa/enable', { method: 'POST', body: { code: $('#tfc').value } }); toast('Two-factor sign-in is on'); done(); } catch (e) { $('#tfe').textContent = e.message; $('#tfb').disabled = false; } };
+      $('#tfb').onclick = go; $('#tfc').onkeydown = (e) => e.key === 'Enter' && go(); $('#tfc').focus();
+    } catch (e) { $('#tfe').textContent = e.message; $('#tfb').disabled = false; }
+  };
+  $('#tfp').focus();
+}
 
 /* ═════════ shell ═════════ */
 function gate(msg) {
@@ -555,6 +703,9 @@ async function boot() {
   try { me = (await api('/me')).user; } catch (e) { if (e.status === 503) return setTimeout(boot, 1500); }
   if (!me) return gate();
   if (!me.isAdmin) return gate(`You're signed in as ${esc(me.username)}, which isn't an admin. Sign in with an admin account, or run <span class="mono">npm run make-admin -- you@example.com</span> on the server.`);
+  const tf = await api('/auth/2fa', { quiet: true }).catch(() => null);
+  if (tf?.required && !tf.enabled) return twoFactor('setup');
+  if (tf?.required && !tf.verified) return twoFactor('verify');
   A.me = me; $('#side').classList.remove('hide'); $('#main').style.marginLeft = '';
   if (god()) api('/admin/stats').then((s) => { A.stats = s; side(); }).catch(() => {});
   route();

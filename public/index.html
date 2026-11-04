@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/kohler.css">
 <script src="/assets/avatar.js"></script>
+<script src="/assets/faces.js"></script>
 <script src="/assets/withdraw.js"></script>
 <style>
 /* home */
@@ -42,10 +43,18 @@
 .shop{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
 .g{display:flex;flex-direction:column;border-radius:var(--r-md);background:var(--ink-1);border:1px solid var(--line);overflow:hidden;transition:border-color .15s,transform .15s}
 .g:hover{border-color:color-mix(in srgb,var(--hue) 60%,var(--line));transform:translateY(-2px)}
-.g-art{position:relative;aspect-ratio:16/10;display:grid;place-items:center;background:color-mix(in srgb,var(--hue) 18%,var(--ink-2))}
-.g-art img{width:100%;height:100%;object-fit:cover}
+.art1{position:relative;aspect-ratio:1;display:grid;place-items:center;overflow:hidden;background:color-mix(in srgb,var(--hue) 18%,var(--ink-2))}
+/* any logo, any size, fits the square: the image itself, blurred, fills the space around it */
+.art1 .bg{position:absolute;inset:-15%;width:130%;height:130%;object-fit:cover;filter:blur(26px) saturate(1.5) brightness(.7);opacity:.9}
+.art1 .fg{position:absolute;inset:0;margin:auto;width:70%;height:70%;object-fit:contain;filter:drop-shadow(0 12px 26px rgba(0,0,0,.45))}
+.art1.full .fg{width:100%;height:100%;object-fit:cover;filter:none}
+.art1.full .bg{display:none}
+.art1:after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04);pointer-events:none}
+.g-art{border-bottom:1px solid var(--line)}
+.flg{display:inline-block;width:20px;height:15px;border-radius:3px;object-fit:cover;vertical-align:-2px;box-shadow:0 0 0 1px rgba(255,255,255,.12)}
+.flg.ww{box-shadow:none;color:var(--sky)}
 .g-art .mono-l{font-family:var(--display);font-weight:800;font-size:46px;letter-spacing:-.04em;color:color-mix(in srgb,var(--hue) 75%,#fff)}
-.g-art .flag{position:absolute;top:10px;right:10px;font-size:15px;line-height:1;padding:4px 6px;border-radius:8px;background:rgba(10,14,28,.6)}
+.g-art .flag{position:absolute;top:10px;right:10px;z-index:1;display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;line-height:1;padding:5px 7px;border-radius:8px;background:rgba(7,9,13,.72);backdrop-filter:blur(6px)}
 .g-body{padding:13px 14px 14px;display:flex;flex-direction:column;gap:4px;flex:1}
 .g-name{font-weight:650;font-size:15px;line-height:1.3}
 .g-cat{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted)}
@@ -71,8 +80,7 @@
 /* product */
 .prod{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:24px;align-items:start}
 @media(max-width:900px){.prod{grid-template-columns:1fr}}
-.prod-art{border-radius:var(--r-lg);aspect-ratio:16/9;max-height:300px;width:100%;display:grid;place-items:center;overflow:hidden;background:color-mix(in srgb,var(--hue) 20%,var(--ink-2))}
-.prod-art img{width:100%;height:100%;object-fit:cover}
+.prod-art{border-radius:var(--r-lg);width:100%;max-width:440px;border:1px solid var(--line)}
 .prod-art .mono-l{font-family:var(--display);font-weight:800;font-size:92px;color:color-mix(in srgb,var(--hue) 75%,#fff)}
 .opt{display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;border:1px solid var(--line);background:var(--ink-0);cursor:pointer;margin-bottom:8px;transition:border-color .12s}
 .opt:hover{border-color:var(--line-2)}
@@ -142,7 +150,7 @@
   <a href="#/account" data-r="account"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="9" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>Account</a>
 </nav>
 
-<footer class="site"><span>© <span id="yr"></span> Kohler</span><a href="#/support">Help</a><a href="/casino#/limits">Play limits</a><span>18+ for games. Play with money you can afford to lose.</span></footer>
+<footer class="site"><span>© <span id="yr"></span> Kohler</span><a href="#/support">Help</a><a href="/rules.html">Rules &amp; fees</a><a href="/casino#/limits">Play limits</a><span>18+ for games.</span></footer>
 <div class="toast" id="toast"></div>
 <div id="sheetHost"></div>
 
@@ -151,7 +159,18 @@ const S = { user: null, store: null, cfg: null, group: null, sel: null, pool: nu
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const money = (c) => (Number(c) < 0 ? '−' : '') + '$' + (Math.abs(Number(c || 0)) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const flag = (cc) => !cc || cc === 'WW' ? '🌍' : String.fromCodePoint(...[...cc.toUpperCase()].map((l) => 127397 + l.charCodeAt()));
+// real flag images (Windows can't draw flag emoji, it shows "US" instead)
+const GLOBE = '<svg class="flg ww" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>';
+const flag = (cc) => !cc || cc === 'WW' ? GLOBE : `<img class="flg" src="/assets/flags/${esc(cc.toLowerCase())}.webp" alt="${esc(cc)}" loading="lazy" onerror="this.replaceWith('${esc(cc)}')">`;
+let regionNames; try { regionNames = new Intl.DisplayNames(['en'], { type: 'region' }); } catch {}
+const countryName = (cc) => !cc || cc === 'WW' ? 'Worldwide' : (regionNames?.of(cc.toUpperCase()) || cc);
+// a logo of any shape or size in a square: the logo centred, its own blurred copy behind it.
+// Square photos that are big enough fill the frame edge to edge instead.
+const artBox = (url, letter, cls = '') => url
+  ? `<div class="art1 ${cls}"><img class="bg" src="${esc(url)}" alt="" aria-hidden="true" loading="lazy"><img class="fg" src="${esc(url)}" alt="" loading="lazy"
+      onload="if(Math.abs(this.naturalWidth/this.naturalHeight-1)<.06&&this.naturalWidth>=300)this.parentNode.classList.add('full')"
+      onerror="this.parentNode.innerHTML='<span class=&quot;mono-l&quot;>${esc(letter)}</span>'"></div>`
+  : `<div class="art1 ${cls}"><span class="mono-l">${esc(letter)}</span></div>`;
 const HUES = ['--sky', '--mint', '--gold', '--coral', '--violet', '--rose', '--sky'];
 const hueOf = (s) => { let h = 0; for (const ch of String(s || 'x')) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return `var(${HUES[h % HUES.length]})`; };
 $('#yr').textContent = new Date().getFullYear();
@@ -194,7 +213,8 @@ function paintUser() {
   const u = S.user, el = $('#bal');
   el.classList.toggle('test', !!u?.testMode);
   $('#testbar').classList.toggle('hide', !u?.testMode);
-  $('#av').innerHTML = u ? KohlerAvatar(u.username, { size: 40, tier: KohlerAvatar.tier(u.xp) }) : '?';
+  $('#av').innerHTML = u ? KohlerFace.html(u.username, u.equip, 40, 12) : '?';
+  if (u && !KohlerFace.list.length && !S.facesLoading) { S.facesLoading = true; api('/avatars').then((a) => { KohlerFace.set(a.avatars); if (KohlerFace.list.length) $('#av').innerHTML = KohlerFace.html(u.username, u.equip, 40, 12); }).catch(() => {}); }
   $('#av').style.padding = u ? '0' : ''; $('#av').style.overflow = 'hidden';
   if (!u) { el.querySelector('span').textContent = 'Sign in'; el.onclick = (e) => { e.preventDefault(); authSheet(); }; shownBal = null; return; }
   el.onclick = null;
@@ -253,8 +273,7 @@ async function viewShop() {
   $('#view').innerHTML = `
     <section class="hero">
       <div class="hero-copy">
-        <h1>Gift cards, subscriptions and top-ups, paid from your balance.</h1>
-        <p>Fund your wallet with Bitcoin, pick what you need, and the code or login lands on your Orders page as soon as you pay.</p>
+        <h1>Everyday discounted products</h1>
         <label class="search">${SEARCH_ICON}<input type="search" id="q" placeholder="Search Netflix, Steam, Amazon…" value="${esc(shopFilter.q)}" aria-label="Search the shop"></label>
       </div>
       <div id="liveSlot"></div>
@@ -272,7 +291,7 @@ async function viewShop() {
   const ccs = [...new Set(groups.map((g) => g.country).filter(Boolean))].sort();
   $('#cats').innerHTML = `<button class="chip ${shopFilter.cat ? '' : 'on'}" data-c="">All</button>` +
     cats.map((c) => `<button class="chip ${shopFilter.cat === c ? 'on' : ''}" data-c="${esc(c)}"><i style="background:${hueOf(c)}"></i>${esc(c)}</button>`).join('');
-  $('#cc').innerHTML += ccs.map((c) => `<option value="${esc(c)}" ${shopFilter.cc === c ? 'selected' : ''}>${flag(c)} ${esc(c === 'WW' ? 'Worldwide' : c)}</option>`).join('');
+  $('#cc').innerHTML += ccs.map((c) => `<option value="${esc(c)}" ${shopFilter.cc === c ? 'selected' : ''}>${esc(countryName(c))}</option>`).join('');
   const paint = () => {
     const t = shopFilter.q.trim().toLowerCase();
     const list = groups.filter((g) => (!t || `${g.name} ${g.category} ${(g.tags || []).join(' ')}`.toLowerCase().includes(t))
@@ -289,7 +308,7 @@ async function viewShop() {
 function groupCard(g) {
   const out = g.from_cents == null;
   return `<a class="g ${out ? 'out' : ''}" href="#/g/${encodeURIComponent(g.slug)}" style="--hue:${hueOf(g.category)}">
-    <div class="g-art">${g.logo_url ? `<img src="${esc(g.logo_url)}" alt="" loading="lazy">` : `<span class="mono-l">${esc((g.name || '?')[0])}</span>`}<span class="flag">${flag(g.country)}</span></div>
+    <div class="g-art" style="position:relative">${artBox(g.logo_url, (g.name || '?')[0])}<span class="flag">${flag(g.country)}${g.country && g.country !== 'WW' ? esc(g.country.toUpperCase()) : 'Global'}</span></div>
     <div class="g-body"><div class="g-name">${esc(g.name)}</div><div class="g-cat"><i></i>${esc(g.category || 'Other')}</div>
       <div class="g-foot"><span class="g-price num">${out ? 'Out of stock' : 'from ' + money(g.from_cents)}</span>
         ${out ? '' : `<span class="g-opts">${g.option_count} option${g.option_count == 1 ? '' : 's'}</span>`}</div></div></a>`;
@@ -316,8 +335,7 @@ async function paintLive() {
       <div class="ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="33" fill="none" stroke="rgba(232,196,106,.3)" stroke-width="1.4" stroke-dasharray="2 2"/>${dots}</svg>
         <div class="c"><span class="pot num">+${money(share).replace('.00', '')}</span><span class="lbl">per survivor</span></div></div>
       <div><span class="when num">${left === 1 ? 'One seat left' : left + ' seats open'}</span><h3>Survivor · ${esc(mode)} ${money(t.stake).replace('.00', '')}</h3>
-        <p class="muted" style="font-size:14px">Everyone stakes ${money(t.stake).replace('.00', '')}. ${L} of ${n} gets knocked out, everyone else takes their stake back plus ${money(share)}.</p>
-        <p class="meta">${r.seats} of ${n} seated · 10% fee on the knocked-out stake only.</p>
+        <p class="meta">${r.seats} of ${n} seated</p>
         <span class="take">Take a seat</span></div></a>`;
   };
   await load(); draw();
@@ -343,7 +361,7 @@ const GAMES = [
   { id: 'penalty', name: 'Penalty', hue: '--cobalt', blurb: 'Pick a corner, paid 2×' },
 ];
 const poolTile = (p) => `<a class="gt feature" href="/casino#/survivor" style="--hue:var(--gold)">${ICONS.pool}
-  <div><h3>Survivor</h3><p>Everyone stakes the same, one gets knocked out, the rest split their stake. ${p?.live?.seated ? `${p.live.seated} seated right now.` : ''}</p></div>
+  <div><h3>Survivor</h3><p>One gets knocked out, the rest split their stake.${p?.live?.seated ? ` ${p.live.seated} seated now.` : ''}</p></div>
   <span class="btn go">Find a table</span></a>`;
 const gameTile = (g) => `<a class="gt" href="#/play/${g.id}" style="--hue:var(${g.hue})">${ICONS[g.id]}<div><h3>${g.name}</h3><p>${g.blurb}</p></div></a>`;
 
@@ -351,7 +369,7 @@ async function paintPlayStrip() {
   const el = $('#playStrip'); if (!el || !S.store?.gamblingEnabled) return;
   el.innerHTML = `<div class="sect"><h2>Play</h2><a class="btn ghost" href="/casino">Open the casino</a></div>
     <div class="games"><a class="gt feature" href="/casino" style="--hue:var(--mint)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="16" height="15" rx="2.5"/><rect x="4.5" y="8.5" width="11" height="7" rx="1"/><path d="M8.2 8.5v7M11.8 8.5v7M18 9h2.2a1 1 0 0 1 1 1v3"/></svg>
-      <div><h3>Kohler Casino</h3><p>Rocket, Mines, Coin Flip, slots and tables, all made in-house. Try any of them free in demo mode.</p></div><span class="btn go">Enter the lobby</span></a>
+      <div><h3>Kohler Casino</h3><p>Rocket, Mines, Coin Flip, slots and tables.</p></div><span class="btn go">Enter the lobby</span></a>
       ${S.store.poolEnabled ? poolTile(S.pool) : ''}</div>`;
 }
 
@@ -439,8 +457,8 @@ async function viewGroup(slug) {
   $('#view').innerHTML = `<a class="btn ghost" href="#/shop" style="margin-bottom:12px;padding-left:0">Back to the shop</a>
     <div class="prod" style="--hue:${hueOf(group.category)}">
       <div class="stack">
-        <div class="prod-art">${group.logo_url ? `<img src="${esc(group.logo_url)}" alt="">` : `<span class="mono-l">${esc(group.name[0])}</span>`}</div>
-        <div><div class="g-cat" style="margin-bottom:8px"><i></i>${esc(group.category || 'Other')}<span>${flag(group.country)} ${group.country === 'WW' ? 'Works worldwide' : esc(group.country)}</span></div>
+        ${artBox(group.logo_url, group.name[0], 'prod-art')}
+        <div><div class="g-cat" style="margin-bottom:8px;flex-wrap:wrap"><i></i>${esc(group.category || 'Other')}<span style="display:inline-flex;align-items:center;gap:6px;margin-left:8px">${flag(group.country)} ${group.country === 'WW' || !group.country ? 'Works worldwide' : 'For ' + esc(countryName(group.country)) + ' accounts'}</span></div>
           <h1>${esc(group.name)}</h1>
           <p class="muted" style="margin-top:12px;max-width:62ch;white-space:pre-line">${esc(group.description || 'No description yet.')}</p></div>
       </div>
@@ -449,7 +467,6 @@ async function viewGroup(slug) {
         <div id="opts" role="radiogroup">${options.length ? '' : '<div class="empty" style="padding:16px">Out of stock right now.</div>'}</div>
         <div class="sum" id="sum" style="margin-top:14px"></div>
         <button class="btn go lg wide" id="buy" style="margin-top:14px">Buy now</button>
-        <p class="muted" style="font-size:12.5px;margin-top:10px">Paid from your Kohler balance. Delivery details appear on your Orders page right away.</p>
       </div></div>`;
   const paint = () => {
     $('#opts').innerHTML = options.map((o, i) => `<div class="opt ${o === S.sel ? 'sel' : ''} ${o.stock === 0 ? 'sold' : ''}" data-i="${i}" role="radio" aria-checked="${o === S.sel}" tabindex="0">
@@ -469,18 +486,36 @@ async function viewGroup(slug) {
 async function buy() {
   if (!S.user) return authSheet('in', () => viewGroup(S.group.slug));
   if (!S.sel) return;
-  const btn = $('#buy'); btn.disabled = true;
-  try {
-    const { order } = await api('/orders', { method: 'POST', body: { productId: S.sel.id } });
-    await refreshMe(); winSound(); buzz([12, 30, 12]);
-    const b = sheet(`<h2 style="margin-bottom:4px">${order.is_test ? 'Test order placed' : 'Paid. Here it is.'}</h2>
-      <p class="muted" style="margin-bottom:16px">${esc(S.group.name)}, ${esc(S.sel.name)}. Also saved on your Orders page.</p>
-      <label class="field"><span>Delivery</span><textarea readonly class="mono" style="min-height:140px">${esc(order.delivery || 'No delivery text was attached to this product.')}</textarea></label>
-      <div style="display:flex;gap:10px"><button class="btn go" style="flex:1" id="cp">Copy</button><button class="btn" id="done">Go to orders</button></div>`);
-    b.querySelector('#cp').onclick = () => { navigator.clipboard?.writeText(order.delivery || ''); toast('Copied', 'good'); };
-    b.querySelector('#done').onclick = () => { closeSheet(); location.hash = '#/orders'; };
-  } catch (e) { if (e.status === 402) depositSheet(e.data?.need); else toast(e.message, 'bad'); }
-  finally { btn.disabled = false; }
+  const opt = S.sel, bps = S.user.passUntil ? 0 : (S.store?.feeBps ?? 100), price = Number(opt.price_cents), fee = Math.ceil(price * bps / 10000);
+  // confirm first, and ask where to reach the buyer about this order (prefilled with their email)
+  const b = sheet(`<h2 style="margin-bottom:4px">Confirm your order</h2>
+    <p class="muted" style="margin-bottom:14px">${esc(S.group.name)} · ${esc(opt.name)}</p>
+    <div class="sum" style="margin-bottom:14px"><div><span>Price</span><span class="num">${money(price)}</span></div>
+      <div><span>Service fee${bps ? ` (${bps / 100}%)` : ' (Kohler Pass: none)'}</span><span class="num">${money(fee)}</span></div>
+      <div class="total"><span>Total from your balance</span><span class="num">${money(price + fee)}</span></div></div>
+    <label class="field"><span>Where can we reach you about this order?</span><input type="text" id="oc" maxlength="160" value="${esc(S.user.email || '')}" placeholder="Email, or phone with WhatsApp" autocomplete="email"></label>
+    <label class="field"><span>Anything we need to deliver it? <span class="muted" style="font-weight:500">(optional)</span></span><textarea id="on" maxlength="300" style="min-height:70px" placeholder="e.g. the country of your account, or the username to top up"></textarea></label>
+    <div class="err" id="oe"></div>
+    <button class="btn go lg wide" id="opay">Pay ${money(price + fee)}</button>
+`);
+  b.querySelector('#opay').onclick = async () => {
+    const contact = b.querySelector('#oc').value.trim(), note = b.querySelector('#on').value.trim();
+    if (contact.length < 5) { b.querySelector('#oe').textContent = 'Add an email or phone number so we can reach you if something goes wrong.'; b.querySelector('#oc').focus(); return; }
+    const btn = b.querySelector('#opay'); btn.disabled = true; btn.textContent = 'Paying…';
+    try {
+      const { order } = await api('/orders', { method: 'POST', body: { productId: opt.id, contact, note } });
+      await refreshMe(); winSound(); buzz([12, 30, 12]);
+      const d = sheet(`<h2 style="margin-bottom:4px">${order.is_test ? 'Test order placed' : 'Paid. Here it is.'}</h2>
+        <p class="muted" style="margin-bottom:16px">${esc(S.group.name)}, ${esc(opt.name)}. Also saved on your Orders page${order.receipt ? ', and we emailed you a copy' : ''}.</p>
+        <label class="field"><span>Delivery</span><textarea readonly class="mono" style="min-height:140px">${esc(order.delivery || 'No delivery text was attached to this product.')}</textarea></label>
+        <div style="display:flex;gap:10px"><button class="btn go" style="flex:1" id="cp">Copy</button><button class="btn" id="done">Go to orders</button></div>`);
+      d.querySelector('#cp').onclick = () => { navigator.clipboard?.writeText(order.delivery || ''); toast('Copied', 'good'); };
+      d.querySelector('#done').onclick = () => { closeSheet(); location.hash = '#/orders'; };
+    } catch (e) {
+      btn.disabled = false; btn.textContent = `Pay ${money(price + fee)}`;
+      if (e.status === 402) { closeSheet(); depositSheet(e.data?.need); } else b.querySelector('#oe').textContent = e.message;
+    }
+  };
 }
 function depositSheet(need) {
   if (!S.user) return authSheet();
@@ -502,16 +537,16 @@ async function viewWallet() {
       <div class="panel ${test ? 'testpanel' : ''}">
         <p class="muted" style="font-weight:600">${test ? 'Test balance (fake money)' : 'Balance'}</p>
         <div class="balbig num" style="margin:6px 0 18px">${money(w.balance)}</div>
-        ${test ? `<p class="muted" style="margin-bottom:14px">Spend it anywhere on the site. Orders deliver a placeholder, withdrawals are simulated and Survivor seats you with simulated players.</p>
+        ${test ? `<p class="muted" style="margin-bottom:14px">Fake money for testing. Nothing here is real.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn warn" data-add="10000">Add $100</button><button class="btn" data-add="50000">Add $500</button><button class="btn" data-add="100000">Add $1,000</button></div>`
         : `<button class="btn" id="bonus">Claim daily bonus</button>`}
       </div>
-      ${test ? `<div class="panel"><h3>Deposits</h3><p class="muted" style="margin-top:8px">Test accounts don't get a Bitcoin address. Use the buttons on the left to add fake money.</p></div>`
+      ${test ? `<div class="panel"><h3>Deposits</h3><p class="muted" style="margin-top:8px">Test accounts use fake money.</p></div>`
       : `<div class="panel"><h3 style="margin-bottom:12px">Deposit Bitcoin</h3>${w.address ? `
         <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><img class="qr" src="${w.qr}" alt="QR code for your deposit address">
           <div style="flex:1;min-width:200px"><div class="addr" id="addr">${esc(w.address)}</div><button class="btn wide" id="cpAddr" style="margin-top:10px">Copy address</button></div></div>
         ${KohlerWithdraw.incoming(w.incoming, esc)}
-        <p class="muted" style="font-size:13.5px;margin-top:14px">Send BTC only. Your balance is credited in dollars once the payment has enough confirmations. Bought BTC on Cash App or PayPal? Send it here; don't send those transfers directly.</p>`
+        <p class="muted" style="font-size:13.5px;margin-top:14px">Send BTC only. Credited in dollars once confirmed.</p>`
         : `<p class="muted">Deposits aren't available right now${w.addressError ? `: ${esc(w.addressError)}` : ''}.</p>`}</div>`}
     </div>
     <div class="wal">

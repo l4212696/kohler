@@ -11,8 +11,7 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const face = (seat, size) => {
     if (seat.isHouse) return KohlerLogo.mark(size, true);
-    const art = seat.character && window.KV?.[seat.character]?.art;
-    return art ? KohlerCharacter(art, { size, bg: true }) : KohlerAvatar(seat.name, { size });
+    return KohlerFace.html(seat.name, { avatar: seat.avatar }, size, Math.round(size * 0.3));
   };
 
   function connect(code) {
@@ -33,8 +32,7 @@
     $('#view').innerHTML = `<section class="sv-hero">
         <div><span class="sv-kicker">${ic('flame', 14)}Kohler's main event</span>
           <h1>Survivor</h1>
-          <p>Everyone stakes the same. One player gets knocked out. Everyone else takes their stake back plus a share of the one who fell.</p>
-          <div class="sv-facts"><span>${ic('shield-check', 15)}Provably fair draw</span><span>${ic('coins', 15)}10% fee on the knocked-out stake only</span><span>${ic('users', 15)}Kohler seats always labelled</span></div>
+          <p>One gets knocked out. Everyone else splits their stake. <a href="/rules.html#survivor" style="color:var(--gold)">How it works</a></p>
           <div class="row" style="margin-top:18px;flex-wrap:wrap"><button class="btn neon" id="svQuick">${ic('zap', 16)}Quick join</button><button class="btn" id="svNew">${ic('lock', 16)}Start a private table</button></div></div>
         <div class="sv-live" id="svLive"></div></section>
       <div class="tabs" id="svModes">${[['all', 'All tables', 'layout-grid'], ...Object.entries(MODES).filter(([k]) => k !== 'crew').map(([k, [l, , i]]) => [k, l, i])].map(([k, l, i]) => `<button class="tab ${SV.mode === k ? 'on' : ''}" data-svm="${k}">${ic(i, 18)}${l}</button>`).join('')}</div>
@@ -70,7 +68,7 @@
     if (L.crew?.length) html += `<div class="sect"><h2>Your private tables</h2><span>Only people with the link can sit</span></div><div class="sv-grid">${L.crew.map(tableCard).join('')}</div>`;
     for (const m of ['duel', 'classic', 'squad', 'blitz']) {
       const g = group(m); if (!g.length) continue;
-      html += `<div class="sect"><h2>${MODES[m][0]}</h2><span>${MODES[m][1]}${m === 'squad' || m === 'blitz' ? ', Kohler fills slow tables' : ''}</span></div><div class="sv-grid">${g.map(tableCard).join('')}</div>`;
+      html += `<div class="sect"><h2>${MODES[m][0]}</h2><span>${MODES[m][1]}</span></div><div class="sv-grid">${g.map(tableCard).join('')}</div>`;
     }
     $('#svTables').innerHTML = html || '<div class="empty"><h3>No tables right now</h3><p>Start a private table and invite your group.</p></div>';
   }
@@ -139,7 +137,7 @@
             <div class="kv"><span>Knocked-out stake</span><b class="num">${money(t.stake * L)}</b></div>
             <div class="kv"><span>Fee (10% of that)</span><b class="num">${money(t.stake * L - win * (n - L))}</b></div>
             <div class="kv"><span>Each survivor gets</span><b class="num up">${money(t.stake)} + ${money(win)}</b></div>
-            ${n >= 5 ? '<p class="muted" style="font-size:12.5px;margin:10px 0 0">If this table stalls, Kohler may take up to 2 seats, shown as Kohler with a House tag. Same stake, same odds.</p>' : ''}</div>
+            <p style="font-size:12.5px;margin:10px 0 0"><a href="/rules.html#survivor" style="color:var(--dim);text-decoration:underline">Rules, fairness and House seats</a></p></div>
           <div class="panelx"><div class="row" style="justify-content:space-between"><b>Recent rounds</b><span class="muted" style="font-size:12px">tap to verify</span></div><div id="svHist"></div></div></aside></div>`;
     $('#svShare').onclick = () => shareTable(t);
     action(d);
@@ -154,14 +152,14 @@
     const banner = result ? (result.out ? `<div class="sv-banner out"><b>Knocked out</b><span>−${money(result.stake)}. Run it back?</span></div>`
       : result.in ? `<div class="sv-banner safe"><b class="num">+${money(result.share)}</b><span>You survived. Stake back plus your share.</span></div>`
       : `<div class="sv-banner"><b>${esc(result.losers.join(' & '))} knocked out</b><span>Survivors took +${money(result.share)} each.</span></div>`) : '';
-    if (!CS.user) { el.innerHTML = banner + `<p class="sv-fine">Watching. ${money(t.stake)} a seat. You can lose your stake. 18+.</p><button class="btn neon wide lg" id="svIn">Sign in to take a seat</button>`; $('#svIn').onclick = () => authModal(); return; }
+    if (!CS.user) { el.innerHTML = banner + `<p class="sv-fine">${money(t.stake)} a seat. 18+.</p><button class="btn neon wide lg" id="svIn">Sign in to take a seat</button>`; $('#svIn').onclick = () => authModal(); return; }
     if (d.paused) { el.innerHTML = banner + '<p class="sv-fine">Survivor is paused for maintenance. Seats already taken still play.</p>'; return; }
-    if (mine) { el.innerHTML = banner + `<p class="sv-fine">You're in. ${n - d.seats.length} seat${n - d.seats.length === 1 ? '' : 's'} to go. The draw happens the moment the table fills.</p>
+    if (mine) { el.innerHTML = banner + `<p class="sv-fine">You're in. ${n - d.seats.length} seat${n - d.seats.length === 1 ? '' : 's'} to go.</p>
       <div class="row"><button class="btn wide" id="svLeave" style="flex:1">Leave (refund ${money(t.stake)})</button><button class="btn neon" id="svInv" style="flex:1">${ic('users', 16)}Invite friends</button></div>`;
       $('#svLeave').onclick = leave; $('#svInv').onclick = () => shareTable(t); return; }
     if (d.seats.length >= n) { el.innerHTML = banner + '<p class="sv-fine">Table full. Drawing now…</p>'; return; }
     const odds = `${t.losers || 1} in ${n}`;
-    el.innerHTML = banner + `<p class="sv-fine">Stake <b>${money(t.stake)}</b>. Chance of being knocked out: <b>${odds}</b>. You can lose your stake.</p>
+    el.innerHTML = banner + `<p class="sv-fine">Knocked out: <b>${odds}</b> chance.</p>
       <button class="hold" id="svHold"><i></i><span>${result ? 'Hold to run it back' : 'Hold to take a seat'} · ${money(t.stake)}</span></button>`;
     hold($('#svHold'), join);
   }
@@ -244,7 +242,7 @@
     const name = (await api('/pool/name')).name;
     let mode = 'squad', stake = 500;
     const stakes = (SV.lobby?.settings?.stakes || [100, 250, 500, 1000, 2500, 5000, 10000]);
-    modal(`<h2 style="font-family:var(--display);margin:0 0 4px">Start a private table</h2><p class="muted" style="margin:0 0 14px">Only people with your link can sit. Kohler never takes a seat here.</p>
+    modal(`<h2 style="font-family:var(--display);margin:0 0 4px">Start a private table</h2><p class="muted" style="margin:0 0 14px">Only people with your link can sit.</p>
       <label class="field"><span>Table name</span><input class="inp" id="cName" value="${esc(name)}" maxlength="24"></label>
       <div class="field"><span>Size</span><div class="row" style="flex-wrap:wrap" id="cMode">${['duel', 'classic', 'squad', 'blitz'].map((m) => `<button class="pill ${m === mode ? 'on' : ''}" data-m="${m}">${MODES[m][0]} (${MODES[m][1].split(',')[0]})</button>`).join('')}</div></div>
       <div class="field"><span>Stake</span><div class="row" style="flex-wrap:wrap" id="cStake">${stakes.map((s) => `<button class="pill ${s === stake ? 'on' : ''}" data-s="${s}">${money(s).replace('.00', '')}</button>`).join('')}</div></div>

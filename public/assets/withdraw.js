@@ -54,7 +54,7 @@
     let quote = null, amount = '', address = '', qT, seq = 0;
     const form = () => {
       el.innerHTML = `<div class="kw-box">
-        <p style="margin:0;color:#8b96aa;font-size:13.5px">${o.test ? 'Test account: this is simulated. The test money leaves your balance and nothing is sent.' : 'Paid in Bitcoin to your own wallet. Most withdrawals go out within 24 hours.'}</p>
+        <p style="margin:0;color:#8b96aa;font-size:13.5px">${o.test ? 'Test account: simulated, nothing is sent.' : 'Paid in Bitcoin, usually within 30 minutes.'}</p>
         <label class="kw-lab">Amount in USD<input class="kw-in" id="kwAmt" type="number" min="5" step="0.01" inputmode="decimal" placeholder="50.00" value="${esc(amount)}"></label>
         <div class="kw-row">${[['25%', .25], ['50%', .5], ['Max', 1]].map(([l, f]) => `<button class="kw-chip" data-f="${f}">${l}</button>`).join('')}<span style="margin-left:auto;font-size:12.5px;color:#8b96aa;align-self:center">Balance ${money(o.balance)}<span id="kwMin"></span></span></div>
         <div class="kw-hint" id="kwQ"></div>
@@ -109,7 +109,7 @@
           ${o.test ? '' : `<div><span>Bitcoin network fee</span><b>${q.networkFeeSats.toLocaleString()} sats</b></div>
           <div class="big"><span>You receive about</span><b>${btc(q.netSats)} BTC</b></div>`}</div>
         ${o.test ? '' : `<div class="kw-lab">To this address<div class="kw-addr">${shortAddr(address, esc)}</div></div>
-          <div class="kw-warn"><span>⚠</span><span>Compare the gold characters with your wallet app. Bitcoin payments can't be reversed, so a wrong address means the money is gone.</span></div>`}
+          <div class="kw-warn"><span>⚠</span><span>Check the gold characters against your wallet. Bitcoin payments can't be reversed.</span></div>`}
         <div class="kw-hint bad" id="kwErr"></div>
         <div class="kw-btns"><button class="${cls.ghost}" id="kwBack" style="height:48px">Back</button><button class="${cls.primary}" id="kwGo" style="height:48px">Confirm withdrawal</button></div></div>`;
       el.querySelector('#kwBack').onclick = form;
@@ -131,7 +131,7 @@
       el.innerHTML = `<div class="kw-box kw-done"><div class="kw-check">${CHECK}</div>
         <h3>${o.test ? 'Simulated withdrawal done' : 'Withdrawal requested'}</h3>
         <p style="margin:0;color:#8b96aa">${o.test ? `${money(q.amount)} left your test balance. Nothing was sent anywhere.`
-          : `About <b style="color:#eef2f8">${btc(q.netSats)} BTC</b> will be sent to <span style="font-family:ui-monospace,monospace">${esc(address.slice(0, 6))}…${esc(address.slice(-6))}</span>. Most withdrawals go out within 24 hours${q.emails ? ', and we’ll email you when it’s sent' : '. Check back here to see when it’s sent'}.`}</p>
+          : `About <b style="color:#eef2f8">${btc(q.netSats)} BTC</b> will be sent to <span style="font-family:ui-monospace,monospace">${esc(address.slice(0, 6))}…${esc(address.slice(-6))}</span>. Usually within 30 minutes${q.emails ? '. We’ll email you when it’s sent' : ''}.`}</p>
         ${o.test ? '' : `<div class="kw-steps"><div class="on"><i></i>Requested</div><div class="now"><i></i>Being sent</div><div><i></i>Sent</div></div>`}
         <button class="${cls.primary}" id="kwOk" style="height:48px;margin-top:6px">Done</button></div>`;
       el.querySelector('#kwOk').onclick = () => { amount = ''; address = ''; quote = null; form(); o.onShowList?.(); };
@@ -147,7 +147,7 @@
     if (!ws.length) { el.innerHTML = ''; return; }
     el.innerHTML = `<h4 style="margin:18px 0 4px;font-size:14px">${esc(title)}</h4><div class="kw-list">${ws.map((w) => `<div class="kw-item">
       <div><span class="a">${money(w.amount)}</span><small>${new Date(w.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}${w.address ? ' · ' + esc(w.address.slice(0, 6)) + '…' + esc(w.address.slice(-4)) : ''}</small></div>
-      <div class="kw-st ${w.status}">${w.test ? 'Simulated' : esc(w.label)}${w.explorer ? `<a href="${esc(w.explorer)}" target="_blank" rel="noopener">View payment ↗</a>` : w.txid ? `<small>ref ${esc(w.txid.slice(0, 14))}</small>` : w.status === 'pending' ? '<small>usually within 24h</small>' : ''}</div></div>`).join('')}</div>`;
+      <div class="kw-st ${w.status}">${w.test ? 'Simulated' : esc(w.label)}${w.explorer ? `<a href="${esc(w.explorer)}" target="_blank" rel="noopener">View payment ↗</a>` : w.txid ? `<small>ref ${esc(w.txid.slice(0, 14))}</small>` : w.status === 'pending' ? '<small>usually within 30 min</small>' : ''}</div></div>`).join('')}</div>`;
   }
 
   // A returning player hears about withdrawals that were sent or refunded while they were away.

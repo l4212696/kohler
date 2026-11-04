@@ -8,7 +8,6 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { nanoid } from 'nanoid';
-import QRCode from 'qrcode';
 import * as house from './lib/house.js';
 import * as chain from './lib/chain.js';
 import { createPoolPot } from './lib/pool.js';
@@ -16,6 +15,9 @@ import { createAutopilot } from './lib/autopilot.js';
 import { createCasino } from './lib/casino/index.js';
 import { migrate, ensureTestAccount } from './lib/boot.js';
 import { createVault } from './lib/vault.js';
+import { createAvatars } from './lib/avatars/index.js';
+import { createLimiter, securityHeaders, sameOrigin, newTotpSecret, checkTotp, otpauthUrl } from './lib/security.js';
+import QRCode from 'qrcode';
 import { createPayouts } from './lib/payouts.js';
 import fs from 'node:fs/promises';
 import { appendFileSync, existsSync } from 'node:fs';
@@ -101,6 +103,9 @@ app.set('trust proxy', 1);
 // keep the exact bytes for game-provider calls: their HMAC signature covers the raw body
 app.use(express.json({ limit: '1mb', verify: (req, _res, buf) => { if (req.url.startsWith('/api/casino/v1')) req.rawBody = Buffer.from(buf); } }));
 app.use(cookieParser());
+app.use(securityHeaders);
+// anything that changes data must come from Kohler's own pages (game providers sign their calls instead)
+app.use('/api', sameOrigin({ exempt: ['/api/casino/v1', '/api/cron/'] }));
 // Pool Pot became Survivor, which lives inside the casino; PoolWars was replaced by Kohler originals
 app.get(['/pool', '/pool.html', '/survivor', '/studio/poolwars'], (req, res) => res.redirect(302, '/casino#/survivor'));
 // pages revalidate every time (fast 304s); icons, fonts and images are cached for a day
@@ -139,24 +144,15 @@ async function cached(key, ttlMs, fn) {
 const bust = (prefix) => { for (const k of cache.keys()) if (k.startsWith(prefix)) cache.delete(k); };
 app.use('/api/admin', (req, _res, next) => { if (req.method !== 'GET') bust('groups'); next(); });
 
-const buckets = new Map();
-function limit(key, max, windowMs) {
-  const now = Date.now();
-  const b = buckets.get(key) || { n: 0, reset: now + windowMs };
-  if (now > b.reset) { b.n = 0; b.reset = now + windowMs; }
-  b.n++;
-  buckets.set(key, b);
-  return b.n <= max;
-}
-
-// without this the map grows forever on a long-running server
-setInterval(() => { const now = Date.now(); for (const [k, b] of buckets) if (now > b.reset) buckets.delete(k); }, 10 * 60_000).unref();
+// rate limits live in Postgres so they hold across every serverless instance (lib/security.js)
+const limiter = createLimiter(q);
+const limit = limiter.limit;
 
 async function userFromReq(req) {
   const token = req.cookies?.kohler;
   if (!token) return null;
   const r = await q(
-    `select u.* from sessions s join users u on u.id = s.user_id
+    `select u.*, s.mfa_at as session_mfa_at from sessions s join users u on u.id = s.user_id
       where s.token_hash = $1 and s.expires_at > now()`, [sha(token)]
   );
   return r.rows[0] || null;
@@ -164,6 +160,9 @@ async function userFromReq(req) {
 
 app.use(async (req, res, next) => {
   req.user = await userFromReq(req);
+  // a suspended account can still look, but can't move money or change anything
+  if (req.user?.banned && !['GET', 'HEAD'].includes(req.method) && req.path.startsWith('/api/') && req.path !== '/api/auth/logout')
+    return res.status(403).json({ error: 'Account suspended.' });
   next();
 });
 
@@ -188,30 +187,59 @@ async function issueSession(res, userId) {
   await q("insert into sessions (token_hash, user_id, expires_at) values ($1,$2, now() + interval '30 days')",
     [sha(token), userId]);
   res.cookie('kohler', token, {
-    httpOnly: true, sameSite: 'lax', secure: process.env.COOKIE_SECURE === 'true',
-    maxAge: 30 * 864e5,
+    httpOnly: true, sameSite: 'lax', maxAge: 30 * 864e5, path: '/',
+    // https-only whenever the site is on https (always on Vercel); COOKIE_SECURE=false only for local http
+    secure: process.env.COOKIE_SECURE === 'true' || (process.env.COOKIE_SECURE !== 'false' && (!!process.env.VERCEL || !!res.req?.secure)),
   });
+  return token;
 }
+// compared against when the account doesn't exist, so both cases take the same time
+const DUMMY_HASH = bcrypt.hashSync('kohler-no-such-account', 10);
+const adminNeeds2fa = (u) => !!u?.is_admin && process.env.ADMIN_2FA !== 'off';
 
 async function audit(req, action, detail = {}) {
   await q('insert into admin_audit (user_id, action, detail) values ($1,$2,$3)',
     [req.user?.id || null, action, detail]);
 }
 
+// Email through Resend. The last failure is kept so Admin → Switches & health can show it.
+const mailState = { lastError: null, lastErrorAt: null, lastOkAt: null };
+const mailFrom = () => String(process.env.MAIL_FROM || '').trim();
+const mailIsSandbox = () => /@resend\.dev\b/i.test(mailFrom());
+function explainResend(status, body) {
+  const m = String(body?.message || body?.error || body || '');
+  if (status === 401 || /api key is invalid|invalid api key/i.test(m)) return 'Resend refused the API key. Create a new one at resend.com/api-keys and update RESEND_API_KEY.';
+  if (/only send testing emails to your own email/i.test(m) || (status === 403 && mailIsSandbox()))
+    return `MAIL_FROM uses Resend's test address (${mailFrom()}), which can only email the address you signed up to Resend with. Verify your own domain at resend.com/domains, then set MAIL_FROM to something like "Kohler <hello@yourdomain.com>".`;
+  if (/domain is not verified|not verified/i.test(m)) return `The domain in MAIL_FROM (${mailFrom()}) isn't verified in Resend yet. Add the DNS records shown at resend.com/domains and wait until it says Verified.`;
+  if (/invalid `from` field|from.*invalid/i.test(m)) return `MAIL_FROM isn't a valid sender. Use "Kohler <hello@yourdomain.com>" or just hello@yourdomain.com (no extra quotes).`;
+  if (status === 422 && /to/i.test(m)) return `Resend says the recipient address is invalid (${m}).`;
+  if (status === 429) return 'Resend rate limit reached. Emails resume in a moment.';
+  return `Resend ${status}: ${m.slice(0, 240)}`;
+}
 async function sendEmail({ to, subject, html }) {
-  if (!process.env.RESEND_API_KEY || !process.env.MAIL_FROM) {
+  if (!process.env.RESEND_API_KEY || !mailFrom()) {
     console.warn('[email] skipped: RESEND_API_KEY and MAIL_FROM are required');
     return false;
   }
-  const r = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      authorization: 'Bearer ' + process.env.RESEND_API_KEY,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({ from: process.env.MAIL_FROM, to, subject, html }),
-  });
-  if (!r.ok) throw new Error(`Resend ${r.status}: ${(await r.text()).slice(0, 240)}`);
+  let r;
+  try {
+    r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { authorization: 'Bearer ' + String(process.env.RESEND_API_KEY).trim(), 'content-type': 'application/json' },
+      body: JSON.stringify({ from: mailFrom(), to, subject, html, ...(process.env.MAIL_REPLY_TO ? { reply_to: process.env.MAIL_REPLY_TO } : {}) }),
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch (e) {
+    mailState.lastError = `Couldn't reach Resend (${e.cause?.code || e.name}).`; mailState.lastErrorAt = new Date();
+    throw new Error(mailState.lastError);
+  }
+  if (!r.ok) {
+    const txt = await r.text(); let body = txt; try { body = JSON.parse(txt); } catch {}
+    mailState.lastError = explainResend(r.status, body); mailState.lastErrorAt = new Date();
+    throw new Error(mailState.lastError);
+  }
+  mailState.lastOkAt = new Date();
   return true;
 }
 
@@ -260,7 +288,7 @@ async function houseMove(deltaSats, kind, ref = null) {
 /* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ auth Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 
 app.post('/api/auth/register', async (req, res) => {
-  if (!limit(`reg:${req.ip}`, 8, 60_000)) return res.status(429).json({ error: 'slow down' });
+  if (!(await limit(`reg:${req.ip}`, 8, 60_000))) return res.status(429).json({ error: 'slow down' });
   const email = String(req.body.email || '').trim().toLowerCase();
   const username = String(req.body.username || '').trim();
   const password = String(req.body.password || '');
@@ -282,7 +310,7 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 app.post('/api/auth/login', async (req, res) => {
-  if (!limit(`login:${req.ip}`, 20, 60_000)) return res.status(429).json({ error: 'slow down' });
+  if (!(await limit(`login:${req.ip}`, 20, 60_000))) return res.status(429).json({ error: 'slow down' });
   const who = String(req.body.who || '').trim();
   const password = String(req.body.password || '');
   if (!who || !password) return res.status(400).json({ error: 'Enter your email or username and your password.' });
@@ -294,13 +322,20 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(503).json({ error: 'The database is unreachable right now. Run `npm run fix` on the server to see why.' });
   }
   const u = r.rows[0];
-  if (!u) return res.status(401).json({ error: 'No account with that email or username.' });
-  if (!u.password_hash) return res.status(401).json({ error: 'This account has no password yet. Use "Email me a link" or `npm run fix -- --reset`.' });
-  if (!(await bcrypt.compare(password, u.password_hash)))
-    return res.status(401).json({ error: 'Wrong password for that account.' });
+  const WRONG = 'Wrong email, username or password.';
+  if (!u) { await bcrypt.compare(password, DUMMY_HASH); return res.status(401).json({ error: WRONG }); }
+  // 10 wrong passwords in 15 minutes locks the account's password sign-in for the rest of the window
+  if ((await limiter.count(`loginfail:${u.id}`)) >= 10)
+    return res.status(429).json({ error: 'Too many wrong passwords for this account. Try again in 15 minutes, or use "Email me a link".' });
+  if (!u.password_hash) return res.status(401).json({ error: 'This account has no password yet. Use "Email me a link".' });
+  if (!(await bcrypt.compare(password, u.password_hash))) {
+    await limiter.hit(`loginfail:${u.id}`, 15 * 60_000);
+    return res.status(401).json({ error: WRONG });
+  }
   if (u.banned) return res.status(403).json({ error: 'account suspended' });
+  limiter.clear(`loginfail:${u.id}`);
   await issueSession(res, u.id);
-  res.json({ user: pub(u) });
+  res.json({ user: pub(u), needs2fa: adminNeeds2fa(u) ? (u.totp_enabled ? 'verify' : 'setup') : null });
 });
 
 app.post('/api/auth/logout', async (req, res) => {
@@ -310,7 +345,7 @@ app.post('/api/auth/logout', async (req, res) => {
 });
 
 app.post('/api/auth/magic', async (req, res) => {
-  if (!limit(`magic:${req.ip}`, 6, 60_000)) return res.status(429).json({ error: 'slow down' });
+  if (!(await limit(`magic:${req.ip}`, 6, 60_000))) return res.status(429).json({ error: 'slow down' });
   const email = String(req.body.email || '').trim().toLowerCase();
   const r = await q('select id from users where lower(email) = $1', [email]);
   if (!r.rows[0]) return res.json({ ok: true });
@@ -338,11 +373,12 @@ app.get('/api/auth/magic/:token', async (req, res) => {
 });
 
 app.post('/api/auth/password', requireUser, async (req, res) => {
-  const { current, next } = req.body;
-  if (next && next.length < 8) return res.status(400).json({ error: 'password min 8' });
+  const current = req.body?.current, next = String(req.body?.next || '');
+  if (next.length < 8 || next.length > 200) return res.status(400).json({ error: 'Use a password of at least 8 characters.' });
+  if (!(await limit(`pw:${req.user.id}`, 10, 15 * 60_000))) return res.status(429).json({ error: 'Too many attempts. Try again in 15 minutes.' });
   if (req.user.password_hash && !(await bcrypt.compare(String(current || ''), req.user.password_hash)))
     return res.status(401).json({ error: 'wrong current password' });
-  await q('update users set password_hash = $2 where id = $1', [req.user.id, await bcrypt.hash(next, 10)]);
+  await q('update users set password_hash = $2, password_changed_at = now() where id = $1', [req.user.id, await bcrypt.hash(next, 10)]);
   await q('delete from sessions where user_id = $1 and token_hash <> $2', [req.user.id, sha(req.cookies.kohler)]);
   res.json({ ok: true });
 });
@@ -357,6 +393,48 @@ app.post('/api/auth/username', requireUser, async (req, res) => {
 });
 
 app.get('/api/me', (req, res) => res.json({ user: pub(req.user) }));
+
+/* ── two-factor sign-in (TOTP) — required for every admin unless ADMIN_2FA=off ── */
+const sessionHash = (req) => sha(String(req.cookies?.kohler || ''));
+const MFA_HOURS = 12;   // an admin re-enters a code every 12 hours, even on the same device
+const mfaFresh = (u) => !!u?.session_mfa_at && Date.now() - new Date(u.session_mfa_at).getTime() < MFA_HOURS * 3600e3;
+app.get('/api/auth/2fa', requireUser, (req, res) => res.json({
+  required: adminNeeds2fa(req.user), enabled: !!req.user.totp_enabled, verified: mfaFresh(req.user),
+}));
+app.post('/api/auth/2fa/setup', requireUser, async (req, res) => {
+  if (!req.user.is_admin) return res.status(403).json({ error: 'Two-factor sign-in is for admin accounts.' });
+  if (req.user.totp_enabled) return res.status(409).json({ error: 'Two-factor sign-in is already on.' });
+  if (!(await limit(`2fa:${req.user.id}`, 10, 15 * 60_000))) return res.status(429).json({ error: 'Too many attempts. Try again in 15 minutes.' });
+  // a stolen session alone can't enrol the thief's phone: the password is needed too
+  if (!req.user.password_hash || !(await bcrypt.compare(String(req.body?.password || ''), req.user.password_hash)))
+    return res.status(401).json({ error: 'Enter your password to set this up.' });
+  const secret = newTotpSecret();
+  await q('update users set totp_pending_enc = $2 where id = $1', [req.user.id, seal(secret)]);
+  const url = otpauthUrl(secret, req.user.email || req.user.username);
+  res.json({ secret, url, qr: await QRCode.toDataURL(url, { margin: 1, width: 220 }) });
+});
+app.post('/api/auth/2fa/enable', requireUser, async (req, res) => {
+  if (!req.user.is_admin || req.user.totp_enabled) return res.status(400).json({ error: 'Nothing to turn on.' });
+  if (!(await limit(`2fa:${req.user.id}`, 10, 15 * 60_000))) return res.status(429).json({ error: 'Too many attempts. Try again in 15 minutes.' });
+  const pending = req.user.totp_pending_enc ? open(req.user.totp_pending_enc) : null;
+  const step = checkTotp(pending, req.body?.code);
+  if (step === null) return res.status(400).json({ error: 'That code didn\'t match. Check the time on your phone and try the newest code.' });
+  await q(`update users set totp_secret_enc = totp_pending_enc, totp_pending_enc = null, totp_enabled = true, totp_last_step = $2 where id = $1`, [req.user.id, step]);
+  await q('update sessions set mfa_at = now() where token_hash = $1', [sessionHash(req)]);
+  await audit(req, '2fa.enabled');
+  res.json({ ok: true });
+});
+app.post('/api/auth/2fa/verify', requireUser, async (req, res) => {
+  if (!req.user.totp_enabled) return res.status(400).json({ error: 'Two-factor sign-in isn\'t on for this account.' });
+  if (!(await limit(`2fa:${req.user.id}`, 6, 5 * 60_000))) return res.status(429).json({ error: 'Too many wrong codes. Wait 5 minutes.' });
+  const step = checkTotp(open(req.user.totp_secret_enc), req.body?.code);
+  // a code works once: the same 30-second code can't be replayed
+  if (step === null || step <= Number(req.user.totp_last_step || 0)) return res.status(400).json({ error: 'That code didn\'t work. Wait for the next one and try again.' });
+  await q('update users set totp_last_step = $2 where id = $1', [req.user.id, step]);
+  await q('update sessions set mfa_at = now() where token_hash = $1', [sessionHash(req)]);
+  limiter.clear(`2fa:${req.user.id}`);
+  res.json({ ok: true });
+});
 app.get('/api/storefront', async (_req, res) => {
   const gambling = await gamblingEnabled();
   const pool = await q("select value from site_settings where key = 'pool_enabled'").catch(() => ({ rows: [] }));
@@ -394,6 +472,10 @@ app.get('/api/groups/:slug', async (req, res) => {
 app.post('/api/orders', requireUser, async (req, res) => {
   if (req.user.banned) return res.status(403).json({ error: 'suspended' });
   const productId = String(req.body.productId || '');
+  // how to reach the buyer about this order: what they typed at checkout, else their account email
+  const contact = String(req.body.contact || req.user.email || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 160);
+  const note = String(req.body.note || '').trim().slice(0, 300);
+  if (contact.length < 5) return res.status(400).json({ error: 'Add an email or phone number so we can reach you about this order.' });
   const gambling = await gamblingEnabled(); // read before taking a transaction connection
   try {
     const out = await withTx(async (c) => {
@@ -403,8 +485,8 @@ app.post('/api/orders', requireUser, async (req, res) => {
             and (not g.is_gambling or $2)`, [productId, gambling]
       );
       const p = pr.rows[0];
-      if (!p) throw Object.assign(new Error('not found'), { code: 404 });
-      if (p.stock !== null && p.stock <= 0) throw Object.assign(new Error('out of stock'), { code: 409 });
+      if (!p) throw Object.assign(new Error('That product isn’t available any more.'), { code: 404 });
+      if (p.stock !== null && p.stock <= 0) throw Object.assign(new Error('Sorry, that option just sold out.'), { code: 409 });
       const ur = await c.query('select balance_cents from users where id = $1 for update', [req.user.id]);
       // pg returns bigint as a string: without Number() this was "1500" + 15 = "150015"
       const price = Number(p.price_cents);
@@ -412,7 +494,7 @@ app.post('/api/orders', requireUser, async (req, res) => {
       const total = price + platformFee;
       const balance = Number(ur.rows[0].balance_cents);
       if (balance < total)
-        throw Object.assign(new Error('insufficient'), { code: 402, need: total - balance });
+        throw Object.assign(new Error(`Not enough balance: this costs ${usd(total)} and you have ${usd(balance)}.`), { code: 402, need: total - balance });
 
       const test = !!req.user.test_mode;
       await move(c, req.user.id, -total, 'order', p.id, { group: p.group_id, platformFee, test: test || undefined });
@@ -420,9 +502,9 @@ app.post('/api/orders', requireUser, async (req, res) => {
       // test accounts never receive real delivery content (codes, logins)
       const delivery = test ? `TEST ORDER. No real goods were delivered.\nA real order of "${p.name}" shows its delivery details here.` : p.delivery;
       const o = await c.query(
-        `insert into orders (user_id, group_id, product_id, price_cents, platform_fee_cents, status, delivery, is_test)
-         values ($1,$2,$3,$4,$5,'delivered',$6,$7) returning *`,
-        [req.user.id, p.group_id, p.id, p.price_cents, platformFee, delivery, test]
+        `insert into orders (user_id, group_id, product_id, price_cents, platform_fee_cents, status, delivery, is_test, contact, note)
+         values ($1,$2,$3,$4,$5,'delivered',$6,$7,$8,$9) returning *`,
+        [req.user.id, p.group_id, p.id, p.price_cents, platformFee, delivery, test, contact, note || null]
       );
       if (!test) await c.query(
         'insert into platform_fees (user_id, kind, ref, amount_cents) values ($1,$2,$3,$4)',
@@ -430,14 +512,27 @@ app.post('/api/orders', requireUser, async (req, res) => {
       );
       return { ...o.rows[0], group_name: p.group_name, product_name: p.name };
     });
-    if (!out.is_test) try {
-      await sendEmail({
+    // emails go out after the answer, so paying never waits on the mail service
+    const h = (x) => String(x ?? '').replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+    const mailOn = !!(process.env.RESEND_API_KEY && process.env.MAIL_FROM), buyerEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact) ? contact : req.user.email;
+    if (!out.is_test && mailOn) {
+      sendEmail({
         to: process.env.ORDER_EMAIL || 'l4212696@gmail.com',
-        subject: `New Kohler order ${out.id}`,
-        html: `<h2>New order</h2><p><b>${out.group_name}</b></p><p>Order: ${out.id}</p><p>User: ${req.user.email || req.user.username}</p><p>Amount: ${usd(Number(out.price_cents))}</p><pre>${String(out.delivery || '').replace(/[<>&]/g, '')}</pre>`,
-      });
-    } catch (e) { console.error('[email] order notification failed', e.message); }
-    res.json({ order: out });
+        subject: `New Kohler order: ${out.group_name}, ${out.product_name} (${usd(Number(out.price_cents))})`,
+        html: `<h2>New order</h2><p><b>${h(out.group_name)}</b> · ${h(out.product_name)} · ${usd(Number(out.price_cents))}</p><p>Order: ${out.id}</p>
+          <p>Buyer: ${h(req.user.username)} (${h(req.user.email || 'no account email')})<br>Contact: <b>${h(contact)}</b></p>${note ? `<p>Their note: <b>${h(note)}</b></p>` : ''}
+          <p>Delivered:</p><pre>${h(out.delivery)}</pre>`,
+      }).catch((e) => console.error('[email] order notification failed', e.message));
+      if (buyerEmail) sendEmail({
+        to: buyerEmail,
+        subject: `Your Kohler order: ${out.group_name}, ${out.product_name}`,
+        html: `<div style="font-family:Inter,Arial,sans-serif;font-size:15px;line-height:1.5;color:#111"><p>Hi ${h(req.user.username)},</p>
+          <p>Thanks for your order of <b>${h(out.group_name)}, ${h(out.product_name)}</b> (${usd(Number(out.price_cents) + Number(out.platform_fee_cents || 0))}).</p>
+          <p>Here's what you bought:</p><pre style="background:#f4f4f5;padding:12px;border-radius:8px;white-space:pre-wrap">${h(out.delivery || 'Delivery details will follow.')}</pre>
+          <p>It's also on your Orders page. If anything's wrong, reply to this email or open a ticket on the Help page.</p><p style="color:#888;font-size:12px">Kohler · order ${out.id}</p></div>`,
+      }).catch((e) => console.error('[email] receipt failed', e.message));
+    }
+    res.json({ order: { ...out, receipt: !out.is_test && mailOn && !!buyerEmail } });
   } catch (e) {
     res.status(e.code || 500).json({ error: e.message, need: e.need });
   }
@@ -561,7 +656,7 @@ async function notifyWithdrawal(id, event) {
     const o = wdOut(w), btc = o.sats ? ` (${(o.sats / 1e8).toFixed(8)} BTC)` : '';
     const link = o.explorer ? `<p><a href="${o.explorer}">See the payment on the blockchain</a></p>` : o.txid ? `<p>Payment reference: ${o.txid}</p>` : '';
     const msg = {
-      requested: [`We got your withdrawal of ${usd(o.amount)}`, `<p>Hi ${w.username},</p><p>Your withdrawal of <b>${usd(o.amount)}</b>${btc} to <code>${o.address}</code> is in the queue. Withdrawals usually go out within 24 hours, and we'll email you again when it's sent.</p>`],
+      requested: [`We got your withdrawal of ${usd(o.amount)}`, `<p>Hi ${w.username},</p><p>Your withdrawal of <b>${usd(o.amount)}</b>${btc} to <code>${o.address}</code> is in the queue. It usually goes out within 30 minutes, and we'll email you again when it's sent.</p>`],
       sent: [`Your ${usd(o.amount)} withdrawal is on its way`, `<p>Hi ${w.username},</p><p>We sent <b>${usd(o.amount)}</b>${btc} to <code>${o.address}</code>. Bitcoin payments usually confirm within an hour.</p>${link}`],
       rejected: [`Your ${usd(o.amount)} withdrawal was refunded`, `<p>Hi ${w.username},</p><p>We couldn't send your withdrawal of <b>${usd(o.amount)}</b> to <code>${o.address}</code>, so the full amount${o.fee ? ` plus the ${usd(o.fee)} fee` : ''} is back on your Kohler balance. If you're not sure why, reply to this email or open a ticket on the Help page.</p>`],
     }[event];
@@ -594,6 +689,8 @@ app.all('/api/cron/tick', async (req, res) => {
   await step('deposits', async () => { await depositWatcher?.sweep({ force: true }); return { enabled: !!depositWatcher }; });
   await step('games', async () => casino.sweep());
   await step('autopilot', async () => ({ result: await autopilot.run() }));
+  // paint avatars with whatever time this invocation has left (custom orders first)
+  await step('avatars', async () => avatars.work(Number(process.env.AVATAR_CRON_MS || (process.env.VERCEL ? 200_000 : 30_000))));
   res.json(out);
 });
 
@@ -611,7 +708,7 @@ app.get('/api/wallet/withdrawals', requireUser, async (req, res) => {
 });
 
 app.post('/api/wallet/withdraw', requireUser, async (req, res) => {
-  if (!limit(`wd:${req.user.id}`, 10, 600_000)) return res.status(429).json({ error: 'Too many withdrawal attempts. Wait a few minutes.' });
+  if (!(await limit(`wd:${req.user.id}`, 10, 600_000))) return res.status(429).json({ error: 'Too many withdrawal attempts. Wait a few minutes.' });
   const address = String(req.body.address || '').trim();
   if (!req.user.test_mode && !chain.isValidAddress(address)) return res.status(400).json({ error: `That doesn't look like a valid Bitcoin address (${chain.addressHint()}). Copy it again from your wallet app.`, field: 'address' });
   const quote = await withdrawQuote(req.user, req.body.amountCents);
@@ -647,13 +744,22 @@ app.post('/api/wallet/withdraw', requireUser, async (req, res) => {
 });
 
 app.post('/api/wallet/bonus', requireUser, async (req, res) => {
-  const last = req.user.last_bonus_at ? new Date(req.user.last_bonus_at).getTime() : 0;
-  if (Date.now() - last < 20 * 3600e3) return res.status(429).json({ error: 'not yet' });
-  const amount = (100 + Math.floor(Math.random() * 100)) * (hasPass(req.user) ? 2 : 1);
-  await withTx(async (c) => {
-    await move(c, req.user.id, amount, 'bonus', 'daily');
-    await c.query('update users set last_bonus_at = now() where id = $1', [req.user.id]);
+  // free money can't be farmed with throwaway accounts: the bonus needs a real deposit first
+  if (!req.user.test_mode) {
+    const dep = (await q(`select (exists (select 1 from seen_deposits where user_id = $1)
+                                 or exists (select 1 from deposit_claims where user_id = $1 and status = 'approved')) as ok`, [req.user.id])).rows[0];
+    if (!dep?.ok) return res.status(403).json({ error: 'The daily bonus unlocks after your first deposit.' });
+  }
+  const amount = (100 + Math.floor(crypto.randomInt(100))) * (hasPass(req.user) ? 2 : 1);
+  // claimed in one statement, so ten clicks at once still pay one bonus
+  const paid = await withTx(async (c) => {
+    const ok = (await c.query(`update users set last_bonus_at = now() where id = $1
+                                 and (last_bonus_at is null or last_bonus_at < now() - interval '20 hours') returning id`, [req.user.id])).rows[0];
+    if (!ok) return false;
+    await move(c, req.user.id, amount, 'bonus', 'daily', { test: req.user.test_mode || undefined });
+    return true;
   });
+  if (!paid) return res.status(429).json({ error: 'not yet' });
   res.json({ amount });
 });
 
@@ -661,7 +767,7 @@ app.post('/api/wallet/bonus', requireUser, async (req, res) => {
 // the watcher hasn't seen. Admin verifies against the chain and credits by hand.
 app.post('/api/wallet/claim', requireUser, async (req, res) => {
   if (req.user.test_mode) return res.status(403).json({ error: 'Test accounts use "Add test money" instead.' });
-  if (!limit(`claim:${req.user.id}`, 6, 300_000)) return res.status(429).json({ error: 'slow down' });
+  if (!(await limit(`claim:${req.user.id}`, 6, 300_000))) return res.status(429).json({ error: 'slow down' });
   const method = 'btc';
   const txid = String(req.body.txid || '').trim().slice(0, 120);
   const note = String(req.body.note || '').trim().slice(0, 500);
@@ -707,6 +813,7 @@ function multiplierFor(game, pick) {
 // in flight can still cash out or bust, so nobody's stake is stranded.
 app.post(['/api/games/play', '/api/games/crash/start'], (_req, res) => res.status(410).json({ error: 'These games moved to the Kohler Casino.' }));
 app.post('/api/games/play', requireGambling, requireUser, async (req, res) => {
+  if (process.env.LEGACY_GAMES !== 'on') return res.status(410).json({ error: 'This game has moved to the casino.' });
   if (req.user.banned) return res.status(403).json({ error: 'suspended' });
   const game = String(req.body.game || '');
   const stake = cents(req.body.stakeCents);
@@ -747,6 +854,7 @@ app.post('/api/games/play', requireGambling, requireUser, async (req, res) => {
    validated against server time, so a tampered client can't inflate a multiplier. */
 
 app.post('/api/games/crash/start', requireGambling, requireUser, async (req, res) => {
+  if (process.env.LEGACY_GAMES !== 'on') return res.status(410).json({ error: 'This game has moved to the casino.' });
   if (req.user.banned) return res.status(403).json({ error: 'suspended' });
   const stake = cents(req.body.stakeCents);
   if (stake < 50) return res.status(400).json({ error: 'min $0.50' });
@@ -837,6 +945,10 @@ const payouts = createPayouts({ q, withTx, chain, alert: (...a) => autopilot.ale
 autopilot = createAutopilot({ q, poolPot, payouts, sendEmail });
 const vault = createVault({ q, withTx, move, audit });
 app.use('/api/vault', vault.router);
+// AI-painted avatars: the starter catalogue, purchases, custom orders and the image files
+const avatars = createAvatars({ q, withTx, move, audit, alert: (...a) => autopilot.alert(...a) });
+app.use('/api/avatars', avatars.router);
+app.use('/avatars', avatars.files);
 
 /* Casino host: seamless wallet for game providers + Kohler Studio games */
 const casino = createCasino({
@@ -893,7 +1005,7 @@ app.get('/api/house/meter', async (_req, res) => {
 /* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ support Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 
 app.post('/api/support', async (req, res) => {
-  if (!limit(`sup:${req.ip}`, 5, 300_000)) return res.status(429).json({ error: 'slow down' });
+  if (!(await limit(`sup:${req.ip}`, 5, 300_000))) return res.status(429).json({ error: 'slow down' });
   const name = String(req.body.name || '').trim().slice(0, 80);
   const contact = String(req.body.contact || '').trim().slice(0, 160);
   const subject = String(req.body.subject || '').trim().slice(0, 140);
@@ -928,6 +1040,12 @@ app.post('/api/support/:id/reply', requireUser, async (req, res) => {
 const adminRouter = express.Router();
 asyncSafe(adminRouter);
 adminRouter.use(requireAdmin);
+adminRouter.use((req, res, next) => {
+  if (!adminNeeds2fa(req.user)) return next();
+  if (!req.user.totp_enabled) return res.status(403).json({ error: 'Turn on two-factor sign-in to use Kohler Control.', need2fa: 'setup' });
+  if (!mfaFresh(req.user)) return res.status(403).json({ error: 'Enter the 6-digit code from your authenticator app.', need2fa: 'verify' });
+  next();
+});
 adminRouter.use((req, res, next) => {
   if (req.user.admin_role === 'god') return next();
   const catalogWrite = req.method === 'POST' && /^\/(groups|products)(\/|$)/.test(req.path);
@@ -973,7 +1091,8 @@ adminRouter.get('/stats', async (_req, res) => {
          (select count(*) from withdrawals where status = 'processing')::int as payouts_processing,
          (select count(*) from deposit_claims where status = 'pending')::int as claims_pending,
          (select count(*) from users where created_at > now() - interval '24 hours')::int as signups_24h,
-         (select count(*) from admin_audit where action like 'alert.%' and created_at > now() - interval '24 hours')::int as alerts_24h`),
+         (select count(*) from admin_audit where action like 'alert.%' and created_at > now() - interval '24 hours')::int as alerts_24h,
+         (select count(*) from avatars where collection = 'starter' and status = 'pending')::int as avatars_pending`),
   ]);
   res.json({
     ...r.rows[0],
@@ -1097,8 +1216,9 @@ adminRouter.delete('/products/:id', async (req, res) => {
 });
 
 adminRouter.get('/orders', async (_req, res) => {
-  const r = await q(`select o.*, u.username, p.name from orders o
+  const r = await q(`select o.*, u.username, u.email, p.name, g.name as group_name from orders o
     left join users u on u.id = o.user_id left join products p on p.id = o.product_id
+    left join product_groups g on g.id = o.group_id
     order by o.created_at desc limit 200`);
   res.json({ orders: r.rows });
 });
@@ -1123,7 +1243,7 @@ adminRouter.patch('/tickets/:id', async (req, res) => {
 });
 
 adminRouter.get('/users', async (_req, res) => {
-  const r = await q(`select id, email, username, balance_cents, is_admin, admin_role, test_mode, banned, created_at
+  const r = await q(`select id, email, username, balance_cents, is_admin, admin_role, test_mode, banned, created_at, totp_enabled
     from users order by created_at desc limit 500`);
   res.json({ users: r.rows });
 });
@@ -1133,6 +1253,38 @@ adminRouter.post('/users/:id/balance', async (req, res) => {
   await withTx(async (c) => move(c, req.params.id, delta, 'adjust', 'admin'));
   await audit(req, 'user.adjust', { id: req.params.id, delta });
   res.json({ ok: true });
+});
+
+// an owner can reset another admin's two-factor (lost phone); they set it up again at next sign-in
+adminRouter.post('/users/:id/reset-2fa', async (req, res) => {
+  if (req.params.id === req.user.id) return res.status(400).json({ error: "Ask another owner to reset yours, or set ADMIN_2FA=off for a moment." });
+  await q('update users set totp_enabled = false, totp_secret_enc = null, totp_pending_enc = null, totp_last_step = null where id = $1', [req.params.id]);
+  await q('update sessions set mfa_at = null where user_id = $1', [req.params.id]);
+  await audit(req, 'user.reset_2fa', { id: req.params.id });
+  res.json({ ok: true });
+});
+
+// The security checklist on Switches & health: what's set up, and what still isn't.
+adminRouter.get('/security', async (_req, res) => {
+  const env = process.env, items = [];
+  const add = (ok, label, fix, level = 'warn') => items.push({ ok: !!ok, label, fix: ok ? null : fix, level: ok ? 'ok' : level });
+  const admins = (await q(`select username, admin_role, totp_enabled from users where is_admin`)).rows;
+  const no2fa = admins.filter((a) => !a.totp_enabled).map((a) => a.username);
+  add(env.ADMIN_2FA !== 'off', 'Two-factor sign-in is required for admins', 'ADMIN_2FA is set to off. Remove it once you can sign in again.', 'critical');
+  add(!no2fa.length, 'Every admin has two-factor sign-in', `Not set up yet: ${no2fa.join(', ')}. They're asked to at their next admin sign-in.`);
+  add(/^[0-9a-fA-F]{64}$/.test(String(env.KEY_ENC || '').trim()), 'KEY_ENC is a proper 64-character key',
+    'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))". Set it before you store any wallet keys: changing it later makes stored secrets unreadable.', 'critical');
+  add(!!env.VERCEL || /^https:/.test(env.PUBLIC_URL || ''), 'The site runs on https', 'Set PUBLIC_URL to your https address.', 'critical');
+  add(String(env.CRON_SECRET || '').length >= 16, 'CRON_SECRET protects the cron endpoint', 'Set CRON_SECRET to a long random string (Vercel Cron sends it automatically).');
+  add(env.LEGACY_GAMES !== 'on', 'Old house games are switched off', 'Remove LEGACY_GAMES=on.');
+  add(String(env.TEST_ACCOUNT_PASSWORD || '').length >= 12, 'The test account has its own password',
+    'Set TEST_ACCOUNT_PASSWORD to something only you know (the default is in the code).');
+  add(!chain.isTestnet(), 'Bitcoin is on mainnet', 'BTC_NETWORK is testnet: deposits and withdrawals use test coins.', 'info');
+  add(env.CHAIN_ENABLED === 'true' && !!env.DEPOSIT_MNEMONIC, 'Bitcoin deposits are switched on', 'Set CHAIN_ENABLED=true and DEPOSIT_MNEMONIC (a fresh 12/24-word phrase kept offline).', 'info');
+  add(!!env.RESEND_API_KEY && !!mailFrom() && !mailIsSandbox(), 'Email can reach players', 'See the Email card below.');
+  const ps = Object.fromEntries((await q(`select key, value from site_settings where key like 'payouts\\_%'`)).rows.map((r) => [r.key, r.value]));
+  if (ps.payouts_auto === 'true') add(Number(ps.payouts_max_cents || 20000) <= 50000, 'Automatic payouts have a sensible per-payout cap', 'Keep the automatic cap at $500 or less; bigger ones wait for you.');
+  res.json({ items, admins: admins.length });
 });
 
 adminRouter.post('/users/:id/role', async (req, res) => {
@@ -1185,6 +1337,7 @@ adminRouter.post('/users/test-account', async (req, res) => {
 
 adminRouter.post('/users/:id/ban', async (req, res) => {
   await q('update users set banned = $2 where id = $1', [req.params.id, !!req.body.banned]);
+  if (req.body.banned) await q('delete from sessions where user_id = $1', [req.params.id]);
   res.json({ ok: true });
 });
 
@@ -1336,6 +1489,7 @@ adminRouter.post('/claims/:id/reject', async (req, res) => {
 adminRouter.use('/pool', poolPot.admin);   // god-only via the role middleware above
 adminRouter.use('/casino', casino.admin);
 adminRouter.use('/vault', vault.admin);
+adminRouter.use('/avatars', avatars.admin);
 
 /* payouts: manual by default, automatic when switched on */
 adminRouter.get('/payouts', async (_req, res) => res.json(await payouts.status()));
@@ -1367,6 +1521,21 @@ adminRouter.post('/withdrawals/:id/requeue', async (req, res) => {
   res.json({ ok: true });
 });
 
+adminRouter.get('/email', (_req, res) => {
+  const from = mailFrom();
+  res.json({ keySet: !!process.env.RESEND_API_KEY, from, sandbox: mailIsSandbox(), orderTo: process.env.ORDER_EMAIL || null,
+    alertTo: process.env.ALERT_EMAIL || process.env.ORDER_EMAIL || null, ...mailState });
+});
+adminRouter.post('/email/test', async (req, res) => {
+  const to = String(req.body?.to || req.user.email || '').trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ error: 'Enter an email address to send the test to.' });
+  if (!process.env.RESEND_API_KEY || !mailFrom()) return res.status(400).json({ error: 'Set RESEND_API_KEY and MAIL_FROM first (Vercel: Settings → Environment Variables, then redeploy).' });
+  try {
+    await sendEmail({ to, subject: 'Kohler test email', html: '<p>Email from Kohler is working.</p>' });
+    await audit(req, 'email.test', { to });
+    res.json({ ok: true });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
 adminRouter.get('/autopilot', async (_req, res) => {
   const alerts = await q(`select action, detail, created_at from admin_audit where action like 'alert.%' order by created_at desc limit 30`);
   res.json({ ...autopilot.status(), alerts: alerts.rows });
@@ -1481,6 +1650,7 @@ async function bootSequence() {
     // the casino catalogue is not allowed to keep the shop and sign-in offline
     await casino.setup().catch((e) => console.error('[boot] casino catalogue:', e.message, '(the rest of the site is up; it retries on next start)'));
     booted = true; bootError = null;
+    if (!process.env.VERCEL) avatars.boot();
     console.log('[boot] ready: database up to date, casino catalog loaded');
     poolPot.start().catch((e) => console.error('[pool] start', e.message));
     setTimeout(() => autopilot.kick(), 10_000).unref();

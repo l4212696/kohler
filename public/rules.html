@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rules &amp; fees · Kohler</title>
+<link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/kohler.css">
+<style>
+.wrap{max-width:760px;margin:0 auto;padding:22px 20px 70px}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:34px}
+.top .brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;font-size:18px}
+.top .brand img{width:30px;height:30px}
+.top nav{display:flex;gap:18px;font-size:14px;color:var(--muted)}
+.top nav a:hover{color:var(--text)}
+h1{font-family:var(--display);font-size:clamp(28px,4vw,38px);letter-spacing:-.02em;margin:0 0 8px}
+.lead{color:var(--muted);margin:0 0 26px}
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:30px}
+.toc a{padding:7px 13px;border:1px solid var(--line-2);border-radius:999px;font-size:13px;color:var(--muted)}
+.toc a:hover{color:var(--text);border-color:var(--gold)}
+section{background:var(--ink-1);border:1px solid var(--line);border-radius:var(--r-lg);padding:22px 24px;margin-bottom:16px;scroll-margin-top:20px}
+section h2{font-family:var(--display);font-size:19px;margin:0 0 12px;letter-spacing:-.01em}
+section h3{font-size:14px;margin:18px 0 6px;color:var(--gold);text-transform:uppercase;letter-spacing:.06em}
+section p,section li{color:#c9d1de;font-size:14.5px}
+section ul{padding-left:20px;margin:8px 0}
+section li{margin:5px 0}
+b.v{color:var(--text)}
+code{font-family:var(--mono);font-size:12.5px;background:var(--ink-2);padding:2px 6px;border-radius:6px;word-break:break-word}
+footer{color:var(--faint);font-size:13px;margin-top:30px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a class="brand" href="/"><img src="/assets/logo.svg" alt="">Kohler</a>
+    <nav><a href="/">Shop</a><a href="/casino">Casino</a></nav>
+  </div>
+
+  <h1>Rules &amp; fees</h1>
+  <p class="lead">Everything about how Kohler works, in one place.</p>
+  <div class="toc">
+    <a href="#survivor">Survivor</a><a href="#casino">Casino games</a><a href="#money">Deposits &amp; withdrawals</a><a href="#shop">Shop orders</a><a href="#vault">Vault</a><a href="#play">Playing safely</a>
+  </div>
+
+  <section id="survivor">
+    <h2>Survivor</h2>
+    <p>Everyone at a table stakes the same amount. When the table fills, a set number of players are knocked out. Everyone else gets their own stake back plus an equal share of the knocked-out stakes.</p>
+    <h3>Fee</h3>
+    <p>Kohler takes <b class="v" data-fee="pool">10%</b> of the knocked-out stakes only. Survivors' own stakes are never touched. Any leftover cent from rounding goes to the fee.</p>
+    <h3>Provably fair draw</h3>
+    <ul>
+      <li>Before a round starts we publish a hash of a secret server seed.</li>
+      <li>Every seat adds its own random seed when it sits.</li>
+      <li>After the draw the server seed is revealed so anyone can check the result. For each knock-out <code>i</code>: <code>sha256(server : sha256(seat seeds joined by "|") : roundId : i)</code>, the first 13 hex characters as a number, mod the seats still in.</li>
+      <li>Every finished round has a verify view with all the inputs.</li>
+    </ul>
+    <h3>House seats</h3>
+    <ul>
+      <li>On public tables of 5 or more seats that haven't filled after about <b class="v">30 seconds</b>, Kohler may take up to <b class="v">2</b> seats so the round can start.</li>
+      <li>These seats are always shown as <b class="v">Kohler</b> with a House tag. They are never presented as real players.</li>
+      <li>A house seat stakes the same and has exactly the same odds as every other seat.</li>
+      <li>Kohler never sits at private tables.</li>
+    </ul>
+    <h3>Cancelled rounds</h3>
+    <p>If a round can't run, every stake is refunded in full to the player's balance.</p>
+  </section>
+
+  <section id="casino">
+    <h2>Casino games</h2>
+    <ul>
+      <li>Kohler Originals (Rocket, Mines, Coin Flip, slots and tables) are made in-house. Results are decided on our server when you play.</li>
+      <li>Every game shows its return to player (RTP), the long-run share of stakes paid back. Over time the house keeps the rest.</li>
+      <li>Rocket and Mines rounds left open are settled automatically.</li>
+      <li>Demo mode uses play money and never touches your balance.</li>
+    </ul>
+  </section>
+
+  <section id="money">
+    <h2>Deposits &amp; withdrawals</h2>
+    <h3>Deposits</h3>
+    <ul>
+      <li>Send Bitcoin only to your personal address. Other coins or networks are lost.</li>
+      <li>Your balance is credited in dollars at the live price once the payment has enough confirmations.</li>
+      <li>Very small deposits are held for review instead of credited straight away.</li>
+    </ul>
+    <h3>Withdrawals</h3>
+    <ul>
+      <li>Paid in Bitcoin to the address you give. Most go out <b class="v">within 30 minutes</b>.</li>
+      <li>A fee of <b class="v" data-fee="shop">1%</b> plus the Bitcoin network fee applies. The withdraw screen shows the exact amount and the minimum before you confirm.</li>
+      <li>We email you when it's sent. If a payment can't be sent, the full amount goes back to your balance.</li>
+      <li>Bitcoin payments can't be reversed, so check the address carefully.</li>
+    </ul>
+  </section>
+
+  <section id="shop">
+    <h2>Shop orders</h2>
+    <ul>
+      <li>Orders are paid from your Kohler balance. A <b class="v" data-fee="shop">1%</b> service fee is shown before you pay.</li>
+      <li>Delivery details (code, login or instructions) appear on your Orders page right after you pay. If we have a working email for you, we send a copy.</li>
+      <li>The contact you give at checkout is used only to help with that order.</li>
+      <li>Problem with an order? Use Help and we'll sort it out.</li>
+    </ul>
+  </section>
+
+  <section id="vault">
+    <h2>Vault</h2>
+    <ul>
+      <li>Avatars, frames and win effects are cosmetic. They have no cash value, can't be withdrawn and don't change any odds.</li>
+      <li>Custom avatars are painted by AI from your description and only you can use them. Describe a made-up, family-friendly character: no real people, brands or other franchises, and nothing violent or adult.</li>
+      <li>Any image that fails to paint is refunded. An order that isn't painted within a day is refunded in full.</li>
+      <li>We may remove a custom avatar that breaks these rules.</li>
+    </ul>
+  </section>
+
+  <section id="play">
+    <h2>Playing safely</h2>
+    <ul>
+      <li>Games are for people aged 18 and over.</li>
+      <li>Only play with money you can afford to lose.</li>
+      <li>You can set a daily limit or take a break from <a href="/casino#/limits" style="color:var(--gold)">Play limits</a>. Lowering a limit is instant; raising or removing one waits 24 hours.</li>
+    </ul>
+  </section>
+
+  <footer>© <span id="yr"></span> Kohler</footer>
+</div>
+<script>
+document.getElementById('yr').textContent = new Date().getFullYear();
+const pct = (bps) => (Math.round(bps) / 100).toString().replace(/\.0+$/, '') + '%';
+const set = (k, bps) => { if (Number.isFinite(bps)) document.querySelectorAll(`[data-fee="${k}"]`).forEach((e) => e.textContent = pct(bps)); };
+fetch('/api/pool/lobby').then((r) => r.ok ? r.json() : null).then((d) => d && set('pool', Number(d.settings?.feeBps))).catch(() => {});
+fetch('/api/storefront').then((r) => r.ok ? r.json() : null).then((d) => d && set('shop', Number(d.feeBps))).catch(() => {});
+</script>
+</body>
+</html>

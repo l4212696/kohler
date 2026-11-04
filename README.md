@@ -2,7 +2,7 @@
 
 A shop for digital goods (gift cards, subscriptions, top-ups) and a casino built entirely in-house:
 **Survivor** (the main event), Rocket, Mines, Coin Flip, Limbo, dice, plinko, wheels, 34 slots and
-blackjack/roulette. There's also the **Vault**, a shop for characters, frames, win effects and the
+blackjack/roulette. There's also the **Vault**, a shop for AI avatars, frames, win effects and the
 Kohler Pass. Players fund one balance with Bitcoin. Node/Express + Neon Postgres, one process, no build step.
 
 | Page | Address |
@@ -149,7 +149,7 @@ deposit and one withdrawal end to end before announcing anything.
 |---|---|
 | Survivor | 10% of the knocked-out stake, every round |
 | Casino | Everything players lose. All games are ours, so there's no provider share. RTP 96–99%. |
-| Vault | 100% of every sale (characters $0.99–$49.99, frames, effects, Pass $9.99/30 days) |
+| Vault | 100% of every sale: avatars $0.99–$19.99, custom avatars $4.99, frames, effects, Pass $9.99/30 days |
 | Shop | `PLATFORM_FEE_BPS` (1%) on purchases and deposits. Kohler Pass holders pay no fee on purchases. |
 | Withdrawals | 1% fee |
 
@@ -225,18 +225,48 @@ the house wallet). `/pool` and `/survivor` now redirect into the casino. The sea
 (`/api/casino/v1`, HMAC-signed) is still in place, because Kohler's own games use it. Adding an outside
 provider later needs a gaming licence and a contract with them.
 
-## 6. The Vault (non-gambling purchases)
+## 6. The Vault and AI avatars (non-gambling purchases)
 
 `/casino#/vault`. Nothing here changes odds; it's how players look and show off.
-- **Characters (24):** 6 free, 8 common ($0.99–$1.99), 6 rare ($4.99), 2 epic ($9.99), Midas $24.99,
-  Zenith $49.99. Legendary characters glow. A player's character sits in their Survivor seat where the
-  whole table sees it, so every sale advertises the next one.
-- **Frames:** rings around the avatar, $1.99–$19.99.
-- **Win effects:** confetti (free), coin shower, fireworks, lightning, royal gold. They play on big wins
-  and on surviving.
-- **Kohler Pass ($9.99 / 30 days, stacks):** no shop fee, 2× daily bonus, Pass frame and badge.
+- **Avatars** are hyper-exaggerated 3D meme portraits painted by AI (Cloudflare Workers AI, FLUX.1
+  Schnell). A player's avatar shows in their Survivor seat, the casino header and the shop. Anyone
+  without one gets a free one picked from their name.
+- **Starter collection (100):** about a third free, then $0.99 / $2.99 / $6.99 / $19.99. Every one is a
+  different character. Rename or reprice any of them in Admin.
+- **Custom avatars ($4.99 for 4):** the player describes what they want in their own words (up to 200
+  characters), optionally picks a mood and a scene, and gets four versions only they can use. Kohler's
+  house style, the portrait framing and "family-friendly, fully clothed, no text" are always wrapped
+  around their words. Failed paints are refunded; an order still unpainted after a day is refunded in full.
+- **Frames, win effects and the Kohler Pass** are unchanged. The old hand-drawn characters are retired.
 
-Prices and items are in `lib/vault.js`. Sales are in **Admin → Vault sales**.
+**What players can't make.** A word filter refuses nudity, violence, drugs, hate symbols, children,
+real people, brands and other franchises, then Llama Guard (on the same Cloudflare account) gets a
+second look at anything that passes. Admins see exactly what each player typed and can remove any
+custom avatar.
+
+### Avatar setup (5 minutes, free)
+1. Create an account at dash.cloudflare.com and copy your **Account ID**.
+2. My Profile → API Tokens → Create Token → **Workers AI** template. Copy the token.
+3. Add `CF_ACCOUNT_ID` and `CF_API_TOKEN` to your environment variables (Vercel: Settings →
+   Environment Variables) and redeploy.
+4. Open **Admin → Avatar factory**, press **Test connection** (it paints one sample pug), then **Start**.
+
+The free plan covers about 150 images a day. When it runs out the factory rests until midnight UTC.
+Every image is checked (decodes, not blank, not a near-duplicate), saved as the original plus 512px and
+128px WebP in your Neon database, and served from `/avatars/<id>/<size>.webp` with year-long caching.
+New starter avatars wait for your approval (or switch on "Publish without review").
+
+**On Vercel** nothing runs in the background, so painting happens in slices: while **Admin → Avatar
+factory** is open it paints continuously, the daily cron paints for a few minutes, and a player waiting
+on a custom order paints their own order just by watching it. Leave the admin page open for ~15 minutes
+to fill the first 100.
+
+**Free and paid are kept apart.** The starter collection only uses `CF_ACCOUNT_ID`. Set
+`CF_CUSTOM_ACCOUNT_ID` / `CF_CUSTOM_API_TOKEN` to paint custom avatars on a separate Workers Paid
+account ($5/month, no daily cap). Without them, custom avatars share the free account.
+Cost: about $0.003 to paint four.
+
+Prices and items are in `lib/vault.js` and `lib/avatars/`. Sales are in **Admin → Vault sales**.
 
 ## 7. Admin ("Kohler Control", `/admin`)
 
@@ -251,6 +281,7 @@ change roles in **Players**.
 | Players | Search, adjust balances (written to the ledger), owner/catalog roles, test mode, ban, new test accounts |
 | Survivor | Switches, fee, Kohler seats, tables (create, close and refund, per-table fill), recent rounds, the books check |
 | Casino | Money kept today and all-time, per-game stats, switch any game off |
+| Avatar factory | Connection test, progress, today's free allowance, review/approve/reject, prices and names, custom avatar price and sales, remove a custom avatar |
 | Vault sales | Sales today/30 days, Pass revenue, best sellers |
 | Catalog / Orders / Support | Shop brands and options, orders, reply to tickets |
 | Switches & health | The site-wide games switch, the last Autopilot run, all alerts |
@@ -271,6 +302,23 @@ change roles in **Players**.
 Still needs a person: keeping the hot wallet funded, anything outside the payout rules, paying for
 hosting and Neon, and reading alerts.
 
+## 8b. Security
+
+- **Admin two-factor sign-in.** Every admin signs in with a password and a 6-digit code from an
+  authenticator app (set up on first admin sign-in, asked again every 12 hours). Setting it up needs the
+  password, codes can't be reused, and 6 wrong codes lock it for 5 minutes. Lost phone: another owner
+  resets it from Players, or set `ADMIN_2FA=off` for a moment and remove it again.
+- **Password guessing.** 10 wrong passwords lock that account's password sign-in for 15 minutes. Unknown
+  accounts and wrong passwords get the same answer. All rate limits live in Postgres, so they hold on
+  Vercel where many copies of the server run at once.
+- **Other websites can't act for a player.** Cookies are HttpOnly, SameSite=Lax and https-only on
+  Vercel, and every change must come from Kohler's own pages. Pages can't be framed by other sites.
+- **Money.** The daily bonus pays once even if clicked many times at once, and only after a real deposit.
+  Automatic payouts also wait for a person when the password changed in the last 24 hours or the
+  player's balance doesn't match their ledger. Banning someone signs them out everywhere.
+- **Checklist.** Admin → Switches & health lists what's set up and what isn't (KEY_ENC, https,
+  CRON_SECRET, 2FA, email, mainnet).
+
 ## 9. Recommendations
 
 1. **Move the database to Europe** (or the server to the US). It's the biggest speed gain left (§2).
@@ -280,7 +328,7 @@ hosting and Neon, and reading alerts.
    and location blocking.
 4. **Host it properly** with HTTPS (Render, Railway, Fly or a small VPS), with `COOKIE_SECURE=true`.
 5. **Start payouts manual**, switch automatic on with low caps after a week of clean books, then raise the caps.
-6. **Grow Vault revenue:** a new legendary character each month, limited-time frames, and Pass-only characters.
+6. **Grow Vault revenue:** a new legendary avatar drop each month, limited-time frames, and Pass-only avatars.
 
 ## 10. Commands
 
@@ -297,7 +345,10 @@ hosting and Neon, and reading alerts.
 server.js              routes, boot sequence, admin API, share links, health
 lib/boot.js            migrations + test account at start-up
 lib/pool.js            Survivor: rounds, fair draw, Kohler seats, sandbox, admin API
-lib/vault.js           Vault items, buying, equipping
+lib/security.js        rate limits, admin 2FA codes, security headers, same-origin check
+lib/vault.js           Vault items (frames, effects, Pass), buying, equipping
+lib/avatars/           AI avatars: style.js (art direction, prompts, filters), providers.js (Cloudflare),
+                       images.js (checks, WebP, duplicates), index.js (queue, shop, custom orders, admin)
 lib/payouts.js         automatic BTC payouts and their rules
 lib/autopilot.js       self-checks, alerts, cleanup
 lib/chain.js           Bitcoin: addresses, deposits, sweeping, hot wallet, signing
@@ -306,5 +357,5 @@ public/casino.html     the casino: lobby, Survivor, Vault, limits
 public/assets/         survivor.js, vault.js, characters.js, brand.js (logo, coin, win effects), avatar.js, icons/
 public/studio/play.html  game client for every original, slot and table
 public/index.html      shop     public/admin.html  Kohler Control     public/kohler.css  shop styles
-db/migrations/         009 = Survivor, Vault, payouts
+db/migrations/         009 = Survivor, Vault, payouts · 010 = order contact · 011 = avatars · 013 = security
 ```

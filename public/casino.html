@@ -12,6 +12,7 @@
 <script src="/assets/avatar.js"></script>
 <script src="/assets/characters.js"></script>
 <script src="/assets/brand.js"></script>
+<script src="/assets/faces.js"></script>
 <script src="/assets/withdraw.js" defer></script>
 <script src="/assets/survivor.js" defer></script>
 <script src="/assets/vault.js" defer></script>
@@ -237,7 +238,7 @@ body.nav-open .scrim{display:block}
 .sv-seat.out .av:after{content:"";position:absolute;inset:-6px;background:linear-gradient(45deg,transparent 46%,var(--rose) 46% 54%,transparent 54%)}
 .sv-seat.safe .av{box-shadow:0 0 0 2px var(--neon),0 0 26px rgba(0,255,102,.45);animation:bob .6s ease 2}
 @keyframes bob{50%{transform:translateY(-6px)}}
-@media(max-width:560px){.sv-seat .av{width:46px;height:46px;border-radius:14px}.sv-seat .av svg{width:46px;height:46px}.sv-seat .nm{font-size:11px;max-width:70px}}
+@media(max-width:560px){.sv-seat .av{width:46px;height:46px;border-radius:14px}.sv-seat .av svg,.sv-seat .av img{width:46px!important;height:46px!important}.sv-seat .nm{font-size:11px;max-width:70px}}
 .sv-action{max-width:520px;margin:18px auto 0}
 .sv-fine{color:var(--dim);font-size:13.5px;text-align:center;margin:0 0 12px}
 .sv-banner{display:flex;flex-direction:column;align-items:center;gap:2px;padding:14px;border-radius:16px;margin-bottom:12px;background:var(--slate);border:1px solid var(--line2);text-align:center;animation:fin .3s}
@@ -277,6 +278,25 @@ body.nav-open .scrim{display:block}
 .vt.epic{border-color:rgba(139,92,246,.45)}
 .vt.on{border-color:var(--neon);box-shadow:0 0 0 1px var(--neon)}
 .vt .own{position:absolute;top:8px;right:8px}
+.vt .show.img{background:#0b0f16}
+.vt .show.img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .35s}
+.vt.av:hover .show.img img{transform:scale(1.05)}
+.vt.av .meta{gap:8px}
+.mk-card{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:22px;border-radius:22px;margin-bottom:18px;
+  background:radial-gradient(80% 140% at 100% 0,rgba(232,196,106,.22),transparent 60%),radial-gradient(60% 120% at 0 100%,rgba(0,255,102,.1),transparent 60%),var(--slate);border:1.5px solid rgba(232,196,106,.6)}
+.mk-card h2{font-family:var(--display);margin:10px 0 0;font-size:22px;letter-spacing:-.03em}
+.mk-faces{display:grid;grid-template-columns:repeat(2,54px);gap:6px;transform:rotate(-4deg)}
+.mk-faces img{width:54px;height:54px;border-radius:14px;object-fit:cover;box-shadow:0 6px 16px rgba(0,0,0,.5)}
+.mk-faces:empty{display:none}
+.mk-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.mk-slot{position:relative;aspect-ratio:1;border-radius:18px;overflow:hidden;background:var(--slate2);border:1px solid var(--line2)}
+.mk-slot img{width:100%;height:100%;object-fit:cover;display:block;animation:pop .45s cubic-bezier(.2,1.6,.4,1)}
+.mk-slot.done{cursor:pointer}.mk-slot.done:hover{border-color:var(--neon);box-shadow:0 0 0 2px var(--neon)}
+.mk-slot.wait{background:linear-gradient(110deg,var(--slate2) 30%,#26324a 50%,var(--slate2) 70%);background-size:220% 100%;animation:sk 1.3s infinite}
+.mk-slot.wait:after{content:"";position:absolute;inset:0;margin:auto;width:36px;height:36px;background:var(--gold);opacity:.5;-webkit-mask:url(/assets/icons/sparkles.svg) center/contain no-repeat;mask:url(/assets/icons/sparkles.svg) center/contain no-repeat}
+.mk-slot.fail{opacity:.35}
+.chips-wrap{display:flex;flex-wrap:wrap;gap:6px}
+.chips-wrap .pill{text-transform:capitalize}
 .pass-card{display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:center;padding:22px;border-radius:22px;margin-bottom:22px;
   background:radial-gradient(80% 140% at 0 0,rgba(167,139,250,.25),transparent 60%),var(--slate);border:1px solid rgba(167,139,250,.5)}
 @media(max-width:700px){.pass-card{grid-template-columns:1fr}}
@@ -333,6 +353,7 @@ body.test .game{top:calc(var(--top) + 28px)}
     <a href="#" data-w="deposit"><span class="i" style="--u:url(/assets/icons/wallet.svg)"></span>Wallet</a>
     <a href="#" data-w="history"><span class="i" style="--u:url(/assets/icons/receipt-text.svg)"></span>Transactions</a>
     <a href="#/limits" data-r="limits"><span class="i" style="--u:url(/assets/icons/shield-check.svg)"></span>Limits &amp; cool-off</a>
+    <a href="/rules.html"><span class="i" style="--u:url(/assets/icons/info.svg)"></span>Rules &amp; fees</a>
     <a href="/"><span class="i" style="--u:url(/assets/icons/house.svg)"></span>Kohler shop</a>
   </nav>
   <div class="vip" id="vip"></div>
@@ -386,8 +407,8 @@ const buzz = (p) => { try { navigator.vibrate?.(p); } catch {} };
 /* ── faces: equipped character + frame, else the generated emblem ── */
 function userFace(u, size) {
   if (!u) return ic('user', 20);
-  const ch = KV[u.equip?.character], fr = KV[u.equip?.frame];
-  const inner = ch ? KohlerCharacter(ch.art, { size, bg: true }) : KohlerAvatar(u.username, { size, tier: KohlerAvatar.tier(u.xp) });
+  const fr = KV[u.equip?.frame];
+  const inner = KohlerFace.html(u.username, u.equip, size);
   return `<span style="position:relative;display:block;width:${size}px;height:${size}px">${inner}${fr ? KohlerCharacter.frame(fr.art, size) : ''}</span>`;
 }
 
@@ -494,16 +515,17 @@ function lobby() {
   const L = Survivor.live();
   const fill = (t) => t.round.seats / t.maxSeats, hot = ['squad', 'classic', 'duel', 'blitz'].map((m) => (L?.tables || []).filter((t) => t.round && t.mode === m).sort((a, b) => fill(b) - fill(a))[0]).filter(Boolean).sort((a, b) => fill(b) - fill(a)).slice(0, 3);
   const mini = (id, blurb) => { const g = byId(id); return g ? `<button class="mini" data-g="${g.id}">${art(g, true)}<div><h3>${esc(g.name)}</h3><p>${blurb}</p></div></button>` : ''; };
-  const orbit = ['ch-midas', 'ch-glitch', 'ch-ember', 'ch-oracle', 'ch-kumo', 'ch-bruno'].map((id, i) => { const a = i / 6 * 6.283; return `<span style="left:${50 + 50 * Math.cos(a)}%;top:${50 + 50 * Math.sin(a)}%"><span style="display:block">${KV[id] ? KohlerCharacter(KV[id].art, { size: 54 }) : ''}</span></span>`; }).join('');
+  const showcase = [...KohlerFace.list].sort((a, b) => b.price - a.price).slice(0, 6);
+  const orbit = showcase.map((av, i) => { const a = i / 6 * 6.283; return `<span style="left:${50 + 50 * Math.cos(a)}%;top:${50 + 50 * Math.sin(a)}%"><span style="display:block">${KohlerFace.html('', { avatar: av.id }, 62, 20)}</span></span>`; }).join('');
   $('#view').innerHTML = `
     ${CS.cat === 'all' && !CS.q ? `<section class="hero">
       <div class="feat"><div class="ring"></div><div class="orbit">${orbit}</div>
         <div><span class="tag">${ic('flame', 14)}Kohler's main event</span>
-          <h1>Survivor</h1><p>Everyone stakes the same. One player gets knocked out. Everyone else gets their stake back plus an equal share of the knocked-out stake.</p></div>
+          <h1>Survivor</h1><p>One gets knocked out. Everyone else splits their stake.</p></div>
         <div class="hot-list">${hot.map((t) => `<a class="hot" href="#/survivor/${t.code}"><span class="live-dot"></span><div><b>${esc(({ duel: 'Duel', classic: 'Classic', squad: 'Squad', blitz: 'Blitz' })[t.mode] || t.name)} ${money(t.stake).replace('.00', '')}</b>
             <div class="muted" style="font-size:12px">${t.round.seats}/${t.maxSeats} seated</div></div>
             <span class="dots">${Array.from({ length: t.maxSeats }, (_, i) => `<i class="${i < t.round.seats ? 'f' : ''}"></i>`).join('')}</span></a>`).join('')}</div>
-        <div class="row" style="flex-wrap:wrap"><a class="btn neon lg" href="#/survivor">${ic('flame', 18)}Play Survivor</a><a class="btn lg" href="#/vault">${ic('gem', 17, 'color:var(--gold)')}Pick a character</a></div></div>
+        <div class="row" style="flex-wrap:wrap"><a class="btn neon lg" href="#/survivor">${ic('flame', 18)}Play Survivor</a><a class="btn lg" href="#/vault">${ic('gem', 17, 'color:var(--gold)')}Pick an avatar</a></div></div>
       <div class="side-cards">
         ${mini('ks-rocket', 'Ride the multiplier. Cash out before it blows.')}
         ${mini('ks-mines', 'Find gems, dodge mines, bank whenever you like.')}
@@ -524,7 +546,7 @@ function paintSections() {
   if (CS.cat === 'recent') html = sec('Recently played', CS.recent.map(byId).filter(Boolean));
   else if (CS.cat === 'all') {
     if (CS.recent.length && !q) html += sec('Jump back in', CS.recent.map(byId).filter(Boolean).slice(0, 6));
-    html += sec('Kohler Originals', orig, 'Made in-house. Every result provably fair.', svPre) + sec('Slots', list.filter((g) => g.category === 'slots')) + sec('Table games', list.filter((g) => g.category === 'table'));
+    html += sec('Kohler Originals', orig, '', svPre) + sec('Slots', list.filter((g) => g.category === 'slots')) + sec('Table games', list.filter((g) => g.category === 'table'));
   } else if (CS.cat === 'originals') html = sec('Kohler Originals', orig, '', svPre);
   else html = sec(CATS.find((c) => c[0] === CS.cat)?.[1] || 'Games', list.filter((g) => g.category === CS.cat));
   if (!html) html = CS.games.length ? `<div class="empty">${ic('search', 40)}<h3>Nothing called "${esc(CS.q)}"</h3><p>Try "rocket", "dragon" or "gold".</p></div>`
@@ -589,13 +611,13 @@ async function wallet(tab = 'deposit') {
     const w = await api('/wallet');
     if (tab === 'deposit') {
       body.innerHTML = w.test
-        ? `<p style="color:var(--dim);margin-top:0">This is a test account. Add fake money and play everything for real, risk free.</p>
+        ? `<p style="color:var(--dim);margin-top:0">Test account. Fake money only.</p>
            <div class="row" style="flex-wrap:wrap">${[10000, 50000, 100000].map((c) => `<button class="btn neon" data-add="${c}">Add ${money(c).replace('.00', '')}</button>`).join('')}</div>`
-        : w.address ? `<p style="color:var(--dim);margin-top:0">Send Bitcoin to your personal address. It's credited in dollars after confirmation.</p>
+        : w.address ? `<p style="color:var(--dim);margin-top:0">Your personal Bitcoin address.</p>
            <div style="display:flex;justify-content:center;margin:8px 0 14px"><img src="${w.qr}" alt="Deposit QR code" style="width:180px;height:180px;border-radius:14px;background:#fff;padding:8px"></div>
            <div class="addr" id="addr">${esc(w.address)}</div><button class="btn wide" style="margin-top:10px" id="cp">${ic('layers', 16)}Copy address</button>
            <div id="incoming">${KohlerWithdraw.incoming(w.incoming, esc)}</div>
-           <p style="color:var(--faint);font-size:12.5px;margin:12px 0 0">Send Bitcoin only. Deposits are credited after ${w.minConfirmations || 2} confirmations, and you'll see them here as soon as they're on the way.</p>`
+           <p style="color:var(--faint);font-size:12.5px;margin:12px 0 0">Send Bitcoin only. Credited after ${w.minConfirmations || 2} confirmations.</p>`
         : `<p style="color:var(--dim)">Deposits aren't available right now${w.addressError ? ': ' + esc(w.addressError) : ''}.</p>`;
       body.querySelectorAll('[data-add]').forEach((b) => b.onclick = async () => { b.disabled = true; try { await api('/wallet/test-topup', { method: 'POST', body: { amountCents: +b.dataset.add } }); await refreshMe(); toast('Test money added'); } catch (e) { toast(e.message); } b.disabled = false; });
       $('#cp')?.addEventListener('click', () => { navigator.clipboard?.writeText(w.address); toast('Address copied'); });
@@ -698,7 +720,9 @@ async function loadGames() {
   $('#navRecent').classList.toggle('hide', !CS.recent.length);
 }
 async function loadVault() {
-  const v = await api('/vault'); CS.vault = v; window.KV = Object.fromEntries(v.items.map((i) => [i.id, i]));
+  const [v, a] = await Promise.all([api('/vault'), api('/avatars').catch(() => null)]);
+  CS.vault = v; window.KV = Object.fromEntries(v.items.map((i) => [i.id, i]));
+  if (a) { CS.avatars = a; KohlerFace.set(a.avatars); }
 }
 addEventListener('hashchange', route);
 addEventListener('DOMContentLoaded', async () => {
