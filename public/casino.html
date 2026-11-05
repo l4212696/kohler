@@ -479,7 +479,7 @@ async function refreshMe() {
   try { me = await api('/me'); CS.user = me.user; } catch { CS.user = null; }
   paintMe();
   // new badges and a longer streak get a moment of celebration
-  for (const b of me?.newBadges || []) setTimeout(() => { toast(`${b.icon} Badge unlocked: ${b.name}${b.reward && KV[b.reward] ? ` · ${KV[b.reward].name} is yours` : ''}`); KohlerFX.play('fx-confetti'); }, 400);
+  for (const b of me?.newBadges || []) setTimeout(() => { toast(`${b.icon} Badge unlocked: ${b.name}${b.reward && KV[b.reward] ? ` · ${KV[b.reward].name} is yours` : ''}`); try { KohlerFX.play('fx-confetti'); } catch {} }, 400);
   const st = CS.user?.streak || 0;
   if (CS.lastStreak !== undefined && st > CS.lastStreak && st > 1) setTimeout(() => toast(`🔥 ${st}-day streak · XP ×${CS.user.mult}`), 900);
   CS.lastStreak = st;
@@ -497,7 +497,7 @@ function paintVip() {
 // balance pushed from inside the game iframe (same origin only)
 addEventListener('message', (e) => {
   if (e.origin !== location.origin || !CS.user) return;
-  if (e.data?.type === 'kohler-win-fx') return KohlerFX.play(CS.user.equip?.effect, KV[CS.user.equip?.effect]?.art || CS.user.equipArt?.effect);
+  if (e.data?.type === 'kohler-win-fx') { try { KohlerFX.play(CS.user.equip?.effect, KV[CS.user.equip?.effect]?.art || CS.user.equipArt?.effect); } catch (err) { console.warn('[fx]', err); } return; }
   if (e.data?.type !== 'kohler-balance' || e.data.demo) return;
   const c = Math.round(Number(e.data.balance) * 100); if (Number.isFinite(c)) { CS.user.balance = c; paintBalance(c, { flash: e.data.won > 0 }); }
 });

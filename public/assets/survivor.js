@@ -205,7 +205,7 @@
     }
     document.querySelectorAll('.sv-seat:not(.out):not(.open)').forEach((x) => x.classList.add('safe'));
     $('#svBig').textContent = '+' + money(round.share); $('#svSub').textContent = `${k - losers.length} survived`;
-    if (wasIn && !iLost) { [523, 659, 784, 1047].forEach((f, i) => tone(f, .2, 'triangle', .07, i * .07)); buzz([30, 60, 30, 60, 140]); KohlerFX?.play(CS.user?.equip?.effect); }
+    if (wasIn && !iLost) { [523, 659, 784, 1047].forEach((f, i) => tone(f, .2, 'triangle', .07, i * .07)); buzz([30, 60, 30, 60, 140]); try { KohlerFX?.play(CS.user?.equip?.effect); } catch (e) { console.warn('[fx]', e); } }
     await sleep(2200);
     if (gone()) return;
     SV.ceremony = false;

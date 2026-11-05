@@ -1688,6 +1688,9 @@ const PUBLIC = path.join(__dirname, 'public'), hasPublic = existsSync(path.join(
 const page = (file) => (req, res) => (hasPublic ? res.sendFile(path.join(PUBLIC, file)) : res.redirect(302, '/' + file + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '')));
 app.get(['/admin', '/admin/'], page('admin.html'));
 app.get(['/casino', '/casino/'], page('casino.html'));
+// a missing file (an icon, a script, a game page) is a 404, never the home page in disguise:
+// that made a half-uploaded deploy look like blank games and missing icons instead of an error
+app.use((req, res, next) => (/\.[a-z0-9]{2,5}$/i.test(req.path) && !req.path.endsWith('.html') || req.path.startsWith('/studio/') || req.path.startsWith('/assets/') ? res.status(404).type('text').send('Not found: ' + req.path) : next()));
 app.use((req, res) => (hasPublic ? res.sendFile(path.join(PUBLIC, 'index.html')) : req.path === '/' ? res.status(404).send('Not found') : res.redirect(302, '/')));
 
 const port = process.env.PORT || 3001;

@@ -116,7 +116,8 @@
     if (!window.KohlerFX || window.KohlerFX.__emoji) return;
     const base = window.KohlerFX.play;
     window.KohlerFX.play = (id, art) => {
-      const a = art || window.KV?.[id]?.art || (window.KohlerEquipArt?.effectId === id ? window.KohlerEquipArt.effect : null);
+      // no effect equipped → the default confetti (this used to crash when nothing was equipped)
+      const a = art || (id && window.KV?.[id]?.art) || (id && window.KohlerEquipArt?.effectId === id ? window.KohlerEquipArt?.effect : null);
       if (a?.emoji) return emojiFX(a);
       return base(id);
     };
