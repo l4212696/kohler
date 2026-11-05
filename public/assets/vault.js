@@ -142,7 +142,7 @@
   function confirmBuy({ title, blurb, price, art, go }) {
     $('#mbox').innerHTML = `<div style="display:grid;place-items:center;padding:4px 0 14px">${art}</div>
       <h2 style="font-family:var(--display);margin:0 0 4px;text-align:center">${esc(title)}</h2>${blurb ? `<p class="muted" style="text-align:center;margin:0 0 16px">${esc(blurb)}</p>` : ''}
-      <div class="panelx"><div class="kv"><span>Price</span><b class="num">${money(price)}</b></div><div class="kv"><span>Paid from</span><b>${CS.user.testMode ? 'Test balance' : 'Your balance'} (${money(CS.user.balance)})</b></div></div>
+      <div class="panelx"><div class="kv"><span>Price</span><b class="num">${money(price)}</b></div><div class="kv"><span>Paid from</span><b>Your balance (${money(CS.user.balance)})</b></div></div>
       <button class="btn gold wide lg" id="vbuy">Buy for ${money(price)}</button><button class="btn ghost wide" style="margin-top:6px" onclick="document.getElementById('modal').classList.remove('on')">Not now</button>`;
     $('#modal').classList.add('on');
     $('#vbuy').onclick = async () => {
@@ -195,7 +195,7 @@
         <div class="field"><span>Scene</span>${chips('background', opts.backgrounds)}</div>
         <div class="err" id="bErr"></div>
         <button class="btn gold wide lg" id="bGo">${ic('sparkles', 17)}Paint ${d.images} for ${money(d.price)}</button>
-        <p class="muted" style="font-size:12px;text-align:center;margin:8px 0 0">${CS.user.testMode ? 'Test balance' : 'Balance'} ${money(CS.user.balance)}. Failed paints are refunded.</p>`;
+        <p class="muted" style="font-size:12px;text-align:center;margin:8px 0 0">Balance ${money(CS.user.balance)}. Failed paints are refunded.</p>`;
       const P = $('#bP');
       P.oninput = () => { sel.prompt = P.value; CS.avDraft = { ...sel }; $('#bN').textContent = `${P.value.length}/200`; };
       $('#mbox').querySelectorAll('[data-k]').forEach((b) => (b.onclick = () => { sel[b.dataset.k] = b.dataset.v; CS.avDraft = { ...sel }; buzz(5); paint(); }));

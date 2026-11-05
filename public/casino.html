@@ -405,7 +405,6 @@ body.test .game{top:calc(var(--top) + 28px)}
   <button class="btn ghost sm hide-m" id="wd">Withdraw</button>
   <button class="mebtn" id="me" aria-label="Account"></button>
 </header>
-<div class="testbar hide" id="testbar">Test account: fake money, nothing here is real. <button type="button" class="tb-out" onclick="fetch('/api/auth/logout',{method:'POST'}).then(()=>location.reload())">Sign out</button></div>
 
 <main id="view"></main>
 
@@ -469,9 +468,9 @@ function applyCosmetics() {
 function paintMe() {
   const u = CS.user;
   applyCosmetics();
-  document.body.classList.toggle('test', !!u?.testMode); $('#testbar').classList.toggle('hide', !u?.testMode);
+  
   $('#me').innerHTML = userFace(u, 44);
-  if (u) { $('#balLab').textContent = u.testMode ? 'Test balance' : 'Balance'; paintBalance(u.balance); }
+  if (u) { $('#balLab').textContent = 'Balance'; paintBalance(u.balance); }
   else { $('#amt').textContent = 'Sign in'; CS.shown = null; }
   paintVip();
 }
@@ -700,15 +699,15 @@ async function wallet(tab = 'deposit') {
     const w = await api('/wallet');
     if (tab === 'deposit') {
       body.innerHTML = w.test
-        ? `<p style="color:var(--dim);margin-top:0">Test account. Fake money only.</p>
-           <div class="row" style="flex-wrap:wrap">${[10000, 50000, 100000].map((c) => `<button class="btn neon" data-add="${c}">Add ${money(c).replace('.00', '')}</button>`).join('')}</div>`
+        ? `<p style="color:var(--dim);margin-top:0">Pick an amount. It lands in your balance straight away.</p>
+           <div class="row" style="flex-wrap:wrap">${[10000, 50000, 100000].map((c, i) => `<button class="btn ${i ? '' : 'neon'}" data-add="${c}">${money(c).replace('.00', '')}</button>`).join('')}</div>`
         : w.address ? `${w.firstOffer ? `<div style="padding:12px 14px;border-radius:14px;border:1px solid rgba(232,196,106,.5);background:linear-gradient(135deg,rgba(232,196,106,.14),transparent 70%);margin-bottom:12px"><b style="color:var(--gold)">${w.firstOffer.pct === 100 ? 'Your first deposit is doubled' : w.firstOffer.pct + '% bonus on your first deposit'}</b><div style="color:var(--dim);font-size:13px">${w.firstOffer.pct}% match up to ${money(w.firstOffer.cap)}, played ${w.firstOffer.wagerX}× before withdrawing.</div></div>` : ''}${w.friendOffer ? `<div style="padding:12px 14px;border-radius:14px;border:1px solid rgba(232,196,106,.5);background:linear-gradient(135deg,rgba(232,196,106,.14),transparent 70%);margin-bottom:12px"><b style="color:var(--gold)">${money(w.friendOffer.reward)} from your invite</b><div style="color:var(--dim);font-size:13px">Deposit ${money(w.friendOffer.minDeposit)} or more to get it, played ${w.friendOffer.wagerX}× before withdrawing.</div></div>` : ''}<p style="color:var(--dim);margin-top:0;display:flex;align-items:center"><img src="/assets/btc.png" alt="" width="22" height="22" style="vertical-align:-5px;margin-right:8px">Your personal Bitcoin address.</p>
            <div style="display:flex;justify-content:center;margin:8px 0 14px"><div class="qrcard" style="width:212px"><span class="qrwrap"><img class="qrimg" src="${w.qr}" alt="Bitcoin deposit QR code"><img class="qrbtc" src="/assets/btc.png" alt=""></span><div class="qrfoot"><img src="/assets/logo.svg" alt="" width="16" height="16"><b>Kohler</b><span>· Bitcoin deposit</span></div></div></div>
            <div class="addr" id="addr">${esc(w.address)}</div><button class="btn wide" style="margin-top:10px" id="cp">${ic('layers', 16)}Copy address</button>
            <div id="incoming">${KohlerWithdraw.incoming(w.incoming, esc)}</div>
            <p style="color:var(--faint);font-size:12.5px;margin:12px 0 0">Send Bitcoin only. Credited after ${w.minConfirmations || 2} confirmations.</p>`
         : `<p style="color:var(--dim)">Deposits aren't available right now${w.addressError ? ': ' + esc(w.addressError) : ''}.</p>`;
-      body.querySelectorAll('[data-add]').forEach((b) => b.onclick = async () => { b.disabled = true; try { await api('/wallet/test-topup', { method: 'POST', body: { amountCents: +b.dataset.add } }); await refreshMe(); toast('Test money added'); } catch (e) { toast(e.message); } b.disabled = false; });
+      body.querySelectorAll('[data-add]').forEach((b) => b.onclick = async () => { b.disabled = true; try { await api('/wallet/test-topup', { method: 'POST', body: { amountCents: +b.dataset.add } }); await refreshMe(); toast('Added to your balance'); } catch (e) { toast(e.message); } b.disabled = false; });
       $('#cp')?.addEventListener('click', () => { navigator.clipboard?.writeText(w.address); toast('Address copied'); });
       // while the deposit tab is open, check for incoming payments every 20s
       clearInterval(CS.depPoll); CS.depPoll = setInterval(async () => {
@@ -748,7 +747,7 @@ function viewAccount() {
   const u = CS.user;
   $('#view').innerHTML = `<div class="stack" style="max-width:760px">
     <div style="display:flex;align-items:center;gap:16px"><div style="width:64px;height:64px">${userFace(u, 64)}</div>
-      <div><h1 style="font-size:32px">${esc(u.username)}</h1><p class="muted">${esc(u.email)}${u.isAdmin ? ` <span class="pill">${u.adminRole === 'god' ? 'Full admin' : 'Catalog admin'}</span>` : ''}${u.testMode ? ' <span class="pill" style="color:var(--gold)">Test account</span>' : ''}</p></div></div>
+      <div><h1 style="font-size:32px">${esc(u.username)}</h1><p class="muted">${esc(u.email)}${u.isAdmin ? ` <span class="pill">${u.adminRole === 'god' ? 'Full admin' : 'Catalog admin'}</span>` : ''}</p></div></div>
     ${u.isAdmin ? `<a class="panel" href="/admin" style="display:flex;justify-content:space-between;align-items:center"><div><h3>Admin panel</h3><p class="muted" style="font-size:14px">Manage the Kohler casino and its content.</p></div><span class="btn neon">Open</span></a>` : ''}
     <div class="panel"><h3 style="margin-bottom:14px">Username</h3><form id="uf" style="display:flex;gap:10px"><input class="inp" type="text" id="uName" value="${esc(u.username)}" minlength="3" maxlength="24"><button class="btn" type="submit">Save</button></form></div>
     <form class="panel" id="pf"><h3 style="margin-bottom:14px">Password</h3>

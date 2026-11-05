@@ -106,9 +106,9 @@
       const s = seats[i], p = pos(i, n), st = `left:${p.l}%;top:${p.t}%`;
       if (!s) return `<div class="sv-seat open" data-i="${i}" style="${st}"><div class="av">${ic('user', 22)}</div><div class="nm">open</div></div>`;
       const fresh = prevKeys && !prevKeys.has(s.index + s.name);
-      const fr = s.frame && window.KV?.[s.frame]?.art ? KohlerCharacter.frame(window.KV[s.frame].art, 58) : '';
+      const art = s.frameArt || (s.frame && window.KV?.[s.frame]?.art), fr = art ? KohlerCharacter.frame(art, 58) : '';
       return `<div class="sv-seat ${s.me ? 'me' : ''} ${s.isHouse ? 'house' : ''} ${fresh ? 'new' : ''} ${lost.includes(i) ? 'out' : ''} ${won && !lost.includes(i) ? 'safe' : ''}" data-i="${i}" style="${st}">
-        <div class="av">${face(s, 58)}${fr}</div><div class="nm">${s.me ? 'You' : esc(s.name)}${s.isHouse ? ' <span class="house-tag">House</span>' : ''}${s.bot ? ' <span class="house-tag">sim</span>' : ''}</div></div>`;
+        <div class="av">${face(s, 58)}${fr}</div><div class="nm">${s.me ? 'You' : esc(s.name)}${s.isHouse ? ' <span class="house-tag">House</span>' : ''}</div></div>`;
     }).join('');
   }
   function paint(d, prev) {
@@ -123,7 +123,7 @@
       if (added.length && n - d.seats.length === 1) { [440, 554, 659].forEach((f, i) => tone(f, .07, 'square', .025, i * .06)); buzz([12, 50, 12]); }
     }
     $('#view').innerHTML = `<div class="sv-top"><a class="iconbtn" href="#/survivor" aria-label="All tables">${ic('chevron-left', 18)}</a>
-        <div><h2>${esc(MODES[t.mode]?.[0] || t.name)} ${t.mode === 'crew' ? esc(t.name) : money(t.stake).replace('.00', '')}</h2><div class="muted" style="font-size:13px">${n} seats, ${L} knocked out${t.sandbox ? ' · <b style="color:var(--gold)">test table</b>' : ''}</div></div>
+        <div><h2>${esc(MODES[t.mode]?.[0] || t.name)} ${t.mode === 'crew' ? esc(t.name) : money(t.stake).replace('.00', '')}</h2><div class="muted" style="font-size:13px">${n} seats, ${L} knocked out</div></div>
         <div class="grow"></div><button class="btn sm" id="svShare">${ic('users', 15)}Invite</button></div>
       <div class="sv-layout"><section>
         <div class="sv-arena" id="arena"><div class="sv-ring"></div>

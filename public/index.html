@@ -168,7 +168,6 @@
     <a class="bal" id="bal" href="#/wallet"><i></i><span class="num">Sign in</span></a>
     <a class="avatar" id="av" href="#/account" aria-label="Account">?</a>
   </div>
-  <div class="testbar hide" id="testbar">Test mode: fake money and simulated players. Nothing you buy or win here is real. <button type="button" class="tb-out" onclick="fetch('/api/auth/logout',{method:'POST'}).then(()=>location.reload())">Sign out of the test account</button></div>
 </header>
 
 <main id="view"></main>
@@ -241,8 +240,6 @@ async function api(path, opts = {}) {
 let shownBal = null;
 function paintUser() {
   const u = S.user, el = $('#bal');
-  el.classList.toggle('test', !!u?.testMode);
-  $('#testbar').classList.toggle('hide', !u?.testMode);
   $('#av').innerHTML = u ? KohlerFace.html(u.username, u.equip, 40, 12) : '?';
   if (u && !KohlerFace.list.length && !S.facesLoading) { S.facesLoading = true; api('/avatars').then((a) => { KohlerFace.set(a.avatars); if (KohlerFace.list.length) $('#av').innerHTML = KohlerFace.html(u.username, u.equip, 40, 12); }).catch(() => {}); }
   $('#av').style.padding = u ? '0' : ''; $('#av').style.overflow = 'hidden';
@@ -548,7 +545,7 @@ async function buy() {
     try {
       const { order } = await api('/orders', { method: 'POST', body: { productId: opt.id, contact, note } });
       await refreshMe(); winSound(); buzz([12, 30, 12]);
-      const d = sheet(`<h2 style="margin-bottom:4px">${order.is_test ? 'Test order placed' : 'Paid. Here it is.'}</h2>
+      const d = sheet(`<h2 style="margin-bottom:4px">Paid. Here it is.</h2>
         <p class="muted" style="margin-bottom:16px">${esc(S.group.name)}, ${esc(opt.name)}. Also saved on your Orders page${order.receipt ? ', and we emailed you a copy' : ''}.</p>
         <label class="field"><span>Delivery</span><textarea readonly class="mono" style="min-height:140px">${esc(order.delivery || 'No delivery text was attached to this product.')}</textarea></label>
         <div style="display:flex;gap:10px"><button class="btn go" style="flex:1" id="cp">Copy</button><button class="btn" id="done">Go to orders</button></div>`);
@@ -577,16 +574,16 @@ async function viewWallet() {
   $('#view').innerHTML = `<div class="stack">
     <h1>Wallet</h1>
     <div class="wal">
-      <div class="panel ${test ? 'testpanel' : ''}">
-        <p class="muted" style="font-weight:600">${test ? 'Test balance (fake money)' : 'Balance'}</p>
+      <div class="panel">
+        <p class="muted" style="font-weight:600">Balance</p>
         <div class="balbig num" style="margin:6px 0 ${w.bonusLocked ? 6 : 18}px">${money(w.balance)}</div>
         ${w.bonusLocked ? `<p class="muted" style="font-size:13.5px;margin:0 0 16px">Includes <b style="color:var(--gold)">${money(w.bonusLocked)} bonus</b>. Play ${money(w.wagerLeft)} more and it's yours to withdraw.</p>` : ''}
-        ${test ? `<p class="muted" style="margin-bottom:14px">Fake money for testing. Nothing here is real.</p>
-          <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn warn" data-add="10000">Add $100</button><button class="btn" data-add="50000">Add $500</button><button class="btn" data-add="100000">Add $1,000</button></div>`
+        ${test ? ''
         : w.firstOffer || w.friendOffer ? `${w.firstOffer ? `<div class="offer"><b>${w.firstOffer.pct === 100 ? 'Your first deposit is doubled' : `${w.firstOffer.pct}% bonus on your first deposit`}</b><span>We match ${w.firstOffer.pct}% of it, up to ${money(w.firstOffer.cap)}${w.firstOffer.minDeposit ? ` (deposit at least ${money(w.firstOffer.minDeposit)})` : ''}. Play the bonus ${w.firstOffer.wagerX}× and it's yours to withdraw.</span></div>` : ''}${w.friendOffer ? `<div class="offer" style="margin-top:8px"><b>${money(w.friendOffer.reward)} from your invite</b><span>Deposit ${money(w.friendOffer.minDeposit)} or more and get ${money(w.friendOffer.reward)} of bonus money. Play it ${w.friendOffer.wagerX}× and it's yours to withdraw.</span></div>` : ''}`
         : `<a class="btn" href="#/refer">Invite friends, earn bonus money</a>`}
       </div>
-      ${test ? `<div class="panel"><h3>Deposits</h3><p class="muted" style="margin-top:8px">Test accounts use fake money.</p></div>`
+      ${test ? `<div class="panel"><h3 style="margin-bottom:12px">Add funds</h3><p class="muted" style="margin:0 0 14px">Pick an amount. It lands in your balance straight away.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">${[10000, 50000, 100000].map((c, i) => `<button class="btn ${i ? '' : 'go'}" data-add="${c}">${money(c).replace('.00', '')}</button>`).join('')}</div></div>`
       : `<div class="panel"><h3 style="margin-bottom:12px;display:flex;align-items:center"><img src="/assets/btc.png" alt="" width="22" height="22" style="vertical-align:-5px;margin-right:8px">Deposit Bitcoin</h3>${w.address ? `
         <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div class="qrcard" style="flex:0 0 190px;width:190px"><span class="qrwrap"><img class="qrimg" src="${w.qr}" alt="QR code for your Bitcoin deposit address"><img class="qrbtc" src="/assets/btc.png" alt=""></span><div class="qrfoot"><img src="/assets/logo.svg" alt="" width="16" height="16"><b>Kohler</b><span>· Bitcoin deposit</span></div></div>
           <div style="flex:1;min-width:200px"><div class="addr" id="addr">${esc(w.address)}</div><button class="btn wide" id="cpAddr" style="margin-top:10px">Copy address</button></div></div>
@@ -595,9 +592,9 @@ async function viewWallet() {
         : `<p class="muted">Deposits aren't available right now${w.addressError ? `: ${esc(w.addressError)}` : ''}.</p>`}</div>`}
     </div>
     <div class="wal">
-      <div class="panel"><h3 style="margin-bottom:14px">Withdraw${test ? ' (simulated)' : ''}</h3><div id="kwMount"></div><div id="kwList"></div></div>
+      <div class="panel"><h3 style="margin-bottom:14px">Withdraw</h3><div id="kwMount"></div><div id="kwList"></div></div>
       <div class="panel"><h3 style="margin-bottom:6px">Activity</h3><div class="rows act">${w.ledger.length ? w.ledger.map((l) => `<div>
-        <span><span class="k">${KIND[l.kind] || esc(l.kind)}${l.meta?.test ? ' <span class="pill">test</span>' : ''}</span><small>${new Date(l.created_at).toLocaleString()}</small></span>
+        <span><span class="k">${KIND[l.kind] || esc(l.kind)}</span><small>${new Date(l.created_at).toLocaleString()}</small></span>
         <b class="num ${Number(l.delta_cents) >= 0 ? 'in' : 'out'}">${Number(l.delta_cents) >= 0 ? '+' : ''}${money(l.delta_cents)}</b></div>`).join('') : '<div class="empty">Nothing yet. Your deposits, purchases and wins will show here.</div>'}</div></div>
     </div></div>`;
   $('#cpAddr')?.addEventListener('click', () => { navigator.clipboard?.writeText(w.address); toast('Address copied', 'good'); });
@@ -614,7 +611,7 @@ async function viewOrders() {
   const { orders } = await api('/orders');
   $('#view').innerHTML = `<div class="stack"><h1>Orders</h1><div class="panel orders">${orders.length ? orders.map((o) => `<div class="o">
       <div style="display:flex;justify-content:space-between;gap:12px"><b>${esc(o.group_name || 'Product')} <span class="muted" style="font-weight:500">${esc(o.name || '')}</span></b><b class="num">${money(o.price_cents)}</b></div>
-      <div class="muted" style="font-size:13px">${new Date(o.created_at).toLocaleString()} ${String(o.delivery || '').startsWith('TEST ORDER') ? '<span class="pill">test</span>' : ''}</div>
+      <div class="muted" style="font-size:13px">${new Date(o.created_at).toLocaleString()} </div>
       ${o.delivery ? `<button class="btn" style="margin-top:10px;height:38px" data-d="${esc(o.delivery)}">Show delivery</button>` : ''}</div>`).join('')
     : '<div class="empty">No orders yet. <a href="/" style="text-decoration:underline">Return to Kohler</a>.</div>'}</div></div>`;
   $('#view').querySelectorAll('[data-d]').forEach((b) => b.onclick = () => {
@@ -687,7 +684,7 @@ async function viewAccount() {
   const u = S.user;
   $('#view').innerHTML = `<div class="stack" style="max-width:760px">
     <div style="display:flex;align-items:center;gap:16px"><div class="avatar" style="width:64px;height:64px;font-size:26px;border-radius:18px">${esc(u.username[0].toUpperCase())}</div>
-      <div><h1 style="font-size:32px">${esc(u.username)}</h1><p class="muted">${esc(u.email)}${u.isAdmin ? ` <span class="pill">${u.adminRole === 'god' ? 'Full admin' : 'Catalog admin'}</span>` : ''}${u.testMode ? ' <span class="pill" style="color:var(--amber)">Test account</span>' : ''}</p></div></div>
+      <div><h1 style="font-size:32px">${esc(u.username)}</h1><p class="muted">${esc(u.email)}${u.isAdmin ? ` <span class="pill">${u.adminRole === 'god' ? 'Full admin' : 'Catalog admin'}</span>` : ''}</p></div></div>
     ${u.isAdmin ? `<a class="panel" href="/admin" style="display:flex;justify-content:space-between;align-items:center"><div><h3>Admin panel</h3><p class="muted" style="font-size:14px">Products, orders, users, Pool Pot and the house.</p></div><span class="btn go">Open</span></a>` : ''}
     <div class="panel"><h3 style="margin-bottom:14px">Username</h3><form id="uf" style="display:flex;gap:10px"><input type="text" id="uName" value="${esc(u.username)}" minlength="3" maxlength="24"><button class="btn" type="submit">Save</button></form></div>
     <form class="panel" id="pf"><h3 style="margin-bottom:14px">Password</h3>
