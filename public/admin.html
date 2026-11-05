@@ -468,7 +468,7 @@ V.casino = async () => {
       <div class="card hl kpi"><div class="l">Kept today</div><div class="v num gold">${money(d.totals.ggr24)}</div><div class="s">bets ${money(d.totals.b24)} − wins ${money(d.totals.w24)}</div></div>
       <div class="card kpi"><div class="l">Kept all-time</div><div class="v num">${money(d.totals.ggr)}</div><div class="s">on ${money(d.totals.bets)} of bets</div></div>
       <div class="card kpi"><div class="l">Games live</div><div class="v num">${d.games.filter((g) => g.active).length}/${d.games.length}</div><div class="s">switch any off below</div></div>
-      <div class="card kpi ${d.pendingWins ? 'bad' : ''}"><div class="l">Wins retrying</div><div class="v num">${d.pendingWins}</div><div class="s">credited automatically when the wallet answers</div></div>
+      <div class="card kpi ${d.pendingWins?.pending || d.pendingWins?.failed ? 'bad' : ''}"><div class="l">Wins retrying</div><div class="v num">${d.pendingWins?.pending || 0}</div><div class="s">${d.pendingWins?.failed ? `<b style="color:var(--rose)">${d.pendingWins.failed} need a look</b> (see logs)` : 'credited automatically when the wallet answers'}</div></div>
     </div>
     <div class="row" style="margin:22px 0 12px">${['all', 'Originals', 'Slots', 'Table'].map((x) => `<button class="btn sm ${x === filter ? 'neon' : ''}" data-cf="${x}">${x === 'all' ? 'All games' : x}</button>`).join('')}</div>
     <div class="card scroll" style="padding:6px 8px" id="gl"></div>`;

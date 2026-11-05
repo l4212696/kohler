@@ -85,7 +85,10 @@
     stop(); SV.code = code; connect(code);
     $('#view').innerHTML = `<div class="empty" style="border:0">Pulling up a chair…</div>`;
     await loadTable(code);
-    SV.poll = setInterval(() => !document.hidden && refetch(), 12000);
+    // a table you're seated at that fills with simulated players refreshes every 2.5s, so the room
+    // fills up live; otherwise every 12s (live updates also arrive over the stream)
+    let n = 0;
+    SV.poll = setInterval(() => { if (document.hidden) return; const fast = SV.t?.table?.sandbox && SV.t.seats?.some((x) => x.me); if (fast || ++n % 5 === 0) refetch(); }, 2500);
   }
   async function loadTable(code) {
     const d = await api('/pool/t/' + encodeURIComponent(code));

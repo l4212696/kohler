@@ -4,10 +4,12 @@
 (function () {
   let uid = 0;
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  // the ring between two rounded squares (the avatar is a rounded square too)
-  const RING = (w) => { const o = 2, i = 2 + w, ro = 28, ri = Math.max(6, 28 - w);
-    const rr = (x, s, r) => `M${x + r} ${x}H${x + s - r}A${r} ${r} 0 0 1 ${x + s} ${x + r}V${x + s - r}A${r} ${r} 0 0 1 ${x + s - r} ${x + s}H${x + r}A${r} ${r} 0 0 1 ${x} ${x + s - r}V${x + r}A${r} ${r} 0 0 1 ${x + r} ${x}Z`;
-    return rr(o, 100 - 2 * o, ro) + rr(i, 100 - 2 * i, ri); };
+  // Frames sit OUTSIDE the avatar, like a border: the avatar is the 0..100 square (rounded ~30%),
+  // the ring runs from its edge outwards. RING(w) is the band between the avatar's edge (with a
+  // hair of overlap so no gap shows) and a rounded square w units further out.
+  const R = 30, M = 12;   // avatar corner radius, and how far outside the avatar a frame may draw
+  const rr = (a, b, r) => { const s = b - a; return `M${a + r} ${a}H${a + s - r}A${r} ${r} 0 0 1 ${b} ${a + r}V${b - r}A${r} ${r} 0 0 1 ${a + s - r} ${b}H${a + r}A${r} ${r} 0 0 1 ${a} ${b - r}V${a + r}A${r} ${r} 0 0 1 ${a + r} ${a}Z`; };
+  const RING = (w) => rr(-w, 100 + w, R + w) + rr(1, 99, R - 1);
 
   // small repeating tiles; c = colours. Each returns [tile size, svg content]
   const PAT = {
@@ -41,17 +43,18 @@
 
   function KohlerFrame(art, size) {
     if (!art) return '';
-    const id = 'kf' + (++uid), wrap = (inner, glow) => `<svg viewBox="0 0 100 100" width="${size}" height="${size}" style="position:absolute;inset:0;pointer-events:none;overflow:visible${glow ? `;filter:drop-shadow(0 0 ${Math.max(2, size / 22)}px ${glow})` : ''}" aria-hidden="true">${inner}</svg>`;
-    const top = art.top ? `<text x="50" y="${art.top === '🎅' ? 16 : 13}" text-anchor="middle" font-size="${art.top === '🎅' ? 26 : 20}" style="font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif">${esc(art.top)}</text>` : '';
-    const crown = art.crown ? '<path d="M34 10l6-9 5 6 5-8 5 8 5-6 6 9Z" fill="#e8c46a" stroke="#7a5a12" stroke-width="1.2"/>' : '';
+    // the svg covers the avatar plus a margin all round, so the frame can wrap the avatar's edge
+    const px = size * M / 100, id = 'kf' + (++uid), wrap = (inner, glow) => `<svg viewBox="${-M} ${-M} ${100 + 2 * M} ${100 + 2 * M}" width="${size + 2 * px}" height="${size + 2 * px}" style="position:absolute;left:${-px}px;top:${-px}px;pointer-events:none;overflow:visible${glow ? `;filter:drop-shadow(0 0 ${Math.max(2, size / 22)}px ${glow})` : ''}" aria-hidden="true">${inner}</svg>`;
+    const top = art.top ? `<text x="50" y="${art.top === '🎅' ? 4 : 2}" text-anchor="middle" font-size="${art.top === '🎅' ? 26 : 20}" style="font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif">${esc(art.top)}</text>` : '';
+    const crown = art.crown ? '<path d="M34 -2l6-9 5 6 5-8 5 8 5-6 6 9Z" fill="#e8c46a" stroke="#7a5a12" stroke-width="1.2"/>' : '';
     const glow = art.glow === true ? art.ring : art.glow || null;
     if (art.flag) {
       return wrap(`<defs><clipPath id="${id}"><path d="${RING(7)}" clip-rule="evenodd"/></clipPath></defs>
-        <image href="/assets/flags/${esc(art.flag)}.webp" x="-6" y="-6" width="112" height="112" preserveAspectRatio="xMidYMid slice" clip-path="url(#${id})"/>
+        <image href="/assets/flags/${esc(art.flag)}.webp" x="-9" y="-9" width="118" height="118" preserveAspectRatio="xMidYMid slice" clip-path="url(#${id})"/>
         <path d="${RING(7)}" fill-rule="evenodd" fill="none" stroke="rgba(0,0,0,.35)" stroke-width=".8"/>${top}`);
     }
     if (art.emoji) {
-      const pts = [[50, 5], [83, 9], [95, 50], [83, 91], [50, 95], [17, 91], [5, 50], [17, 9]];
+      const pts = [[50, -3], [91, 1], [103, 50], [91, 99], [50, 103], [9, 99], [-3, 50], [9, 1]];
       return wrap(`<path d="${RING(5)}" fill-rule="evenodd" fill="${art.ring || '#e8c46a'}"/>
         ${pts.map(([x, y]) => `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="12" style="font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif">${esc(art.emoji)}</text>`).join('')}${crown}${top}`, glow);
     }
@@ -70,9 +73,9 @@
     // plain ring (the original frames)
     const ring = art.ring || '#e8c46a';
     return wrap(`<defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${ring}"/><stop offset=".5" stop-color="#fff"/><stop offset="1" stop-color="${ring}"/></linearGradient></defs>
-      <rect x="3" y="3" width="94" height="94" rx="28" fill="none" stroke="url(#${id})" stroke-width="5">
+      <rect x="-1.5" y="-1.5" width="103" height="103" rx="31.5" fill="none" stroke="url(#${id})" stroke-width="5">
         ${art.spin ? '<animate attributeName="stroke-dasharray" values="0 400;400 0;0 400" dur="3s" repeatCount="indefinite"/>' : ''}</rect>
-      ${art.facets ? '<path d="M3 30L30 3M70 3l27 27M97 70L70 97M30 97L3 70" stroke="#e6faff" stroke-width="2.5"/>' : ''}${crown}${top}`, glow);
+      ${art.facets ? '<path d="M-3 24L24 -3M76 -3l27 27M103 76L76 103M24 103L-3 76" stroke="#e6faff" stroke-width="2.5"/>' : ''}${crown}${top}`, glow);
   }
   window.KohlerFrame = KohlerFrame;
   if (window.KohlerCharacter) window.KohlerCharacter.frame = KohlerFrame;

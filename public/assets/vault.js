@@ -103,7 +103,7 @@
         <div class="num" style="margin-top:4px;color:var(--neon);font-weight:700">${money(u.balance)}</div></div></div>` : `<button class="btn neon lg" data-auth>Sign in to collect</button>`}</section>
       <div class="tabs">${TABS.map(([k, l, i]) => `<button class="tab ${tab === k ? 'on' : ''}" data-tab="${k}">${ic(i, 18)}${l}</button>`).join('')}</div>
       ${tab === 'avatar' ? avatarsTab()
-      : tab === 'pass' ? `<div class="pass-card"><div>${KohlerCharacter.frame({ ring: '#a78bfa', glow: true }, 96).replace('position:absolute;inset:0;', '')}</div>
+      : tab === 'pass' ? `<div class="pass-card"><div>${KohlerCharacter.frame({ ring: '#a78bfa', glow: true }, 96).replace(/position:absolute;left:[^;]+;top:[^;]+;/, '')}</div>
           <div><h2>Kohler Pass</h2><div class="muted">30 days. Buy again any time to stack another 30.</div>
             <ul><li>No service fee on shop orders</li><li>The Pass Holder frame and a Pass badge</li></ul>
             ${u?.passUntil ? `<p style="color:#c4b5fd;margin:10px 0 0">Active until ${new Date(u.passUntil).toLocaleString()}</p>` : ''}</div>

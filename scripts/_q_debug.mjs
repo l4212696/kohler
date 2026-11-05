@@ -1,0 +1,12 @@
+import 'dotenv/config';
+import pg from 'pg';
+const c = new pg.Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+await c.connect();
+const u = (await c.query(`select id, username, balance_cents, test_mode from users where test_mode order by created_at`)).rows;
+console.log(u.map((x) => `${x.username} bal=${x.balance_cents}`).join(' | '));
+const id = u.find((x) => x.username === 'testkohler')?.id || u[0]?.id;
+const led = (await c.query(`select created_at, kind, delta_cents, ref from ledger where user_id = $1 order by id desc limit 25`, [id])).rows;
+for (const l of led) console.log(l.created_at.toISOString().slice(5, 19), l.kind.padEnd(14), String(l.delta_cents).padStart(7), String(l.ref).slice(0, 40));
+const tx = (await c.query(`select created_at, kind, status, amount_cents, game_id, round_id from casino_transactions where user_id = $1 order by created_at desc limit 16`, [id])).rows;
+for (const t of tx) console.log('TX', t.created_at.toISOString().slice(5, 19), t.kind, t.status, t.amount_cents, t.game_id, String(t.round_id).slice(-12));
+await c.end();
