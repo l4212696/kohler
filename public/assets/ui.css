@@ -1,0 +1,109 @@
+/* Kohler UI kit: replaces the browser's own scrollbars, dropdowns, date pickers, number spinners,
+   checkboxes and autofill colours with Kohler-styled ones. Loaded on every page with ui.js.
+   Pages can tune it with --kx-accent (their main colour) and friends. */
+:root{
+  --kx-accent:#00ff66; --kx-bg:#0e131b; --kx-bg2:#151c27; --kx-line:rgba(255,255,255,.1); --kx-line2:rgba(255,255,255,.18);
+  --kx-text:#eef2f8; --kx-dim:#8b96aa; --kx-radius:12px; --kx-shadow:0 18px 50px rgba(0,0,0,.55);
+}
+
+/* ── no scrollbars anywhere (scrolling still works with wheel, trackpad, touch and keys) ── */
+*{scrollbar-width:none}
+*::-webkit-scrollbar{width:0;height:0;display:none}
+
+/* ── text you select, the caret, focus rings ── */
+::selection{background:color-mix(in srgb,var(--kx-accent) 35%,transparent);color:#fff}
+input,textarea{caret-color:var(--kx-accent)}
+:where(input,textarea,select,button,[tabindex]):focus-visible{outline:2px solid color-mix(in srgb,var(--kx-accent) 70%,transparent);outline-offset:2px}
+
+/* ── a baseline for any box a page didn't style itself (zero specificity: page styles win) ── */
+:where(input:not([type=checkbox],[type=radio],[type=range],[type=hidden],[type=file],[type=color]),textarea){
+  appearance:none;-webkit-appearance:none;background:var(--kx-bg);color:var(--kx-text);border:1px solid var(--kx-line);
+  border-radius:var(--kx-radius);padding:10px 12px;font:inherit;outline:none;transition:border-color .15s,box-shadow .15s}
+:where(input:not([type=checkbox],[type=radio],[type=range]),textarea):focus{border-color:color-mix(in srgb,var(--kx-accent) 60%,transparent);box-shadow:0 0 0 3px color-mix(in srgb,var(--kx-accent) 14%,transparent)}
+::placeholder{color:var(--kx-dim);opacity:.75}
+/* no drag-to-resize corner: boxes grow as you type instead (ui.js) */
+textarea{resize:none!important}
+
+/* number boxes: no up/down arrows */
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+/* search boxes: no browser clear button */
+input[type=search]::-webkit-search-cancel-button,input[type=search]::-webkit-search-decoration{-webkit-appearance:none}
+
+/* browser autofill keeps the dark look instead of turning yellow/blue */
+input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus,textarea:-webkit-autofill{
+  -webkit-text-fill-color:var(--kx-text);caret-color:var(--kx-accent);
+  -webkit-box-shadow:0 0 0 1000px var(--kx-bg) inset;box-shadow:0 0 0 1000px var(--kx-bg) inset;transition:background-color 9999s}
+
+/* ── checkboxes and radio buttons ── */
+input[type=checkbox],input[type=radio]{appearance:none;-webkit-appearance:none;width:20px;height:20px;margin:0;flex:0 0 auto;cursor:pointer;
+  display:inline-grid;place-items:center;vertical-align:middle;background:var(--kx-bg);border:1.5px solid var(--kx-line2);transition:.15s}
+input[type=checkbox]{border-radius:6px}
+input[type=radio]{border-radius:50%}
+input[type=checkbox]::after{content:"";width:10px;height:6px;border:solid #06140c;border-width:0 0 2.4px 2.4px;transform:translateY(-1px) rotate(-45deg) scale(0);transition:transform .15s}
+input[type=radio]::after{content:"";width:8px;height:8px;border-radius:50%;background:#06140c;transform:scale(0);transition:transform .15s}
+input[type=checkbox]:checked,input[type=radio]:checked{background:var(--kx-accent);border-color:var(--kx-accent)}
+input[type=checkbox]:checked::after{transform:translateY(-1px) rotate(-45deg) scale(1)}
+input[type=radio]:checked::after{transform:scale(1)}
+input[type=checkbox]:disabled,input[type=radio]:disabled{opacity:.45;cursor:not-allowed}
+
+/* ── sliders (any left on a page) ── */
+input[type=range]{appearance:none;-webkit-appearance:none;background:transparent;height:28px;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:var(--kx-line2)}
+input[type=range]::-moz-range-track{height:8px;border-radius:4px;background:var(--kx-line2)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;margin-top:-7px;border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.45)}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.45)}
+
+/* ── dropdowns (ui.js swaps every <select> for this) ── */
+.kx-native{position:absolute!important;opacity:0!important;pointer-events:none!important;width:1px!important;height:1px!important;overflow:hidden!important;clip-path:inset(50%)!important}
+.kx-sel{display:inline-flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;cursor:pointer;text-align:left;
+  background:var(--kx-bg);color:var(--kx-text);border:1px solid var(--kx-line);border-radius:var(--kx-radius);padding:0 12px;min-height:40px;font:inherit;font-weight:600;transition:border-color .15s,box-shadow .15s}
+.kx-sel:hover{border-color:var(--kx-line2)}
+.kx-sel[aria-expanded=true]{border-color:color-mix(in srgb,var(--kx-accent) 60%,transparent);box-shadow:0 0 0 3px color-mix(in srgb,var(--kx-accent) 14%,transparent)}
+.kx-sel:disabled{opacity:.5;cursor:not-allowed}
+.kx-sel .kx-v{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kx-sel .kx-v.ph{color:var(--kx-dim);font-weight:500}
+.kx-chev{width:16px;height:16px;flex:0 0 auto;opacity:.7;transition:transform .18s}
+.kx-sel[aria-expanded=true] .kx-chev{transform:rotate(180deg)}
+
+.kx-pop{position:fixed;z-index:2147483000;min-width:160px;max-height:min(320px,60vh);overflow:auto;padding:6px;border-radius:14px;
+  background:color-mix(in srgb,var(--kx-bg2) 96%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--kx-line2);box-shadow:var(--kx-shadow);color:var(--kx-text);font-size:14px;
+  animation:kx-in .14s cubic-bezier(.2,.9,.3,1);transform-origin:top}
+.kx-pop.up{transform-origin:bottom}
+@keyframes kx-in{from{opacity:0;transform:translateY(-4px) scale(.98)}}
+.kx-opt{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 10px;border-radius:9px;cursor:pointer;font-weight:550;white-space:nowrap}
+.kx-opt.act{background:rgba(255,255,255,.07)}
+.kx-opt[aria-selected=true]{color:var(--kx-accent)}
+.kx-opt[aria-selected=true]::after{content:"";width:9px;height:5px;border:solid currentColor;border-width:0 0 2px 2px;transform:translateY(-2px) rotate(-45deg)}
+.kx-opt[aria-disabled=true]{opacity:.4;cursor:not-allowed}
+.kx-grp{padding:8px 10px 4px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--kx-dim)}
+
+/* ── date & time picker (ui.js swaps date / datetime-local boxes for this) ── */
+.kx-cal{width:292px;padding:12px;max-height:none}
+.kx-cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.kx-cal-h b{font-weight:800}
+.kx-nav{width:32px;height:32px;border-radius:9px;border:1px solid var(--kx-line);background:transparent;color:var(--kx-text);cursor:pointer;display:grid;place-items:center}
+.kx-nav:hover{background:rgba(255,255,255,.06)}
+.kx-days{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.kx-days .wd{font-size:11px;font-weight:700;color:var(--kx-dim);padding:4px 0}
+.kx-day{height:36px;border-radius:9px;border:0;background:transparent;color:var(--kx-text);font:inherit;font-weight:600;cursor:pointer}
+.kx-day:hover{background:rgba(255,255,255,.07)}
+.kx-day.out{color:var(--kx-dim);opacity:.5}
+.kx-day.today{box-shadow:inset 0 0 0 1px var(--kx-line2)}
+.kx-day.on{background:var(--kx-accent);color:#06140c}
+.kx-time{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--kx-line)}
+.kx-time span{color:var(--kx-dim);font-size:13px;margin-right:auto}
+.kx-time input{width:52px;text-align:center;padding:8px 6px;font-weight:700}
+.kx-cal-f{display:flex;justify-content:space-between;gap:8px;margin-top:10px}
+.kx-btn{height:34px;padding:0 14px;border-radius:10px;border:1px solid var(--kx-line);background:transparent;color:var(--kx-text);font:inherit;font-weight:700;cursor:pointer}
+.kx-btn:hover{background:rgba(255,255,255,.06)}
+.kx-btn.pri{background:var(--kx-accent);border-color:var(--kx-accent);color:#06140c}
+
+/* ── confirm / prompt boxes (instead of the browser's grey ones) ── */
+.kx-dlg{position:fixed;inset:0;z-index:2147483001;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.6);animation:kx-fade .15s}
+@keyframes kx-fade{from{opacity:0}}
+.kx-dlg>div{width:min(420px,100%);padding:22px;border-radius:20px;background:var(--kx-bg2);border:1px solid var(--kx-line2);box-shadow:var(--kx-shadow);color:var(--kx-text);animation:kx-in .18s}
+.kx-dlg p{margin:0 0 16px;line-height:1.5}
+.kx-dlg input{width:100%;margin:0 0 16px}
+.kx-dlg .row{display:flex;justify-content:flex-end;gap:8px}
