@@ -1082,8 +1082,20 @@ adminRouter.use((req, res, next) => {
   if (!mfaFresh(req.user)) return res.status(403).json({ error: 'Enter the 6-digit code from your authenticator app.', need2fa: 'verify' });
   next();
 });
+// Finance: sees the money (overview, payouts, deposits, orders, players and game books) but can't
+// change anything, and never sees a player's email, contact details or delivered gift codes.
+const FINANCE_READ = /^\/(stats|payouts|withdrawals|claims|orders|users|house|autopilot)$|^\/(pool|casino|vault|promos)(\/|$)/;
+const stripPrivate = (v) => Array.isArray(v) ? v.map(stripPrivate) : v && typeof v === 'object' && !(v instanceof Date)
+  ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, k === 'email' || k === 'contact' || k === 'ip' || k === 'delivery' ? null : stripPrivate(x)])) : v;
 adminRouter.use((req, res, next) => {
-  if (req.user.admin_role === 'god') return next();
+  if (req.user.admin_role !== 'finance') return next();
+  if (req.method !== 'GET' || !FINANCE_READ.test(req.path)) return res.status(403).json({ error: 'Finance accounts can view, not change. Ask an owner.' });
+  const json = res.json.bind(res);
+  res.json = (body) => json(stripPrivate(body));
+  next();
+});
+adminRouter.use((req, res, next) => {
+  if (req.user.admin_role === 'god' || req.user.admin_role === 'finance') return next();
   const catalogWrite = req.method === 'POST' && /^\/(groups|products)(\/|$)/.test(req.path);
   const catalogRead = req.method === 'GET' &&
     (req.path === '/groups' || /^\/groups\/[^/]+\/products$/.test(req.path));
@@ -1326,7 +1338,7 @@ adminRouter.get('/security', async (_req, res) => {
 adminRouter.post('/users/:id/role', async (req, res) => {
   if (req.params.id === req.user.id) return res.status(400).json({ error: "You can't change your own role." });
   const isAdmin = !!req.body.isAdmin;
-  const role = req.body.role === 'god' ? 'god' : 'catalog';
+  const role = ['god', 'finance'].includes(req.body.role) ? req.body.role : 'catalog';
   await q('update users set is_admin = $2, admin_role = $3 where id = $1', [req.params.id, isAdmin, role]);
   await audit(req, 'user.role', { id: req.params.id, isAdmin, role });
   res.json({ ok: true });
