@@ -637,7 +637,7 @@ app.get('/api/wallet', requireUser, async (req, res) => {
 app.post('/api/wallet/test-topup', requireUser, async (req, res) => {
   if (!req.user.test_mode) return res.status(403).json({ error: 'Only test accounts can add test money.' });
   const amount = Math.min(100000, Math.max(100, cents(req.body.amountCents || 10000)));
-  if (Number(req.user.balance_cents) + amount > 10_000_000) return res.status(400).json({ error: 'Test balance is capped at $100,000.' });
+  if (Number(req.user.balance_cents) + amount > 10_000_000) return res.status(400).json({ error: 'Your balance can hold up to $100,000.' });
   await withTx((c) => move(c, req.user.id, amount, 'deposit', 'test', { test: true }));
   res.json({ added: amount });
 });
@@ -793,7 +793,7 @@ app.post('/api/wallet/bonus', requireUser, (_req, res) => res.status(410).json({
 // Manual claims for fiat rails (which settle to a bank, not to BTC) or for a tx
 // the watcher hasn't seen. Admin verifies against the chain and credits by hand.
 app.post('/api/wallet/claim', requireUser, async (req, res) => {
-  if (req.user.test_mode) return res.status(403).json({ error: 'Test accounts use "Add test money" instead.' });
+  if (req.user.test_mode) return res.status(403).json({ error: 'Use Add funds on the Deposit tab.' });
   if (!(await limit(`claim:${req.user.id}`, 6, 300_000))) return res.status(429).json({ error: 'slow down' });
   const method = 'btc';
   const txid = String(req.body.txid || '').trim().slice(0, 120);
