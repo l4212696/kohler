@@ -15,6 +15,8 @@
 <script src="/assets/pwa.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/ui.css">
+<script src="/assets/ui.js" defer></script>
 <link rel="stylesheet" href="/kohler.css">
 <script src="/assets/avatar.js"></script>
 <script src="/assets/faces.js"></script>
@@ -289,7 +291,7 @@ function authSheet(mode = 'in', then) {
     } catch (err) { $('#aErr').textContent = err.message; btn.disabled = false; buzz([30, 40, 30]); }
   };
   b.querySelector('#aMagic')?.addEventListener('click', async () => {
-    const email = ($('#aWho').value.includes('@') ? $('#aWho').value : '') || prompt('Email for your sign-in link:');
+    const email = ($('#aWho').value.includes('@') ? $('#aWho').value : '') || await KUI.prompt('Email for your sign-in link:', '', { ok: 'Send link' });
     if (!email) return;
     try {
       const r = await api('/auth/magic', { method: 'POST', body: { email } });

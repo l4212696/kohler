@@ -6,6 +6,8 @@
 <title>Kohler Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/ui.css">
+<script src="/assets/ui.js" defer></script>
 <style>
 :root{--a:#00ff66;--b:#07090d;--gold:#e8c46a;--win:#00ff66;--txt:#eef2f8;--dim:#93a0b5;--line:rgba(255,255,255,.1);--panel:rgba(8,10,16,.72)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
@@ -91,9 +93,18 @@ body.embed #titleBox{display:none}
 /* dice */
 .dice{width:min(94vw,600px);display:flex;flex-direction:column;gap:20px;align-items:center}
 .roll{font-family:Unbounded;font-weight:800;font-size:clamp(48px,14vw,96px)}
-.track{position:relative;width:100%;height:14px;border-radius:7px;background:linear-gradient(90deg,var(--win) 0 var(--t),#ff4d6d var(--t) 100%)}
-.track .mk{position:absolute;top:-9px;width:4px;height:32px;border-radius:2px;background:#fff;transition:left .5s cubic-bezier(.2,.9,.3,1)}
-.dice input[type=range]{width:100%;accent-color:var(--win)}
+.track{position:relative;width:100%;height:22px;margin:30px 0 8px;border-radius:11px;cursor:ew-resize;touch-action:none;user-select:none;-webkit-user-select:none;
+  background:linear-gradient(90deg,var(--win) 0 var(--t),#ff4d6d var(--t) 100%);box-shadow:inset 0 2px 6px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.06)}
+.track:before{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(255,255,255,.22),transparent 55%);pointer-events:none}
+.track .dv{position:absolute;top:50%;left:var(--t);width:12px;height:42px;margin-left:-6px;transform:translateY(-50%);border-radius:6px;background:#fff;
+  box-shadow:0 4px 14px rgba(0,0,0,.5),0 0 0 3px rgba(0,0,0,.18);outline:none;transition:transform .12s}
+.track .dv:after{content:"";position:absolute;left:50%;top:50%;width:2px;height:16px;margin:-8px 0 0 -1px;border-radius:1px;background:rgba(0,0,0,.18);box-shadow:-3px 0 0 rgba(0,0,0,.12),3px 0 0 rgba(0,0,0,.12)}
+.track.drag .dv,.track .dv:focus-visible{transform:translateY(-50%) scale(1.08)}
+.track .dv:focus-visible{box-shadow:0 4px 14px rgba(0,0,0,.5),0 0 0 3px var(--win)}
+.track .mk{position:absolute;bottom:calc(100% + 8px);transform:translateX(-50%);padding:4px 8px;border-radius:8px;background:#fff;color:#0b0d12;font-size:12px;font-weight:800;white-space:nowrap;opacity:0;transition:left .5s cubic-bezier(.2,.9,.3,1),opacity .2s;pointer-events:none}
+.track .mk:after{content:"";position:absolute;left:50%;top:100%;margin-left:-5px;border:5px solid transparent;border-top-color:#fff}
+.track .mk.on{opacity:1}
+.track .ends{position:absolute;top:calc(100% + 6px);left:0;right:0;display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:var(--dim);pointer-events:none}
 .stats{display:flex;gap:10px;width:100%}.stats div{flex:1;padding:10px;border-radius:12px;background:rgba(0,0,0,.3);border:1px solid var(--line)}
 .stats b{display:block;font-size:17px}.stats span{font-size:11.5px;color:var(--dim)}
 canvas{max-width:100%;max-height:100%}
@@ -378,13 +389,33 @@ const ENG = window.KS_ENG = {
     target: 50,
     init() {
       $('#stage').innerHTML = `<div class="dice"><div class="roll num" id="roll">50.00</div>
-        <div class="track" id="track" style="--t:50%"><div class="mk" id="mk" style="left:50%"></div></div>
-        <input type="range" id="tg" min="2" max="95" step="0.5" value="50" aria-label="Roll under">
+        <div class="track" id="track" style="--t:50%"><div class="mk num" id="mk" style="left:50%"></div>
+          <div class="dv" id="tg" role="slider" tabindex="0" aria-label="Roll under" aria-valuemin="2" aria-valuemax="95" aria-valuenow="50"></div>
+          <div class="ends num"><span>0</span><span>100</span></div></div>
         <div class="stats"><div><span>Roll under</span><b class="num" id="st">50.00</b></div><div><span>Win chance</span><b class="num" id="sc">50.00%</b></div><div><span>Multiplier</span><b class="num" id="sm">1.9800×</b></div></div></div>`;
       $('#bar').innerHTML = betBox() + `<button class="go" id="go">ROLL</button>`;
       wireBet(); $('#go').onclick = () => this.roll();
-      $('#tg').oninput = (e) => { this.target = +e.target.value; const m = Math.floor(99 / this.target * 10000) / 10000;
-        $('#track').style.setProperty('--t', this.target + '%'); $('#st').textContent = this.target.toFixed(2); $('#sc').textContent = this.target.toFixed(2) + '%'; $('#sm').textContent = m.toFixed(4) + '×'; buzz(3); };
+      // drag the white divider (or tap anywhere on the bar) to set the target: green wins, red loses
+      const track = $('#track'), dv = $('#tg');
+      const set = (v) => {
+        v = Math.min(95, Math.max(2, Math.round(v * 2) / 2));
+        if (v === this.target && track.style.getPropertyValue('--t') === v + '%') return;
+        const changed = v !== this.target; this.target = v; const m = Math.floor(99 / v * 10000) / 10000;
+        track.style.setProperty('--t', v + '%'); dv.setAttribute('aria-valuenow', v); dv.setAttribute('aria-valuetext', `Roll under ${v.toFixed(2)}`);
+        $('#st').textContent = v.toFixed(2); $('#sc').textContent = v.toFixed(2) + '%'; $('#sm').textContent = m.toFixed(4) + '×';
+        if (changed) buzz(3);
+      };
+      const at = (e) => { const r = track.getBoundingClientRect(); set((e.clientX - r.left) / r.width * 100); };
+      track.addEventListener('pointerdown', (e) => { if (busy) return; track.setPointerCapture(e.pointerId); track.classList.add('drag'); at(e); dv.focus({ preventScroll: true }); });
+      track.addEventListener('pointermove', (e) => { if (track.classList.contains('drag')) at(e); });
+      const up = () => track.classList.remove('drag');
+      track.addEventListener('pointerup', up); track.addEventListener('pointercancel', up);
+      dv.addEventListener('keydown', (e) => {
+        const k = { ArrowLeft: -0.5, ArrowDown: -0.5, ArrowRight: 0.5, ArrowUp: 0.5, PageDown: -5, PageUp: 5 }[e.key];
+        if (k) { e.preventDefault(); set(this.target + k * (e.shiftKey ? 10 : 1)); }
+        else if (e.key === 'Home') { e.preventDefault(); set(2); } else if (e.key === 'End') { e.preventDefault(); set(95); }
+      });
+      this.target = null; set(50);
     },
     async roll() {
       if (busy) return; busy = true; $('#go').disabled = true;
@@ -392,7 +423,7 @@ const ENG = window.KS_ENG = {
       const out = await play('roll', { bet: (bet / 100).toFixed(2), target: this.target });
       busy = false; $('#go').disabled = false; if (!out) return;
       const r = out.result; let k = 0; const t = setInterval(() => { $('#roll').textContent = (Math.random() * 100).toFixed(2); if (++k > 8) { clearInterval(t); $('#roll').textContent = r.roll.toFixed(2); $('#roll').style.color = r.win ? 'var(--win)' : '#ff4d6d'; } }, 40);
-      $('#mk').style.left = r.roll + '%'; tone(r.win ? 880 : 200, .12);
+      const mk = $('#mk'); mk.style.left = r.roll + '%'; mk.textContent = r.roll.toFixed(2); mk.classList.add('on'); tone(r.win ? 880 : 200, .12);
       setTimeout(() => { setBalance(out.balance, r.payoutCents); outcome(stake, r.payoutCents, `rolled ${r.roll.toFixed(2)}`); }, 400);
     },
     rules: () => `<p class="meta">Pick a number. If the roll (0.00–99.99) lands under it, you win bet × 99 ÷ number. Lower targets pay more.</p>`,
@@ -649,7 +680,7 @@ const ENG = window.KS_ENG = {
       if (!n) { $('#kp').innerHTML = ''; $('#kh').textContent = `Pick up to ${G.keno.maxPicks} numbers. We draw ${G.keno.draw}.`; return; }
       const t = G.keno.tables[this.risk][n - 1];
       $('#kp').innerHTML = t.mult.map((m, k) => `<span class="${m ? '' : 'z'} ${hits === k ? 'on' : ''}">${k} hit${k === 1 ? '' : 's'}<b class="num">${m ? m + '×' : '—'}</b></span>`).join('');
-      if (hits === null) $('#kh').textContent = `${n} picked · top prize ${Math.max(...t.mult)}× · RTP ${t.rtp}%`;
+      if (hits === null) $('#kh').textContent = `${n} picked · top prize ${Math.max(...t.mult)}× · ${t.rtp}%`;
     },
     async go() {
       if (busy) return;
@@ -731,7 +762,7 @@ const ENG = window.KS_ENG = {
     document.documentElement.style.setProperty('--a', G.theme.a || '#00ff66');
     document.documentElement.style.setProperty('--b', G.theme.b || '#07090d');
     $('#name').textContent = G.name;
-    $('#meta').textContent = `Kohler Studio · RTP ${G.rtp}%${G.volatility ? ' · ' + G.volatility + ' volatility' : ''}`;
+    $('#meta').textContent = `Kohler Studio · ${G.rtp}%${G.volatility ? ' · ' + G.volatility + ' volatility' : ''}`;
     $('#demoTag').hidden = !isDemo;
     const s = await post('session', { gameId, ...(isDemo ? { demo: demoId } : { token }) });
     if (s.error) { $('#stage').innerHTML = `<div style="text-align:center;max-width:340px"><b>Can't start the game</b><p class="meta">${s.error}</p></div>`; return; }

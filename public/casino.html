@@ -24,6 +24,8 @@
 <script src="/assets/withdraw.js" defer></script>
 <script src="/assets/survivor.js" defer></script>
 <script src="/assets/vault.js" defer></script>
+<link rel="stylesheet" href="/assets/ui.css">
+<script src="/assets/ui.js" defer></script>
 <style>
 [hidden]{display:none!important}
 .vstreak{display:flex;align-items:center;gap:6px;margin-top:10px;padding:7px 10px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid var(--line2);font-size:12.5px;color:var(--dim)}
@@ -383,7 +385,7 @@ body.test .game{top:calc(var(--top) + 28px)}
     <a href="#" data-w="history"><span class="i" style="--u:url(/assets/icons/receipt-text.svg)"></span>Transactions</a>
     <a href="#/limits" data-r="limits"><span class="i" style="--u:url(/assets/icons/shield-check.svg)"></span>Limits &amp; cool-off</a>
     <a href="/#/refer"><span class="i" style="--u:url(/assets/icons/users.svg)"></span>Invite friends</a>
-    <a href="#/account" data-r="account"><span class="i" style="--u:url(/assets/icons/user-round.svg)"></span>Profile &amp; settings</a>
+    <a href="#/account" data-r="account"><span class="i" style="--u:url(/assets/icons/user-round.svg)"></span>Account</a>
     <a href="/rules.html"><span class="i" style="--u:url(/assets/icons/info.svg)"></span>Rules &amp; fees</a>
     <a href="#" data-install hidden><span class="i" style="--u:url(/assets/icons/smartphone.svg)"></span>Install app</a>
   </nav>
@@ -581,7 +583,7 @@ function card(g) {
   const vip = (g.tags || []).includes('vip'), orig = g.category === 'originals';
   return `<button class="card ${vip ? 'vip' : ''}" data-g="${esc(g.id)}" aria-label="Play ${esc(g.name)}">
     ${art(g)}
-    <div class="badges"><span class="bdg num">RTP ${g.rtp}%</span>${vip ? '<span class="bdg gold">VIP</span>' : orig ? '<span class="bdg neon">Kohler</span>' : vol ? `<span class="bdg"><span class="vol">${[1, 2, 3].map((i) => `<i class="${i <= vol ? 'f' : ''}"></i>`).join('')}</span></span>` : ''}</div>
+    <div class="badges"><span class="bdg num" aria-label="Pays back ${g.rtp}% over time">${g.rtp}%</span>${vip ? '<span class="bdg gold">VIP</span>' : orig ? '<span class="bdg neon">Kohler</span>' : vol ? `<span class="bdg"><span class="vol">${[1, 2, 3].map((i) => `<i class="${i <= vol ? 'f' : ''}"></i>`).join('')}</span></span>` : ''}</div>
     <div class="hov"><span class="btn neon sm" data-play="${esc(g.id)}">${ic('zap', 16)}${CS.user ? 'Play' : 'Play demo'}</span>${CS.user ? `<span class="btn sm" data-demo="${esc(g.id)}">Demo</span>` : ''}</div></button>`;
 }
 function survivorCard() {
@@ -645,7 +647,7 @@ async function launch(id, demo) {
   const g = byId(id); if (!g) return;
   if (!CS.user && !demo) demo = true;
   CS.current = id + (demo ? 'demo' : '');
-  openFrame({ title: g.name, meta: `${g.category === 'originals' ? 'Kohler Original' : 'Kohler Studio'} · RTP ${g.rtp}%`, url: null, demo });
+  openFrame({ title: g.name, meta: `${g.category === 'originals' ? 'Kohler Original' : 'Kohler Studio'} · ${g.rtp}%`, url: null, demo });
   history.replaceState(null, '', `#/play/${id}${demo ? '/demo' : ''}`);
   let r;
   try { r = await api('/casino/launch', { method: 'POST', body: { gameId: id, demo } }); }
@@ -737,7 +739,7 @@ async function limits() {
   const save = async (body) => { try { await api('/pool/limits', { method: 'POST', body }); toast('Saved'); limits(); } catch (e) { toast(e.message); } };
   $('#limGo').onclick = () => save({ dailyLimitCents: Math.round(+$('#lim').value * 100) });
   $('#limOff').onclick = () => save({ dailyLimitCents: null });
-  document.querySelectorAll('[data-co]').forEach((b) => (b.onclick = () => confirm(`Lock Survivor for ${b.textContent}? This can't be undone early.`) && save({ cooloffHours: +b.dataset.co })));
+  document.querySelectorAll('[data-co]').forEach((b) => (b.onclick = async () => (await KUI.confirm(`Lock Survivor for ${b.textContent}? This can't be undone early.`, { ok: 'Lock it', danger: true })) && save({ cooloffHours: +b.dataset.co })));
 }
 
 /* ── auth ── */
