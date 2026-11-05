@@ -104,14 +104,16 @@
     paint(d, prev);
   }
   const pos = (i, n) => { const a = -Math.PI / 2 + i * 2 * Math.PI / n; return { l: 50 + 42 * Math.cos(a), t: 50 + 42 * Math.sin(a) }; };
+  const seatSize = () => (matchMedia('(max-width:560px)').matches ? 46 : 58);
   function seatsHtml(seats, n, prevKeys, lost = [], won = false) {
     return Array.from({ length: n }, (_, i) => {
       const s = seats[i], p = pos(i, n), st = `left:${p.l}%;top:${p.t}%`;
       if (!s) return `<div class="sv-seat open" data-i="${i}" style="${st}"><div class="av">${ic('user', 22)}</div><div class="nm">open</div></div>`;
       const fresh = prevKeys && !prevKeys.has(s.index + s.name);
-      const art = s.frameArt || (s.frame && window.KV?.[s.frame]?.art), fr = art ? KohlerCharacter.frame(art, 58) : '';
+      // face and frame share one box of exactly the avatar's size, so the frame always lines up
+      const S = seatSize(), art = s.frameArt || (s.frame && window.KV?.[s.frame]?.art), fr = art ? KohlerFrame(art, S) : '';
       return `<div class="sv-seat ${s.me ? 'me' : ''} ${s.isHouse ? 'house' : ''} ${fresh ? 'new' : ''} ${lost.includes(i) ? 'out' : ''} ${won && !lost.includes(i) ? 'safe' : ''}" data-i="${i}" style="${st}">
-        <div class="av">${face(s, 58)}${fr}</div><div class="nm">${s.me ? 'You' : esc(s.name)}${s.isHouse ? ' <span class="house-tag">House</span>' : ''}</div></div>`;
+        <div class="av${fr ? ' framed' : ''}"><span class="fw" style="width:${S}px;height:${S}px">${face(s, S)}${fr}</span></div><div class="nm">${s.me ? 'You' : esc(s.name)}${s.isHouse ? ' <span class="house-tag">House</span>' : ''}</div></div>`;
     }).join('');
   }
   function paint(d, prev) {
