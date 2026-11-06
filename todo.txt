@@ -2,6 +2,18 @@ i should be able to pick multiple countries for the countires thing so the text 
 
 is it set up such that you have to bet with your deposited funds to withdraw or such that if you dont bet we take a charge or sth
 
+kohler charity
+- you can scroll through people's requests  (what they need goal and whether it has been accomplished) - we approve the requests with an AI model that checks to ensure the person hasn't put any contact details or bank account etc in the text or images. the money should go to the
+- people can comment their problems. we should have a way to save stuff in 
+- follower system. 
+- gifter might request an action and wed take the money in escrow once the user does the action they get paid
+people can do custom giveaways too
+
+site uses only img urls no image upload
+
+follow
+top gifters
+
 frames can be country flags
 textures (african cloth, am
 
