@@ -1,0 +1,565 @@
+# Kohler: the whole business, explained simply
+
+This guide explains Kohler from end to end in plain words: what it is, how it's built, how
+money moves, how every game works, how Kohler earns, and what the business needs around the
+software (licence, marketing, money in reserve, daily operations). Numbers are taken from the
+code as of update 20 (November 2026). Settings you can change in Kohler Control are marked
+*(adjustable)*.
+
+**Contents**
+
+1. Kohler in one minute
+2. What players see
+3. How it's built
+4. How money moves
+5. The games, one by one
+6. Everything else players can buy or earn
+7. How Kohler makes money
+8. Money you need in reserve (liquidity)
+9. Running it day to day (operations)
+10. Legal and compliance
+11. Marketing
+12. Known gaps and the next things to build
+13. Words used in this guide
+14. Sources
+
+---
+
+## 1. Kohler in one minute
+
+Kohler is an online casino paid in Bitcoin. Players:
+
+1. sign up
+2. deposit BTC to their own address
+3. get a dollar balance
+4. play
+5. withdraw back to BTC
+
+It has three parts:
+
+- **Survivor**: Kohler's own multiplayer game. Players sit at a table and the server draws
+  one or two losers. Everyone else gets their stake back plus a share of what the losers put in.
+- **The casino**: 50+ games made by Kohler itself: slots, crash games, mines, dice, plinko,
+  roulette, blackjack, keno and more.
+- **The Vault**: a shop for looks and status. Avatars, Legendary characters, frames, win effects,
+  themes and the Kohler Pass.
+
+Kohler earns from a small edge on casino games, a 10% fee on what Survivor losers put in, a
+1% fee on deposits and withdrawals, and Vault sales.
+
+## 2. What players see
+
+| Page | Where | What it's for |
+|---|---|---|
+| Home | `/` | Welcome page with sign-in and links into the casino |
+| Casino lobby | `/casino` | All games, search, categories (Survivor, Legends, Originals, Slots, Table games) |
+| A game | inside the casino | Opens in a frame. Demo mode lets anyone play with pretend money |
+| Survivor | `/casino#/survivor` | Tables, live rounds, crew (private) tables |
+| The Vault | `/casino#/vault` | Avatars, Legendary characters, frames, effects, themes, Kohler Pass |
+| Wallet | `/casino#/wallet` | Deposit address and QR, withdraw, history |
+| Limits & cool-off | `/casino#/limits` | Daily Survivor limit and "take a break" |
+| Invite friends | `/#/refer` | Personal invite link and rewards |
+| Help | `/casino#/support` | Write to support, read replies |
+| Rules & fees | `/rules.html` | Every fee, bonus rule and payout rule |
+| Kohler Control | `/admin` | Owner and finance staff only |
+
+**Test accounts** are for influencers and ads. They look like the real site but play with
+pretend money in their own world: their Survivor tables are filled with simulated players, and
+nothing they do touches real players, real money or real stock.
+
+## 3. How it's built
+
+### The pieces
+
+```
+            Players' browsers / phones (installable web app)
+                              │
+                              ▼
+   ┌──────────────────────────────────────────────────────────┐
+   │  Kohler server (Node.js + Express, one program)            │
+   │                                                            │
+   │  Accounts & sessions     Wallet & ledger    Survivor       │
+   │  Casino host  ◄──────►  Kohler Studio (our game provider)  │
+   │  Vault, avatars, Legends   Promos & referrals              │
+   │  Payouts autopilot         Kohler Control (admin)          │
+   └──────────────────────────────────────────────────────────┘
+         │                │                  │              │
+         ▼                ▼                  ▼              ▼
+   Neon Postgres     mempool.space      Cloudflare AI    Resend
+   (all data)        (Bitcoin network)  + Pollinations   (email)
+                                        (avatar pictures)
+```
+
+- **Hosting:** Vercel (serverless). It also runs on any ordinary server.
+- **Database:** Neon Postgres. Every balance, bet, seat, purchase and setting lives here.
+- **Bitcoin:** Kohler holds a 24-word recovery phrase (`DEPOSIT_MNEMONIC`). From it, every player
+  gets their own deposit address, and payouts come from a separate "hot wallet" address.
+  Kohler watches the blockchain through mempool.space, a public Bitcoin explorer.
+- **Pictures:** avatars are painted by AI image models on Cloudflare Workers AI. Pollinations
+  is a free backup painter.
+- **Email:** Resend sends deposit, withdrawal and support emails.
+- **Scheduled jobs:** on Vercel, a cron calls `/api/cron/tick` to check deposits, retry wins
+  and do housekeeping.
+
+### Where things are in the code
+
+| Folder / file | What's in it |
+|---|---|
+| `server.js` | The main program: accounts, wallet, deposits, withdrawals, admin pages, wiring |
+| `lib/pool.js` | Survivor: tables, rounds, draws, house seats, limits, test-account sandbox |
+| `lib/casino/` | The casino: `catalog.js` (game list), `engines.js` (the maths of every game), `studio.js` (Kohler Studio), `wallet.js` (money during play), `index.js` (lobby, launch, admin) |
+| `lib/promos.js` | Bonus money, referral rewards, wagering |
+| `lib/achievements.js` | XP, levels, daily streaks, badges |
+| `lib/vault.js`, `lib/vault-items.js` | The Vault shop and its catalogue |
+| `lib/avatars/` | The avatar factory: painting, checking, storing pictures, selling avatars |
+| `lib/legends.js` | Legendary characters, Survivor unlocks, who stars in which game |
+| `lib/chain.js` | Bitcoin: addresses, price, finding deposits, sending payouts |
+| `lib/payouts.js` | Automatic payouts and their safety rules |
+| `lib/autopilot.js` | Background safety checks and alerts |
+| `lib/security.js` | Rate limits, admin two-step sign-in, security headers |
+| `db/migrations/` | Every change to the database, in order |
+| `public/` | Everything the browser loads: `casino.html`, `admin.html`, `studio/play.html` (all casino games), `assets/` |
+| `docs/` | This guide and `SHOP.md` (the old shop) |
+
+### Secrets and settings
+
+The server is configured through environment variables. The important ones:
+
+| Setting | What it does | If you lose it |
+|---|---|---|
+| `DATABASE_URL` | Connects to Neon | Site can't start |
+| `DEPOSIT_MNEMONIC` | 24 words that control every deposit address and the payout wallet | **Money is lost. Back it up offline in two places.** |
+| `KEY_ENC` | Encrypts stored secrets (2FA codes, provider secrets) | Admins must set up 2FA again |
+| `CHAIN_ENABLED`, `MIN_CONFIRMATIONS`, `MIN_DEPOSIT_SATS`, `MIN_WITHDRAW_SATS`, `WITHDRAW_FEE_SATS` | Bitcoin behaviour | Defaults apply |
+| `PLATFORM_FEE_BPS` | Fee on deposits and withdrawals (100 = 1%) | Defaults to 1% |
+| `CF_ACCOUNT_ID`, `CF_API_TOKEN` | Cloudflare AI for avatar pictures | Only the free Pollinations painter works |
+| `RESEND_API_KEY`, `MAIL_FROM`, `ALERT_EMAIL`, `SUPPORT_EMAIL` | Email | No emails go out |
+| `CRON_SECRET` | Protects the cron address | Anyone could trigger housekeeping |
+| `PUBLIC_URL` | The site's address, used in links and emails | Links may break |
+
+## 4. How money moves
+
+### The ledger: Kohler's single source of truth
+
+Every change to a player's money is one row in the **ledger**: deposit, bet, win, fee, bonus,
+Vault purchase, withdrawal. The balance shown to the player is the sum of their rows.
+Everything is stored in whole cents, so there are no rounding surprises. Every money change
+happens inside one database transaction that locks the player's row, so two things can't
+spend the same dollar.
+
+The autopilot checks every 30 minutes that each balance still equals its ledger. If anything
+is off, it raises an alert and can pause Survivor automatically.
+
+### Deposit (Bitcoin in)
+
+1. The player opens Wallet and sees their own BTC address and a branded QR code.
+2. They send BTC from any wallet or exchange.
+3. Kohler sees the transaction and waits for **2 confirmations** (about 20 minutes) *(adjustable via `MIN_CONFIRMATIONS`)*.
+4. The BTC is converted to dollars at the live price. **1% is kept as a fee**, and the rest is
+   credited to the balance. The player gets an email.
+5. The coins are swept from the player's address to Kohler's main wallet.
+6. Deposits under the minimum (20,000 sats by default) aren't credited automatically. They wait
+   in Admin → Deposits for you to decide.
+7. If a promo is running (for example the invite bonus), its bonus money is added now.
+
+### Bonus money
+
+Promo money is **bonus money**. It can be played but not withdrawn until it has been bet a set
+number of times (the "wager", for example 5×). Bonus money is used last when betting. The
+remaining wagering shows in the player's wallet.
+
+### Playing
+
+- **Casino:** each bet is taken from the balance before the game decides anything. A win is
+  added straight back. If adding a win ever fails (network hiccup), it's saved and retried until
+  it lands, and it can never be paid twice.
+- **Survivor:** taking a seat takes the stake. When the round is drawn, survivors are paid in
+  the same moment.
+
+### Withdrawal (Bitcoin out)
+
+1. The player enters an amount and a BTC address.
+2. Kohler shows the quote: amount, **1% service fee**, Bitcoin network fee (800 sats by default,
+   passed on at cost) and the BTC they'll receive. The minimum is 50,000 sats after fees.
+3. The money leaves their balance at once and the withdrawal joins the queue.
+4. **Automatic payouts** (off until you switch them on) send it from the hot wallet if it passes
+   every safety rule:
+   - small enough
+   - within the daily auto total
+   - the account is old enough and has made a real deposit
+   - the player isn't banned or a test account
+   - no money alert in the last 6 hours
+   - the password wasn't changed in the last 24 hours
+   - the balance matches the ledger
+
+   Anything else waits for a person in Admin → Payouts, with the reason written on it.
+5. When it's sent, the player gets an email with the transaction.
+
+### Test accounts
+
+They play with pretend money that's clearly separated: nothing they do is counted as revenue,
+stock, sales or payouts. Their Survivor tables are filled with simulated players so a video
+looks alive.
+
+## 5. The games, one by one
+
+**Two words to know**
+
+- **RTP (return to player):** out of every $100 bet over a long time, how much goes back to
+  players. 99% RTP means the house keeps about $1 of every $100 bet. Single sessions swing a lot.
+- **House edge:** 100% minus RTP.
+
+**How outcomes are decided**
+
+- Every casino outcome comes from the server's secure random number generator. It never depends
+  on the player's balance or on how much money Kohler has.
+- Survivor is **provably fair**: the server commits to a secret seed before the round,
+  each seat adds its own seed, and anyone can recompute the result afterwards.
+
+### Survivor (Kohler's own game)
+
+Players take seats at a table for the same stake. When the table is full, the server picks the
+losers. Losers lose their stake. Survivors get their stake back **plus an equal share of the
+losers' stakes, minus Kohler's 10% fee** *(adjustable)*.
+
+| Mode | Seats | Losers | Survive chance | Stakes on the default tables |
+|---|---|---|---|---|
+| Duel | 2 | 1 | 50% | $5, $25, $100 |
+| Classic | 3 | 1 | 67% | $1, $5, $20 |
+| Squad | 5 | 1 | 80% | $10, $50 |
+| Blitz | 10 | 2 | 80% | $1, $5 |
+
+**Example (Classic, $5):**
+
+- One loser forfeits $5.
+- Kohler's fee is $0.50.
+- Each of the two survivors gets their $5 back plus $2.25.
+
+**Kohler seats:**
+
+- On tables of 5 or more, if a round stalls for 30 seconds with only one or two seats empty,
+  Kohler buys the empty seats so the round can start. Those seats show as "Kohler".
+- A Kohler seat has exactly the same odds and stake as everyone else. It isn't a source of
+  profit, just a way to keep tables moving, and it can win or lose.
+- It never sits alone with nobody. All of this is *(adjustable)*.
+
+**Crew tables:**
+
+- Any player can open up to 3 private tables with a link to share.
+- Those tables always wait for real players and never get Kohler seats.
+
+**Limits:** players can set a daily Survivor limit and take a 24-hour, 7-day or 30-day break,
+which also locks them out of casino games.
+
+**Legendary unlocks:** settled Survivor rounds are counted, and some epic Legendary characters
+unlock after a set number of rounds (25, 50, 75, 100 and 150 by default) *(adjustable)*.
+
+### Casino: how it's wired
+
+The casino is built like a real casino platform. Games come from a **game provider**, and money
+moves through a **seamless wallet**: the provider asks Kohler to take a bet or pay a win, and
+Kohler checks and records each request.
+
+Kohler's own provider is called **Kohler Studio**. Because the wiring is standard, outside
+providers (game aggregators that bundle many studios) could be plugged in later without
+changing the wallet. Every game also has a demo mode with $1,000 of pretend money.
+
+### Casino games
+
+| Game | How it works | RTP |
+|---|---|---|
+| **Slots** (36 titles) | 5 reels, one line through the middle, 3–5 matching symbols from the left pay. The top symbol pays only on 5. Low, medium and high volatility change how often and how big wins are (biggest: 100×, 500× or 2,000×). Max bet $100 (high volatility $50). | 95.8–96.5% |
+| **Legends Lounge, Billionaire Zoo** | Slots starring the Legendary characters. Their portraits are the symbols and they react to wins. Same maths as other slots. | 96.3%, 96.4% |
+| **Rocket** | A multiplier climbs from 1.00× until it crashes at a random point. Cash out before the crash to win your bet × the multiplier. 1% of rounds crash at 1.00×. Auto cash-out available. Capped at 1,000×. | 99% |
+| **Flapsworth Takes Flight** | Rocket's maths with Sir Flapsworth as the pilot. | 99% |
+| **Mines** | A 5×5 grid hides 1–24 mines. Each safe tile raises the multiplier. Cash out any time; hit a mine and lose. | 99% |
+| **Coin Flip** | Pick heads or tails, win 1.96×. | 98% |
+| **Limbo** | Pick a target multiplier. If the random result reaches it, you win your bet × the target. Higher target = less likely. | 99% |
+| **Keno Boss** | 40 numbers, you pick 1–10, 10 are drawn. More matches pay more. "Classic" pays often; "Boss" rarely but big (up to 2,500×). | ~97% |
+| **European Roulette** (4 tables, incl. high limit) | Single zero. All the usual bets. | 97.3% |
+| **Blackjack** (4 tables) | Dealer draws to 17. Blackjack pays 3:2. Double on your first two cards. No splitting. | 98.9% (perfect play) |
+| **Dice** (3 tables) | Pick a number 2–95; win if the roll is under it. The payout is 99 ÷ your number. Drag the bar to set it. | 99% |
+| **Plinko** (Gentle, Drop, Peak) | A ball bounces down 8, 12 or 16 rows into a multiplier slot. More rows and higher risk = bigger extremes. | ~98.5% |
+| **Wheel** (Classic, Jackpot) | Spin a wheel of multipliers. | 96% |
+
+**Retired:** the very first instant games (coin, colour, penalty, derby, racing) are switched
+off. They used a model where the odds depended on how much money the house wallet held. That
+kind of model isn't acceptable to regulators or players, so keep it off.
+
+## 6. Everything else players can buy or earn
+
+### The Vault
+
+**Avatars** are one collection with five tiers, all painted by AI or uploaded by you:
+
+| Tier | Default price | Notes |
+|---|---|---|
+| Free | $0 | Anyone can use |
+| Common | $0.99 | |
+| Rare | $49.99 to $999 | **Limited editions**: a fixed number of copies each, some one of one |
+| Epic | $6.99 | Free to wear with the Kohler Pass |
+| Legendary | $19.99 | 30% off with the Kohler Pass. Includes the Legendary characters (some only unlock through Survivor) |
+
+**Custom avatars** cost $4.99 *(adjustable)*:
+
+- The player describes an avatar and the factory paints it.
+- Only they can use it.
+- If it fails, they're refunded.
+
+**Frames, win effects, themes, filters:**
+
+- They cost $1.99–$4.99.
+- Seasonal items (Halloween, Christmas) are on sale only in season.
+- Some can't be bought and only come with a badge.
+
+**Kohler Pass**, $9.99 for 30 days (stacks):
+
+- every Epic avatar free to wear
+- 30% off Legendary
+- avatars you choose free to wear
+- the Pass Holder frame and badge
+
+The free-to-wear perks end when the Pass does.
+
+### Progress (free, for keeping players coming back)
+
+- **XP:** 1 XP per $1 bet, multiplied by the daily streak.
+- **Daily streak:** the multiplier goes from ×1.1 on day 2 up to ×2 from day 30. Missing a day
+  resets it.
+- **Levels:** Bronze, Silver, Gold, Obsidian.
+- **Badges:** first bet, first win, streaks, levels and more. Some badges unlock Vault items.
+
+## 7. How Kohler makes money
+
+| Source | How it works | Rough size |
+|---|---|---|
+| **Casino edge** | Games pay back 95.8–99% of what's bet over time; the rest stays | 1–4.2% of everything bet in the casino |
+| **Survivor fee** | 10% of what losers put in *(adjustable)* | About 3% of everything staked (Classic), 2% (Squad), 2% (Blitz), 5% (Duel) |
+| **Deposit fee** | 1% of each deposit *(adjustable)* | 1% of deposits |
+| **Withdrawal fee** | 1% of each withdrawal; the Bitcoin network fee is passed on at cost | 1% of withdrawals |
+| **Vault** | Avatars, Legendary characters, custom avatars, frames, effects, themes, Kohler Pass | Pure margin, minus a little AI painting allowance |
+
+**A worked example.** One month with 500 active players, each depositing $100 and betting
+their money around 10 times:
+
+- Deposits: $50,000 → deposit fees **$500**.
+- Total bets: about $500,000. With half in casino games at ~2.5% average edge, that's
+  **~$6,250**. With half in Survivor at ~3%, that's **~$7,500**.
+- Withdrawals: about $30,000 → withdrawal fees **$300**.
+- Vault: 10% of players spend $10 → **$500**.
+- Total: about **$15,000** before costs. Bonuses, marketing, licence, hosting and staff come out
+  of this.
+
+This is an illustration, not a forecast. Real results swing, especially in the casino.
+
+**Costs to plan for:**
+
+- **Bonuses:** invite bonus $5 to the friend and $10 to the referrer.
+- **Licence and compliance:** see section 10.
+- **Marketing and affiliates.**
+- **Hosting:** Vercel and Neon, small at first.
+- **AI painting:** Cloudflare's free daily allowance covers normal use; heavier models cost more.
+- **Bitcoin network fees on sweeps.**
+- **Support staff.**
+
+## 8. Money you need in reserve (liquidity)
+
+The casino pays winners from Kohler's own money. Over thousands of bets the edge wins, but any
+single night a player can win big. If the hot wallet can't pay a withdrawal, trust is gone, so
+you need a reserve.
+
+**What the reserve has to cover:**
+
+1. **Every player balance, all the time.** Players' money is a debt you owe. Keep at least
+   100% of all real-money balances in BTC you control (deposit wallet plus hot wallet), never
+   spent on running costs. Kohler Control shows total balances on the Overview.
+2. **A big win.** Today, the largest possible single wins are high:
+
+   | Game | Max bet × top multiplier | Biggest possible win |
+   |---|---|---|
+   | High-volatility slots | $50 × 2,000× | $100,000 |
+   | Rocket | $1,000 × 1,000× | $1,000,000 |
+   | Limbo | $1,000 × up to 1,000,000× | far beyond any reserve |
+   | Mines | $1,000 × up to tens of thousands× | far beyond any reserve |
+
+   **Before real traffic, add a maximum win per bet** (for example $5,000 to start) and lower
+   the high-limit tables. Then size the reserve to pay several maximum wins in a row.
+3. **A run on withdrawals.** After a big win or bad news, many players withdraw at once. Keep
+   enough in the hot wallet for a normal day of withdrawals and top it up from cold storage.
+4. **Bitcoin's price.** Balances are in dollars but the reserve is in BTC. A 20% BTC drop
+   shrinks the reserve by 20% while what you owe stays the same. Keep extra, or hold part of
+   the reserve in a stable asset.
+5. **Bonus money.** It doesn't need cash today, but it turns into withdrawable money once
+   wagered.
+
+**A simple starting rule:**
+
+> Reserve = all player balances + 5 × the maximum single win + 2 days of average withdrawals,
+> plus 25% on top for BTC price moves.
+
+**Example:** $20,000 of balances, a $5,000 max win and $3,000 a day of withdrawals gives
+($20,000 + $25,000 + $6,000) × 1.25 ≈ **$64,000**.
+
+**Wallet layout:**
+
+| Wallet | What it holds | Where it lives |
+|---|---|---|
+| Cold | Most of the reserve | Hardware wallet, offline |
+| Hot | A day or two of payouts | Derived from `DEPOSIT_MNEMONIC`, used by automatic payouts |
+| Main (sweep) | Where deposits are swept | Set in Admin |
+
+## 9. Running it day to day (operations)
+
+**Every day (about 30 minutes once it's busy):**
+
+- **Payouts:** clear withdrawals waiting for review. Each shows why it's waiting.
+- **Deposits:** decide small or flagged deposits.
+- **Alerts:** read the Overview alerts. The autopilot flags:
+  - balances that don't match their ledger
+  - withdrawals waiting over an hour
+  - support tickets open over 48 hours
+  - Survivor books out of balance
+  - stuck rounds
+- **Support:** reply to Help tickets. Players see replies in the casino and by email.
+- **Hot wallet:** check it can cover today's withdrawals; top it up from cold storage.
+
+**Every week:**
+
+- Avatars and Legends: approve new portraits; price and limit new Rare pieces.
+- Promos: check what bonuses cost against the deposits they brought.
+- Revenue: Vault sales, Survivor and casino books.
+- Test accounts: give out or take back influencer access.
+
+**Every month:**
+
+- Reconcile BTC held against total player balances.
+- Back up the database (Neon has point-in-time restore; keep an extra export).
+- Review admin access and turn on 2FA for every admin.
+- Check that player limits and breaks are working.
+
+**People and roles:**
+
+| Role | Can do |
+|---|---|
+| Owner | Everything |
+| Finance | Sees money pages, read only. No emails or contact details |
+| Support (to hire) | Answers tickets. Today support uses the owner account; a support-only role would be a quick addition |
+
+**Keys and backups:**
+
+- `DEPOSIT_MNEMONIC`, the cold-wallet seed and `KEY_ENC` should be written down offline, in two
+  safe places, known to at least two trusted people.
+- Every admin uses two-step sign-in.
+
+## 10. Legal and compliance
+
+Not legal advice. Gambling law depends on where the company is based and where players live,
+so work with a gaming lawyer before taking real money at scale.
+
+**What you need:**
+
+1. **A gambling licence.** Online casinos need one, and payment and ad partners will ask for it.
+   The common options for crypto casinos in 2026:
+   - **Curaçao** (Curaçao Gaming Authority, under the new LOK law): the most widely
+     recognised of the two. Now requires a local company, local staff and an office, with real
+     KYC and AML checks. Roughly €24,600 a year plus €2,050 a month in fees, plus setup and
+     compliance costs. About 2–4 months to approve.
+   - **Anjouan** (Comoros): the cheapest and fastest, about €17,000–30,000 the first year and
+     a few weeks to a few months. Less recognised.
+
+   Malta and the UK are far more expensive and strict. They're for later, if ever.
+2. **A company** in the licensing country (the licence requires it), plus a bank or crypto
+   payment partner that accepts gambling.
+3. **Know your customer (KYC) and anti-money laundering (AML):**
+   - checking identity once a player deposits or withdraws above set amounts (tiered checks are
+     normal)
+   - screening deposit wallets for stolen or sanctioned funds
+   - watching for unusual patterns
+   - keeping records
+
+   Crypto doesn't remove these duties. Kohler doesn't do identity checks yet (see section 12).
+4. **Blocking countries.** Block players from countries your licence doesn't cover or where
+   online gambling is illegal. Usual examples: the US, UK, France, the Netherlands, Australia
+   and sanctioned countries. Your lawyer gives the final list. Kohler doesn't block by country
+   yet.
+5. **Age 18+.** Stated in the rules today. Identity checks are what actually enforce it.
+6. **Responsible gambling.** Kohler already has a daily Survivor limit, breaks of 24 hours,
+   7 days or 30 days, and limits that only loosen after 24 hours. Licences usually also require:
+   - deposit limits across everything
+   - permanent self-exclusion
+   - reality checks (a "you've played for an hour" reminder)
+   - links to help organisations
+7. **Fair games.** Survivor is provably fair. Casino games use a secure random generator with
+   published RTPs. A licence usually asks for an outside test of the random number generator
+   (an RNG certificate), or you can add provably-fair seeds to casino games as well.
+8. **Terms and conditions, privacy policy, bonus terms, complaints process.** Written by your
+   lawyer to match the licence.
+9. **Tax.** Depends on the licensing country and where the owners live.
+10. **Advertising rules.** Google and Meta only allow gambling ads from licensed, certified
+    operators in allowed countries. Influencer content has to say it's an ad, and must not
+    target under-18s.
+
+## 11. Marketing
+
+**What Kohler already has:**
+
+- **Invite friends:** a friend who deposits $20 gets $5. The referrer gets $10 once the
+  friend has bet $100. Everything is adjustable in Promos, including new campaigns.
+- **Test accounts for creators:** influencers record real-looking play with pretend money.
+  Label the content clearly, follow platform rules, and don't show it to minors.
+- **Characters people remember:** the Legendary characters have names and lines, star in their
+  own games, and some unlock only through Survivor. That makes them good social content (clips,
+  memes, stickers).
+- **Collector drops:** limited Rare avatars, one of ones and artist collaborations.
+  "Only 3 exist" is a reason to come back.
+- **Habits:** daily streaks, XP levels, badges, seasonal Vault items and the Kohler Pass.
+- **Survivor:** short, social and easy to explain. Crew tables spread by link between friends.
+
+**What to add:**
+
+- An **affiliate program** that pays streamers and sites a share of revenue.
+- **Telegram and X/Twitter channels** for drops, big wins and new characters.
+- **Landing pages** per character or game, for ads where they're allowed.
+- **Tracking** of which channel brings depositing players, not just sign-ups.
+
+**Watch the costs:** a bonus is only worth it if the player it brings deposits more than it
+costs. Check the cost of each promo against the deposits it brought every week.
+
+## 12. Known gaps and the next things to build
+
+In rough order of importance before real traffic:
+
+1. **A maximum win per bet**, plus lower top bets on Limbo, Mines and Rocket (see section 8).
+2. **Identity checks (KYC)** above set amounts, through a provider such as Sumsub, Onfido or
+   Jumio.
+3. **Blocking by country** at sign-up and play.
+4. **Deposit limits and permanent self-exclusion**, alongside the existing Survivor limit and
+   breaks.
+5. **Wallet screening** of incoming deposits.
+6. **A support-only admin role.**
+7. **Provably-fair seeds for casino games**, or an RNG certificate.
+8. **Terms, privacy policy and bonus terms** from a lawyer.
+
+## 13. Words used in this guide
+
+- **Balance:** what a player can bet or withdraw, in dollars.
+- **Bonus money:** promo money that must be bet a set number of times before it can be withdrawn.
+- **Ledger:** the list of every money movement. Balances are its sum.
+- **RTP / house edge:** what a game pays back over time, and what it keeps.
+- **Volatility:** how swingy a game is. High means rare but big wins.
+- **Provably fair:** a result anyone can recompute to check it wasn't changed.
+- **Seamless wallet:** the standard way casino games ask the casino to take bets and pay wins.
+- **Hot / cold wallet:** online wallet for daily payouts / offline wallet for the reserve.
+- **Sats:** the smallest unit of Bitcoin. 100,000,000 sats = 1 BTC.
+- **KYC / AML:** checking who a customer is / preventing dirty money moving through.
+
+## 14. Sources
+
+Licensing figures in section 10 (checked November 2026):
+
+- Curaçao licence costs and the LOK reform: <https://sourcecodelab.co/updated-curacao-egaming-license-fees>
+- Curaçao approval timeline and obligations: <https://track360.io/blog/curacao-gaming-license-gcb-operator-guide-2026>
+- Curaçao office and substance requirements: <https://www.zitadelleag.com/blog/offshore-igaming-curacao-license-guide>
+- Curaçao and Anjouan first-year costs compared: <https://track360.io/blog/gambling-license-cost-comparison-all-jurisdictions-2026>
+- Anjouan costs: <https://legarithm.io/anjouan-gaming-license-cost/> and <https://inteliumlaw.com/blog/anjouan-gaming-license-best/>
+- AML duties for offshore crypto casinos: <https://www.track360.io/blog/no-kyc-casino-operator-compliance-2026>
