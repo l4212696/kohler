@@ -189,6 +189,69 @@ async function api(p, o = {}) {
     return j;
   }
 }
+// send a picture file: big photos are shrunk in the browser first (max 1536 px), so uploads stay small
+async function uploadImage(file, query) {
+  let blob = file;
+  try {
+    const bm = await createImageBitmap(file), k = Math.min(1, 1536 / Math.max(bm.width, bm.height));
+    if (k < 1 || file.size > 3e6 || !/^image\/(png|jpeg|webp)$/.test(file.type)) {
+      const c = document.createElement('canvas'); c.width = Math.round(bm.width * k); c.height = Math.round(bm.height * k);
+      c.getContext('2d').drawImage(bm, 0, 0, c.width, c.height);
+      blob = await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.92));
+    }
+  } catch {}
+  const r = await fetch('/api/admin/avatars/upload?' + new URLSearchParams(Object.entries(query).filter(([, v]) => v !== undefined && v !== null && v !== '')), {
+    method: 'POST', headers: { 'content-type': blob.type || 'image/jpeg' }, body: blob, credentials: 'same-origin' });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `Upload failed (${r.status})`);
+  return j;
+}
+// Avatar factory → New avatar: paint with a model you pick, or upload a finished picture
+async function newAvatar(done) {
+  const m = await api('/admin/avatars/models');
+  let mode = 'ai';
+  const paint = () => {
+    modal(`<h2 style="margin-bottom:4px">New avatar</h2><p class="muted" style="margin:0 0 12px;font-size:13.5px">Paint one with AI or upload a finished picture (an artist's piece, for example).</p>
+      <div class="row" style="margin-bottom:12px"><button class="btn sm ${mode === 'ai' ? 'neon' : ''}" data-mode="ai">Paint with AI</button><button class="btn sm ${mode === 'up' ? 'neon' : ''}" data-mode="up">Upload a picture</button></div>
+      ${mode === 'ai' ? `<label class="field"><span>Model</span><select class="inp" id="na_model">${m.models.map((x) => `<option value="${x.id}" ${x.ready ? '' : 'disabled'}>${esc(x.name)} · ${esc(x.note)}${x.ready ? '' : ' (needs Cloudflare keys)'}</option>`).join('')}</select></label>
+        <label class="field"><span>Describe the character</span><textarea class="inp" id="na_prompt" rows="3" maxlength="1500" placeholder="a sleepy sloth in a velvet tuxedo holding a golden microphone"></textarea></label>
+        ${sw('na_house', true, 'Kohler style', 'Wraps your description in the house look (3D meme portrait, centred face) so it matches the collection. Off = your words exactly.')}
+        <label class="field"><span>How many versions</span><select class="inp" id="na_n">${[1, 2, 3, 4].map((n) => `<option>${n}</option>`).join('')}</select></label>`
+      : `<label class="field"><span>Picture (PNG, JPG or WebP; it's cropped to a centred square)</span><input class="inp" id="na_file" type="file" accept="image/*" style="padding:10px"></label><div id="na_prev"></div>`}
+      <div class="fields"><label class="field"><span>Name</span><input class="inp" id="na_name" maxlength="40" placeholder="Velvet Sloth"></label>
+        <label class="field"><span>Tier</span><select class="inp" id="na_tier">${Object.keys(m.tiers).map((t) => `<option ${t === 'common' ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+        <label class="field"><span>Price ($)</span><input class="inp num" id="na_price" type="number" min="0" step="0.01" value="${(m.tiers.common / 100).toFixed(2)}"></label>
+        <label class="field"><span>Copies (blank = no limit)</span><input class="inp num" id="na_supply" type="number" min="1" step="1" placeholder="no limit"></label></div>
+      ${sw('na_pass', false, 'Free with Kohler Pass', 'Pass holders can wear it without buying it.')}
+      <div class="err" id="na_err"></div><div id="na_out" class="avg sm" style="margin-bottom:10px"></div>
+      <div class="row" style="justify-content:flex-end"><button class="btn ghost" id="na_no">Close</button><button class="btn neon" id="na_go">${mode === 'ai' ? 'Paint' : 'Add to the collection'}</button></div>`);
+    document.querySelectorAll('[data-mode]').forEach((b) => (b.onclick = () => { mode = b.dataset.mode; paint(); }));
+    ['na_house', 'na_pass'].forEach((k) => $('#' + k) && ($('#' + k).onclick = () => $('#' + k).classList.toggle('on')));
+    $('#na_tier').onchange = () => { $('#na_price').value = (m.tiers[$('#na_tier').value] / 100).toFixed(2); if ($('#na_tier').value === 'rare' && !$('#na_supply').value) $('#na_supply').value = 10; };
+    $('#na_no').onclick = () => { close(); done?.(); };
+    $('#na_file') && ($('#na_file').onchange = () => { const f = $('#na_file').files[0]; if (f) $('#na_prev').innerHTML = `<img src="${URL.createObjectURL(f)}" alt="" style="width:160px;height:160px;object-fit:cover;border-radius:16px;margin-bottom:10px">`; });
+    $('#na_go').onclick = async () => {
+      const meta = { name: $('#na_name').value.trim() || undefined, tier: $('#na_tier').value, price: Math.round(+$('#na_price').value * 100), supply: $('#na_supply').value || undefined, passFree: $('#na_pass').classList.contains('on') };
+      $('#na_err').textContent = ''; $('#na_go').disabled = true;
+      try {
+        if (mode === 'up') {
+          const f = $('#na_file').files[0]; if (!f) throw new Error('Pick a picture first.');
+          $('#na_go').textContent = 'Uploading…'; await uploadImage(f, meta); toast('Added. It’s live in the Vault.'); close(); done?.(); return;
+        }
+        const n = +$('#na_n').value, body = { ...meta, model: $('#na_model').value, prompt: $('#na_prompt').value, houseStyle: $('#na_house').classList.contains('on') };
+        for (let i = 0; i < n; i++) {
+          $('#na_go').textContent = `Painting ${i + 1} of ${n}…`;
+          const r = await api('/admin/avatars/create', { method: 'POST', body, timeout: 130000 });
+          $('#na_out').insertAdjacentHTML('beforeend', `<div class="card avc"><img src="/avatars/${r.id}/512.webp?v=2" alt=""></div>`);
+        }
+        toast(n > 1 ? `${n} versions painted. Approve the ones you like under To review.` : 'Painted. Approve it under To review.');
+      } catch (e) { $('#na_err').textContent = e.message; }
+      $('#na_go').disabled = false; $('#na_go').textContent = mode === 'ai' ? 'Paint again' : 'Add to the collection';
+    };
+  };
+  paint();
+}
+
 // optional parts of a page: if one fails the rest still shows, with a note saying what's missing
 const opt = (p, label) => api(p).catch((e) => { if (e.need2fa) throw e; A.miss.push(label); return null; });
 const I = (d) => `<svg class="ico" viewBox="0 0 24 24">${d}</svg>`;
@@ -532,7 +595,7 @@ V.avatars = async () => {
   const state = s.paused ? '<span class="tag">paused</span>' : (!cat.configured || cat.error || cat.quotaUntil) && bk && (p.queued || p.custom_queued) ? `<span class="tag y">backup painter${bk.nextAt ? ', next at ' + new Date(bk.nextAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>` : !cat.configured ? '<span class="tag r">not connected</span>' : cat.error ? '<span class="tag r">key refused</span>'
     : cat.quotaUntil ? `<span class="tag y">resting until ${new Date(cat.quotaUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>` : p.queued ? '<span class="tag g">painting</span>' : '<span class="tag g">idle, target reached</span>';
   $('#view').innerHTML = `<div class="top"><div><h1>Avatar factory</h1><div class="sub">AI-painted avatars: ${s.target} starter avatars on the free Cloudflare allowance, plus custom avatars players pay for. Style: hyper-exaggerated 3D meme portraits.</div></div>
-      <div class="row">${cat.configured ? `<button class="btn" id="aTest">Test connection</button>` : ''}${s.paused ? '<button class="btn neon" id="aStart">Start painting</button>' : `<button class="btn" id="aPause">Pause</button>`}</div></div>
+      <div class="row"><button class="btn neon" id="aNew">New avatar</button>${cat.configured ? `<button class="btn" id="aTest">Test connection</button>` : ''}${s.paused ? '<button class="btn neon" id="aStart">Start painting</button>' : `<button class="btn" id="aPause">Pause</button>`}</div></div>
     ${setup}
     ${cat.error ? `<div class="card bad" style="margin-bottom:14px"><b>Cloudflare said no.</b> <span class="muted">${esc(cat.error)}</span> It tries again every 10 minutes${bk ? '; the backup painter covers in the meantime' : ''}. Fix the environment variables and redeploy, or press Start to retry now.</div>` : ''}
     ${d.serverless && (cat.configured || bk) && !s.paused && (p.queued || p.custom_queued) ? `<div class="card hl" style="margin-bottom:14px;display:flex;gap:10px;align-items:center"><span class="dot" style="background:var(--neon);width:9px;height:9px;border-radius:50%"></span><div><b>Painting while this page is open</b> <span class="muted" id="aLive"></span><div class="faint" style="font-size:12.5px">On Vercel nothing runs in the background, so this page drives the painter. Close it and the daily cron carries on.</div></div></div>` : ''}
@@ -567,11 +630,14 @@ V.avatars = async () => {
           <div class="row" style="flex-wrap:nowrap"><select class="inp" style="height:32px" data-tr="${a.id}">${Object.keys(TIERS).map((t) => `<option value="${t}" ${t === a.tier ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
           <div class="row" style="flex-wrap:nowrap;margin-top:6px;gap:6px"><label class="field" style="margin:0;flex:1"><span style="font-size:11px">Price $</span><input class="inp num" style="height:32px" type="number" min="0" step="0.01" value="${(a.price_cents / 100).toFixed(2)}" data-pr="${a.id}"></label>
             <label class="field" style="margin:0;flex:1"><span style="font-size:11px">Copies${a.sold ? ` · ${a.sold} sold` : ''}</span><input class="inp num" style="height:32px" type="number" min="1" step="1" placeholder="no limit" value="${a.supply ?? ''}" data-sp="${a.id}"></label></div>
+          <div class="sw" style="padding:6px 0 0;border:0"><span style="font-size:12px">${a.tier === 'epic' ? 'Free with Pass (all Epics are)' : 'Free with Kohler Pass'}</span>${a.tier === 'epic' ? '' : `<button class="tog ${a.pass_free ? 'on' : ''}" data-pf="${a.id}" role="switch" aria-checked="${!!a.pass_free}"></button>`}</div>
+          ${a.source && a.source !== 'factory' ? `<div class="faint" style="font-size:11px;margin-top:4px">${a.source === 'upload' ? 'Uploaded' : 'Made by you' + (a.model ? ' · ' + esc(String(a.model).split('/').pop()) : '')}</div>` : ''}
           <div class="row" style="margin-top:8px">${a.status !== 'approved' ? `<button class="btn sm neon" data-ok="${a.id}">Approve</button>` : '<span class="tag g">live</span>'}${a.status !== 'rejected' ? `<button class="btn sm red" data-no="${a.id}">Reject</button>` : ''}<span class="faint num" style="margin-left:auto;font-size:12px">${a.price_cents ? money(a.price_cents) : 'free'}</span></div></div></div>`).join('')
       : `<div class="card empty" style="grid-column:1/-1">${filter === 'pending' ? 'Nothing to review.' : 'No avatars here yet.'}</div>`}</div>
     <div class="sec"><h2>Custom avatars players made</h2><span class="faint">latest 60</span></div>
     <div class="avg sm">${d.customs.length ? d.customs.map((a) => `<div class="card avc"><img src="/avatars/${a.id}/128.webp?v=2" alt="" loading="lazy"><div style="padding:8px;font-size:12px"><b>${esc(a.username || '')}</b>${a.extra ? `<div class="faint">“${esc(a.extra)}”</div>` : ''}<button class="btn sm red" style="margin-top:6px;width:100%" data-rm="${a.id}">Remove</button></div></div>`).join('')
       : '<div class="card empty" style="grid-column:1/-1">No custom avatars yet.</div>'}</div>`;
+  $('#aNew').onclick = () => newAvatar(() => V.avatars());
   bindTog('aAuto', (on) => api('/admin/avatars/settings', { method: 'PATCH', body: { autoApprove: on } }));
   bindTog('aCus', (on) => api('/admin/avatars/settings', { method: 'PATCH', body: { customEnabled: on } }));
   $('#aSave').onclick = async () => { try { await api('/admin/avatars/settings', { method: 'PATCH', body: { customPrice: Math.round(+$('#aPrice').value * 100), target: +$('#aTarget').value, dailyImages: +$('#aDaily').value } }); toast('Saved'); V.avatars(); } catch (e) { toast(e.message, true); } };
@@ -604,6 +670,8 @@ V.avatars = async () => {
     const af = e.target.closest('[data-af]'); if (af) { e.preventDefault(); A.avFilter = af.dataset.af; return V.avatars(); }
     const ok = e.target.closest('[data-ok]'), no = e.target.closest('[data-no]'), rm = e.target.closest('[data-rm]');
     if (ok || no) { await api('/admin/avatars/' + (ok || no).dataset[ok ? 'ok' : 'no'], { method: 'PATCH', body: { status: ok ? 'approved' : 'rejected' } }); toast(ok ? 'Live' : 'Rejected. A replacement will be painted.'); V.avatars(); }
+    const pf = e.target.closest('[data-pf]');
+    if (pf) { const on = !pf.classList.contains('on'); try { await api('/admin/avatars/' + pf.dataset.pf, { method: 'PATCH', body: { passFree: on } }); pf.classList.toggle('on', on); toast(on ? 'Free with Kohler Pass' : 'No longer free with the Pass'); } catch (err) { toast(err.message, true); } return; }
     if (rm && await ask('Remove this custom avatar?', 'It disappears everywhere and the player goes back to a default avatar. They are not refunded automatically.', 'Remove', 'red')) { await api(`/admin/avatars/custom/${rm.dataset.rm}/remove`, { method: 'POST' }); toast('Removed'); V.avatars(); }
   };
   $('#view').onchange = async (e) => {
@@ -730,7 +798,7 @@ V.legends = async () => {
         ${l.pending ? `<div style="display:flex;gap:12px;align-items:center;margin-top:10px;padding:10px;border-radius:12px;background:rgba(232,196,106,.08);border:1px solid rgba(232,196,106,.35)">
           <a href="${img(l.pending, 512)}" target="_blank" rel="noopener">${face(l, l.pending, 96)}</a><div><b>New portrait</b><div class="faint" style="font-size:12.5px;margin:2px 0 8px">${l.image ? 'Approving swaps it in for everyone wearing this character.' : 'Approve it to put this character in the Vault and the games.'}</div>
           <div class="row"><button class="btn sm neon" data-lap="${l.id}">Approve</button><button class="btn sm" data-lrj="${l.id}">Reject</button></div></div></div>` : ''}</div>
-      <div class="row" style="flex-wrap:wrap"><button class="btn sm" data-led="${l.id}">Edit</button>${l.job && l.job.status !== 'failed' ? '' : `<button class="btn sm" data-lpt="${l.id}">${l.image || l.pending ? 'Repaint' : 'Paint'}</button>`}${tog('lv_' + l.id, l.status === 'live')}</div></div>`;
+      <div class="row" style="flex-wrap:wrap"><button class="btn sm" data-led="${l.id}">Edit</button>${l.job && l.job.status !== 'failed' ? '' : `<button class="btn sm" data-lpt="${l.id}">${l.image || l.pending ? 'Repaint' : 'Paint'}</button>`}<button class="btn sm" data-lup="${l.id}">Upload</button>${tog('lv_' + l.id, l.status === 'live')}</div></div>`;
   const castRow = (g) => { const ids = S.casts[g] || []; return `<div style="margin-bottom:14px"><div class="row" style="justify-content:space-between;margin-bottom:6px"><b>${esc(GN[g] || g)}</b><button class="btn sm" data-cast="${g}">Save</button></div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px">${ids.map((id, i) => `<label class="field" style="margin:0"><span>${ids.length === 1 ? 'Pilot' : i === 6 ? 'Jackpot (pays on 5 only)' : `Symbol ${i + 1}${i === 0 ? ' (lowest)' : ''}`}</span>
         <select class="inp" data-cg="${g}" data-ci="${i}">${L.map((l) => `<option value="${l.id}" ${l.id === id ? 'selected' : ''}>${esc(l.emoji + ' ' + l.name)}</option>`).join('')}</select></label>`).join('')}</div></div>`; };
@@ -791,12 +859,34 @@ V.legends = async () => {
   bindTog('lUnl', (on) => api('/admin/legends', { method: 'PATCH', body: { unlocks: on } }));
   L.forEach((l) => bindTog('lv_' + l.id, async (on) => { await api('/admin/legends/' + l.id, { method: 'PATCH', body: { status: on ? 'live' : 'hidden' } }); setTimeout(V.legends, 300); }));
   $('#view').onclick = async (e) => {
-    const t = e.target.closest('[data-led],[data-lpt],[data-lap],[data-lrj],[data-cast]'); if (!t) return;
+    const t = e.target.closest('[data-led],[data-lpt],[data-lap],[data-lrj],[data-cast],[data-lup]'); if (!t) return;
     const x = t.dataset;
     try {
       if (x.led) return editor(by(x.led));
+      // upload a finished portrait (an artist's piece): it waits here for Approve like a painted one
+      if (x.lup) {
+        const f = document.createElement('input'); f.type = 'file'; f.accept = 'image/*';
+        f.onchange = async () => { if (!f.files[0]) return; try { toast('Uploading…'); await uploadImage(f.files[0], { legendId: x.lup, name: by(x.lup).name }); toast('Uploaded. Approve it to use it.'); V.legends(); } catch (err) { toast(err.message, true); } };
+        return f.click();
+      }
+      // paint: in the factory queue with the house painter, or right now with a model you pick
+      if (x.lpt) {
+        const l = by(x.lpt), m = await api('/admin/avatars/models');
+        modal(`<h2 style="margin-bottom:10px">Paint ${esc(l.name)}</h2>
+          <label class="field"><span>Painter</span><select class="inp" id="lpm"><option value="">Factory painter (joins the queue)</option>${m.models.map((o) => `<option value="${o.id}" ${o.ready ? '' : 'disabled'}>${esc(o.name)} · ${esc(o.note)}</option>`).join('')}</select></label>
+          <div class="err" id="lpe"></div><div class="row" style="justify-content:flex-end"><button class="btn ghost" id="lpn">Cancel</button><button class="btn neon" id="lpy">Paint</button></div>`);
+        $('#lpn').onclick = close;
+        $('#lpy').onclick = async () => {
+          const model = $('#lpm').value; $('#lpy').disabled = true; $('#lpy').textContent = 'Painting…';
+          try {
+            if (!model) { const r = await api('/admin/legends/' + l.id + '/paint', { method: 'POST' }); toast(r.already ? 'Already painting' : 'Queued. It shows up here for approval when it’s done.'); }
+            else { await api('/admin/avatars/create', { method: 'POST', body: { model, prompt: l.prompt, houseStyle: false, legendId: l.id, name: l.name }, timeout: 130000 }); toast('Painted. Approve it if you like it.'); }
+            close(); V.legends();
+          } catch (err) { $('#lpe').textContent = err.message; $('#lpy').disabled = false; $('#lpy').textContent = 'Paint'; }
+        };
+        return;
+      }
       t.disabled = true;
-      if (x.lpt) { const r = await api('/admin/legends/' + x.lpt + '/paint', { method: 'POST' }); toast(r.already ? 'Already painting' : 'Queued. It shows up here for approval when it\'s done.'); }
       if (x.lap) { await api('/admin/legends/' + x.lap + '/approve', { method: 'POST' }); toast('Approved'); }
       if (x.lrj) { await api('/admin/legends/' + x.lrj + '/reject', { method: 'POST' }); toast('Rejected. Press Repaint for another.'); }
       if (x.cast) { const ids = [...document.querySelectorAll(`[data-cg="${x.cast}"]`)].sort((a, b) => a.dataset.ci - b.dataset.ci).map((s) => s.value); await api('/admin/legends', { method: 'PATCH', body: { cast: { game: x.cast, ids } } }); toast('Cast saved'); }
@@ -905,6 +995,7 @@ function gate(msg) {
 async function route() {
   if (!A.me) return;                       // still signing in
   const seq = ++A.seq; A.miss = [];
+  $('#modal')?.classList.remove('on');   // a dialog never follows you to another page
   document.body.classList.remove('nav');
   A.tab = (location.hash.slice(2) || home());
   if (!god() && !fin()) { side(); $('#view').innerHTML = '<div class="card empty" style="max-width:520px;margin:40px auto">This account has no admin pages. Ask an owner to make you an owner or finance admin.</div>'; return; }

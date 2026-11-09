@@ -428,7 +428,14 @@ app.post('/api/auth/username', requireUser, async (req, res) => {
   } catch { res.status(409).json({ error: 'taken' }); }
 });
 
-app.get('/api/me', async (req, res) => res.json({ user: pub(req.user), newBadges: req.user ? await achievements.unseen(req.user.id).catch(() => []) : [] }));
+app.get('/api/me', async (req, res) => {
+  // an avatar worn through the Kohler Pass (or one that's no longer available) comes off once it can't be worn any more
+  if (req.user?.equip?.avatar && !(await avatars.canUse(req.user.id, req.user.equip.avatar).catch(() => true))) {
+    const r = await q(`update users set equip = coalesce(equip, '{}') - 'avatar' where id = $1 returning equip`, [req.user.id]);
+    req.user.equip = r.rows[0].equip;
+  }
+  res.json({ user: pub(req.user), newBadges: req.user ? await achievements.unseen(req.user.id).catch(() => []) : [] });
+});
 app.get('/api/badges', async (req, res) => res.json({ badges: await achievements.list(req.user?.id), progress: req.user ? achievements.progress(req.user) : null }));
 
 /* ── two-factor sign-in (TOTP) — required for every admin unless ADMIN_2FA=off ── */
