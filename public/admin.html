@@ -204,11 +204,12 @@ const ICO = {
   orders: I('<rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M9 8h6M9 12h6M9 16h4"/>'),
   support: I('<path d="M4 5h16v11H9l-5 4z"/>'),
   avatars: I('<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="10" r="3.5"/><path d="M6.5 19a6 6 0 0 1 11 0"/>'),
+  legends: I('<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/><path d="M5 19h14"/>'),
   promos: I('<path d="M20 12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8"/><rect x="2.5" y="7" width="19" height="5" rx="1"/><path d="M12 7v14M12 7S10.5 3 8 3a2 2 0 0 0 0 4h4zM12 7s1.5-4 4-4a2 2 0 0 1 0 4h-4z"/>'),
   system: I('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>'),
 };
 const NAV = [['Run the business', [['overview', 'Overview'], ['payouts', 'Payouts'], ['deposits', 'Deposits'], ['users', 'Players'], ['promos', 'Promos']]],
-  ['Games', [['survivor', 'Survivor'], ['casino', 'Casino'], ['avatars', 'Avatar factory'], ['vault', 'Vault sales']]],
+  ['Games', [['survivor', 'Survivor'], ['casino', 'Casino'], ['avatars', 'Avatar factory'], ['legends', 'Legends'], ['vault', 'Vault sales']]],
   ['Shop', [['catalog', 'Catalog'], ['orders', 'Orders'], ['support', 'Support']]],
   ['Platform', [['system', 'Switches & health']]]];
 const A = { me: null, stats: null, tab: 'overview', seq: 0, miss: [] };
@@ -230,7 +231,7 @@ new MutationObserver(() => lockView()).observe(document.body, { childList: true,
 
 function side() {
   const o = A.stats?.ops || {};
-  const badge = { payouts: o.payouts_pending + o.payouts_processing, deposits: o.claims_pending, support: A.stats?.open_tickets, system: o.alerts_24h, avatars: o.avatars_pending };
+  const badge = { payouts: o.payouts_pending + o.payouts_processing, deposits: o.claims_pending, support: A.stats?.open_tickets, system: o.alerts_24h, avatars: o.avatars_pending, legends: o.legends_pending };
   const groups = god() ? NAV : fin() ? FIN_NAV : [['Shop', [['catalog', 'Catalog']]]];
   $('#side').innerHTML = `<a class="brand" href="/" style="height:auto;padding:0 8px 18px;background:none">${KohlerLogo.mark(32, true)}<span>Kohler<small>Control</small></span></a>
     ${groups.map(([h, items]) => `<div class="navh">${h}</div>${items.map(([k, l]) => `<a href="#/${k}" class="${A.tab === k ? 'on' : ''}">${ICO[k]}${l}${badge[k] ? `<span class="badge ${k === 'system' ? 'red' : ''}">${badge[k]}</span>` : ''}</a>`).join('')}`).join('')}
@@ -755,6 +756,111 @@ V.promos = async () => {
     if (!(await ask('Release this referral?', `Do this only if you're sure <b>${esc(b.dataset.rel)}</b> is a different person from who invited them. If they've already deposited enough, the referral bonuses are paid now.`, 'Release'))) return;
     try { const r = await api('/admin/promos/release/' + encodeURIComponent(b.dataset.rel), { method: 'POST' }); toast(r.paid ? `Released. ${money(r.paid)} paid to the referrer.` : 'Released'); V.promos(); } catch (e) { toast(e.message, true); }
   }));
+};
+
+/* Legends: the Legendary characters (lib/legends.js) */
+V.legends = async () => {
+  const d = await api('/admin/legends');
+  const L = d.legends, S = d.settings, R = ['free', 'common', 'rare', 'epic'];
+  const GN = { 'ks-legends-lounge': 'Legends Lounge (slot)', 'ks-billionaire-zoo': 'Billionaire Zoo (slot)', 'ks-flapsworth': 'Flapsworth Takes Flight (crash)' };
+  const img = (id, z = 128) => `/avatars/${id}/${z}.webp`;
+  const face = (l, id, z = 64) => id ? `<img src="${img(id, z > 64 ? 512 : 128)}" alt="" style="width:${z}px;height:${z}px;border-radius:50%;object-fit:cover;flex:none;box-shadow:0 0 0 2px rgba(232,196,106,.6)">`
+    : `<span style="width:${z}px;height:${z}px;border-radius:50%;display:grid;place-items:center;font-size:${Math.round(z * .55)}px;background:#151c27;flex:none">${esc(l.emoji)}</span>`;
+  const missing = L.filter((l) => !l.image && !l.pending && !l.job).length, painting = L.filter((l) => l.job && l.job.status !== 'failed').length, waiting = L.filter((l) => l.pending).length;
+  const how = (l) => [l.unlockRounds ? `unlocks after ${l.unlockRounds} Survivor rounds` : '', l.buyable && l.price ? money(l.price) : !l.unlockRounds && !l.price ? 'free' : l.unlockRounds && !l.buyable ? 'unlock only' : ''].filter(Boolean).join(' · ');
+  const card = (l) => `<div class="card" style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap${l.status === 'hidden' ? ';opacity:.6' : ''}">
+      ${face(l, l.image)}
+      <div style="flex:1;min-width:220px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:15px">${esc(l.name)}</b><span class="tag">${l.rarity}</span>${l.status === 'hidden' ? '<span class="tag">hidden</span>' : ''}
+          ${l.job ? `<span class="tag ${l.job.status === 'failed' ? 'r' : 'y'}">${l.job.status === 'failed' ? 'painting failed' : 'painting…'}</span>` : ''}</div>
+        <div class="muted" style="font-size:13px;margin-top:2px">${esc(l.title)} · ${how(l)}${l.owners ? ` · ${l.owners} own it` : ''}</div>
+        <div class="faint" style="font-size:12.5px;margin-top:4px">${esc(l.bio)}</div>
+        ${l.job?.status === 'failed' && l.job.error ? `<div class="faint" style="font-size:12px;margin-top:4px;color:var(--rose)">${esc(l.job.error)}</div>` : ''}
+        ${l.pending ? `<div style="display:flex;gap:12px;align-items:center;margin-top:10px;padding:10px;border-radius:12px;background:rgba(232,196,106,.08);border:1px solid rgba(232,196,106,.35)">
+          <a href="${img(l.pending, 512)}" target="_blank" rel="noopener">${face(l, l.pending, 96)}</a><div><b>New portrait</b><div class="faint" style="font-size:12.5px;margin:2px 0 8px">${l.image ? 'Approving swaps it in for everyone wearing this character.' : 'Approve it to put this character in the Vault and the games.'}</div>
+          <div class="row"><button class="btn sm neon" data-lap="${l.id}">Approve</button><button class="btn sm" data-lrj="${l.id}">Reject</button></div></div></div>` : ''}</div>
+      <div class="row" style="flex-wrap:wrap"><button class="btn sm" data-led="${l.id}">Edit</button>${l.job && l.job.status !== 'failed' ? '' : `<button class="btn sm" data-lpt="${l.id}">${l.image || l.pending ? 'Repaint' : 'Paint'}</button>`}${tog('lv_' + l.id, l.status === 'live')}</div></div>`;
+  const castRow = (g) => { const ids = S.casts[g] || []; return `<div style="margin-bottom:14px"><div class="row" style="justify-content:space-between;margin-bottom:6px"><b>${esc(GN[g] || g)}</b><button class="btn sm" data-cast="${g}">Save</button></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px">${ids.map((id, i) => `<label class="field" style="margin:0"><span>${ids.length === 1 ? 'Pilot' : i === 6 ? 'Jackpot (pays on 5 only)' : `Symbol ${i + 1}${i === 0 ? ' (lowest)' : ''}`}</span>
+        <select class="inp" data-cg="${g}" data-ci="${i}">${L.map((l) => `<option value="${l.id}" ${l.id === id ? 'selected' : ''}>${esc(l.emoji + ' ' + l.name)}</option>`).join('')}</select></label>`).join('')}</div></div>`; };
+  $('#view').innerHTML = `<div class="top"><div><h1>Legends</h1><div class="sub">Named characters with a personality. Same look as the starter avatars, pushed further. They're the Legendary section of the Vault and star in Legends Lounge, Billionaire Zoo and Flapsworth Takes Flight. Every new portrait waits for your approval here.</div></div>
+      <div class="row">${missing ? `<button class="btn" id="lPaint">Paint ${missing} missing portrait${missing === 1 ? '' : 's'}</button>` : ''}<button class="btn neon" id="lNew">New character</button></div></div>
+    ${d.serverless && painting ? `<div class="card hl" style="margin-bottom:14px;display:flex;gap:10px;align-items:center"><span class="dot" style="background:var(--neon);width:9px;height:9px;border-radius:50%"></span><div><b>Painting while this page is open</b> <span class="muted" id="lLive"></span><div class="faint" style="font-size:12.5px">${painting} in the queue. On Vercel this page drives the painter; the daily cron carries on if you close it.</div></div></div>` : ''}
+    <div class="grid g4">
+      <div class="card kpi"><div class="l">Characters</div><div class="v num">${L.length}</div><div class="s faint">${L.filter((l) => l.status === 'live').length} live</div></div>
+      <div class="card kpi"><div class="l">With a portrait</div><div class="v num">${L.filter((l) => l.image).length}</div><div class="s faint">${painting} painting</div></div>
+      <div class="card kpi"><div class="l">Waiting for you</div><div class="v num ${waiting ? 'gold' : ''}">${waiting}</div><div class="s faint">new portraits</div></div>
+      <div class="card kpi"><div class="l">Owned</div><div class="v num">${L.reduce((a, l) => a + l.owners, 0)}</div><div class="s faint">bought or unlocked</div></div></div>
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card"><div class="card-h"><h2>Survivor unlocks</h2></div>
+        ${sw('lUnl', S.unlocks, 'Unlock characters by playing Survivor', 'Characters with an unlock number become free after that many settled Survivor rounds. Set the number on each character. Switching this off stops new unlocks; nobody loses one they have.')}</div>
+      <div class="card"><div class="card-h"><h2>Who stars in which game</h2></div><div class="faint" style="font-size:12.5px;margin:-4px 0 10px">Recasting changes the pictures only. Payouts stay the same.</div>
+        ${d.games.map(castRow).join('')}</div></div>
+    ${R.map((r) => { const g = L.filter((l) => l.rarity === r); return g.length ? `<div class="sec"><h2>${r[0].toUpperCase() + r.slice(1)}</h2><span class="faint">${g.length}</span></div><div style="display:grid;gap:10px">${g.map(card).join('')}</div>` : ''; }).join('')}`;
+
+  const editor = (l = {}) => {
+    const ln = (k) => (l.lines?.[k] || []).join('\n');
+    modal(`<h2 style="margin-bottom:4px">${l.id ? esc(l.name) : 'New character'}</h2><p class="muted" style="margin:0 0 12px;font-size:13px">${l.id ? 'Changes to the description need a repaint to show up in the portrait.' : 'It starts hidden. Paint it, approve the portrait, then switch it on.'}</p>
+      <div class="fields"><label class="field"><span>Name</span><input class="inp" id="lf_name" maxlength="60" value="${esc(l.name || '')}"></label>
+        <label class="field"><span>Title</span><input class="inp" id="lf_title" maxlength="60" value="${esc(l.title || '')}" placeholder="Ruler of All Gold"></label>
+        <label class="field"><span>Emoji (stand-in)</span><input class="inp" id="lf_emoji" maxlength="8" value="${esc(l.emoji || '⭐')}"></label></div>
+      <div class="fields"><label class="field"><span>Rarity</span><select class="inp" id="lf_rarity">${R.map((r) => `<option ${r === (l.rarity || 'common') ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
+        <label class="field"><span>Surface</span><select class="inp" id="lf_texture">${d.textures.map((t) => `<option ${t === (l.texture || 'fur') ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+        <label class="field"><span>Price ($, 0 = free)</span><input class="inp num" id="lf_price" type="number" min="0" step="0.01" value="${((l.price ?? d.rarityPrice[l.rarity || 'common']) / 100).toFixed(2)}"></label>
+        <label class="field"><span>Unlock after Survivor rounds (blank = no)</span><input class="inp num" id="lf_unlock" type="number" min="0" step="1" value="${l.unlockRounds || ''}"></label></div>
+      ${sw('lf_buy', l.buyable ?? true, 'Can be bought', 'Off = unlock only (set the rounds above).')}
+      <label class="field"><span>What to paint (the character)</span><textarea class="inp" id="lf_subject" rows="2" maxlength="300">${esc(l.subject || '')}</textarea></label>
+      <div class="fields"><label class="field"><span>Personality / expression</span><input class="inp" id="lf_personality" maxlength="160" value="${esc(l.personality || '')}"></label>
+        <label class="field"><span>Wearing</span><input class="inp" id="lf_accessory" maxlength="200" value="${esc(l.accessory || '')}"></label></div>
+      <div class="fields"><label class="field"><span>Background</span><input class="inp" id="lf_background" maxlength="200" value="${esc(l.background || '')}"></label>
+        <label class="field"><span>Extra detail</span><input class="inp" id="lf_extra" maxlength="200" value="${esc(l.extra || '')}"></label></div>
+      <label class="field"><span>Bio (shown in the Vault)</span><input class="inp" id="lf_bio" maxlength="240" value="${esc(l.bio || '')}"></label>
+      <div class="fields">${[['win', 'Says on a win'], ['big', 'Says on a big win'], ['lose', 'Says on a loss'], ['idle', 'Says when the game opens']].map(([k, t]) => `<label class="field"><span>${t} (one per line)</span><textarea class="inp" id="lf_l_${k}" rows="3">${esc(ln(k))}</textarea></label>`).join('')}</div>
+      ${l.prompt ? `<details style="margin:4px 0 10px"><summary class="faint" style="cursor:pointer;font-size:12.5px">Painter prompt</summary><div class="mono faint" style="font-size:11.5px;white-space:pre-wrap;margin-top:6px">${esc(l.prompt)}</div></details>` : ''}
+      <div class="err" id="lf_err"></div>
+      <div class="row" style="justify-content:space-between;margin-top:6px">${l.id && !l.owners ? '<button class="btn ghost" id="lfDel" style="color:var(--rose)">Delete</button>' : '<span></span>'}
+        <div class="row"><button class="btn ghost" id="lfNo">Cancel</button><button class="btn neon" id="lfYes">${l.id ? 'Save' : 'Create'}</button></div></div>`);
+    $('#lfNo').onclick = close;
+    $('#lf_buy').onclick = () => $('#lf_buy').classList.toggle('on');
+    $('#lfYes').onclick = async () => {
+      const v = (k) => $('#lf_' + k).value;
+      const body = { name: v('name'), title: v('title'), emoji: v('emoji'), rarity: v('rarity'), texture: v('texture'), price: Math.round(+v('price') * 100), unlockRounds: v('unlock') === '' ? null : +v('unlock'),
+        buyable: $('#lf_buy').classList.contains('on'), subject: v('subject'), personality: v('personality'), accessory: v('accessory'), background: v('background'), extra: v('extra'), bio: v('bio'),
+        lines: Object.fromEntries(['win', 'big', 'lose', 'idle'].map((k) => [k, $('#lf_l_' + k).value])) };
+      $('#lfYes').disabled = true;
+      try { await api(l.id ? '/admin/legends/' + l.id : '/admin/legends', { method: l.id ? 'PATCH' : 'POST', body }); close(); toast(l.id ? 'Saved' : 'Created. Paint its portrait next.'); V.legends(); }
+      catch (e) { $('#lf_err').textContent = e.message; $('#lfYes').disabled = false; }
+    };
+    $('#lfDel') && ($('#lfDel').onclick = async () => { if (!(await ask('Delete ' + esc(l.name) + '?', 'Its portraits stay in the database but it leaves the Vault and the games.', 'Delete', 'red'))) return;
+      try { await api('/admin/legends/' + l.id, { method: 'DELETE' }); toast('Deleted'); V.legends(); } catch (e) { toast(e.message, true); } });
+  };
+  const by = (id) => L.find((l) => l.id === id);
+  $('#lNew').onclick = () => editor();
+  $('#lPaint') && ($('#lPaint').onclick = async () => { try { const r = await api('/admin/legends/paint-missing', { method: 'POST' }); toast(`${r.queued} portrait${r.queued === 1 ? '' : 's'} queued`); V.legends(); } catch (e) { toast(e.message, true); } });
+  bindTog('lUnl', (on) => api('/admin/legends', { method: 'PATCH', body: { unlocks: on } }));
+  L.forEach((l) => bindTog('lv_' + l.id, async (on) => { await api('/admin/legends/' + l.id, { method: 'PATCH', body: { status: on ? 'live' : 'hidden' } }); setTimeout(V.legends, 300); }));
+  $('#view').onclick = async (e) => {
+    const t = e.target.closest('[data-led],[data-lpt],[data-lap],[data-lrj],[data-cast]'); if (!t) return;
+    const x = t.dataset;
+    try {
+      if (x.led) return editor(by(x.led));
+      t.disabled = true;
+      if (x.lpt) { const r = await api('/admin/legends/' + x.lpt + '/paint', { method: 'POST' }); toast(r.already ? 'Already painting' : 'Queued. It shows up here for approval when it\'s done.'); }
+      if (x.lap) { await api('/admin/legends/' + x.lap + '/approve', { method: 'POST' }); toast('Approved'); }
+      if (x.lrj) { await api('/admin/legends/' + x.lrj + '/reject', { method: 'POST' }); toast('Rejected. Press Repaint for another.'); }
+      if (x.cast) { const ids = [...document.querySelectorAll(`[data-cg="${x.cast}"]`)].sort((a, b) => a.dataset.ci - b.dataset.ci).map((s) => s.value); await api('/admin/legends', { method: 'PATCH', body: { cast: { game: x.cast, ids } } }); toast('Cast saved'); }
+      V.legends();
+    } catch (err) { toast(err.message, true); t.disabled = false; }
+  };
+  // serverless: drive the painter while this page is open (same as the Avatar factory page)
+  clearTimeout(A.lgLoop);
+  if (d.serverless && painting && !A.avBusy) A.lgLoop = setTimeout(async () => {
+    if (location.hash !== '#/legends') return;
+    A.avBusy = true; const el = $('#lLive'); if (el) el.textContent = '· painting…';
+    let wait = 600;
+    try { const r = await api('/admin/avatars/work', { method: 'POST' }); if (!r.painted) wait = 15_000; } catch { wait = 15_000; } finally { A.avBusy = false; }
+    const again = () => { if (location.hash !== '#/legends') return; const f = document.activeElement; if (f && ($('#view').contains(f) || $('#mbox').contains(f)) && /^(INPUT|TEXTAREA|SELECT)$/.test(f.tagName) || $('#modal').classList.contains('on')) return setTimeout(again, 3000); V.legends(); };
+    setTimeout(again, wait);
+  }, 600);
 };
 
 V.system = async () => {

@@ -65,9 +65,56 @@
       <div class="meta"><div class="row" style="justify-content:space-between;gap:6px"><b>${esc(a.name)}</b>${mine ? '' : `<span class="tier ${a.tier}">${a.tier}</span>`}</div>
         <div class="foot"><span class="muted" style="font-size:12px">${mine ? 'Custom' : owned && a.price ? 'Owned' : !a.price ? 'Free' : ''}</span>${act}</div></div></div>`;
   }
+  /* ── Legendary characters (lib/legends.js): named, with a personality; they star in games ── */
+  const LGD = () => CS.legends || { legends: [], casts: {}, rounds: 0, unlocks: true };
+  const GAME_NAME = { 'ks-legends-lounge': 'Legends Lounge', 'ks-billionaire-zoo': 'Billionaire Zoo', 'ks-flapsworth': 'Flapsworth Takes Flight' };
+  function lgTile(l) {
+    const u = CS.user, d = LGD(), eq = u && l.image && u.equip?.avatar === l.image && u.equip?.avatar_mode !== 'default';
+    const games = Object.entries(d.casts || {}).filter(([, ids]) => ids.includes(l.id)).map(([g]) => GAME_NAME[g]).filter(Boolean);
+    const locked = !l.owned && l.unlockRounds && d.unlocks;
+    const have = Math.min(d.rounds || 0, l.unlockRounds || 0);
+    const act = !u ? `<button class="btn sm" data-auth>Sign in</button>`
+      : eq ? `<button class="btn sm" data-avuneq>Equipped</button>`
+      : l.owned ? `<button class="btn neon sm" data-aveq="${l.image}">Use</button>`
+      : l.buyable && l.price ? `<button class="btn gold sm" data-lgbuy="${l.id}">${money(l.price)}</button>`
+      : `<span class="muted" style="font-size:12px">${have}/${l.unlockRounds}</span>`;
+    const line = (l.lines?.idle || l.lines?.win || [])[0];
+    return `<div class="vt av lg ${l.rarity} ${eq ? 'on' : ''}" style="--tc:${({ free: '#14532d', common: '#1d2634', rare: '#0c3550', epic: '#4a3510' })[l.rarity]}">
+      <div class="show"><img src="${KohlerFace.url(l.image, 512)}" alt="${esc(l.name)}" loading="lazy" decoding="async">
+        ${locked ? `<div class="lock"><span>${ic('lock', 20)}</span></div>` : ''}
+        <span class="tier legendary" style="position:absolute;top:8px;left:8px">Legendary</span></div>
+      <div class="meta"><div class="row" style="justify-content:space-between;gap:6px"><b>${esc(l.name)}</b><span class="tier ${l.rarity}">${l.rarity}</span></div>
+        <span class="ttl">${esc(l.title)}</span>
+        <span class="bio">${esc(l.bio)}</span>
+        ${line ? `<span class="quote">“${esc(line)}”</span>` : ''}
+        ${games.length ? `<small>Stars in ${games.map(esc).join(', ')}</small>` : ''}
+        ${locked ? `<small>Unlocks after ${l.unlockRounds} Survivor rounds${l.buyable && l.price ? ', or buy it now' : ''}</small><div class="prog"><i style="width:${Math.round(have / l.unlockRounds * 100)}%"></i></div>` : ''}
+        <div class="foot"><span class="muted" style="font-size:12px">${l.owned && l.price ? 'Owned' : l.owned && l.unlockRounds ? 'Unlocked' : !l.price && !l.unlockRounds ? 'Free' : ''}</span>${act}</div></div></div>`;
+  }
+  function legendsBlock() {
+    const d = LGD(); if (!d.legends.length) return '';
+    const list = d.legends.filter((l) => tierFilter === 'all' || tierFilter === 'legendary' || l.rarity === tierFilter);
+    if (!list.length) return '';
+    const next = CS.user && d.unlocks ? d.legends.filter((l) => !l.owned && l.unlockRounds).sort((a, b) => a.unlockRounds - b.unlockRounds)[0] : null;
+    return `<div class="lg-hero" id="legendary"><div><span class="tag">${ic('crown', 14)}Legendary avatars</span><h2>Characters with a personality</h2>
+        <p>The wildest avatars on Kohler. Each one has a name, a story and something to say, and they star in Legends Lounge, Billionaire Zoo and Flapsworth Takes Flight.${d.unlocks ? ' Some epics can only be unlocked by playing Survivor.' : ''}</p></div>
+        ${next ? `<div class="ct"><span class="muted" style="font-size:12px">Survivor rounds played</span><b class="num">${d.rounds}</b><span class="muted" style="font-size:12px">${next.unlockRounds - d.rounds} more for ${esc(next.name)}</span></div>` : ''}</div>
+      <div class="vt-grid">${list.map(lgTile).join('')}</div>`;
+  }
+  function buyLegend(id) {
+    const l = LGD().legends.find((x) => x.id === id); if (!l) return; if (!CS.user) return authModal();
+    confirmBuy({ title: l.name, blurb: `${l.title}. Legendary ${l.rarity} avatar, yours to keep.`, price: l.price,
+      art: `<img src="${KohlerFace.url(l.image, 512)}" alt="" style="width:220px;height:220px;border-radius:28px;object-fit:cover">`, go: async () => {
+        await api('/legends/' + encodeURIComponent(id) + '/buy', { method: 'POST' });
+        await refreshMe().catch(() => {});
+        await after(`${l.name} is yours`, 'fx-confetti');
+        equipAvatar(l.image);
+      } });
+  }
   function avatarsTab() {
     const d = A(), list = d.avatars.filter((a) => tierFilter === 'all' || a.tier === tierFilter);
-    const tiers = ['all', 'free', 'common', 'rare', 'epic', 'legendary'].filter((t) => t === 'all' || d.avatars.some((a) => a.tier === t));
+    const tiers = ['all', 'free', 'common', 'rare', 'epic', 'legendary'].filter((t) => t === 'all' || d.avatars.some((a) => a.tier === t) || (t === 'legendary' && LGD().legends.length));
+    if (tierFilter === 'legendary') return legendsBlock() || '';
     const create = d.custom.enabled ? `<div class="mk-card"><div class="mk-faces">${d.avatars.slice(0, 4).map((a) => `<img src="${KohlerFace.url(a.id, 128)}" alt="">`).join('') || ''}</div>
         <div style="flex:1;min-width:220px"><span class="tag">${ic('sparkles', 14)}Made just for you</span><h2>Create your own avatar</h2>
           <p class="muted" style="margin:4px 0 0">Describe it, we paint ${d.custom.images} versions. Only you can use them.</p></div>
@@ -79,7 +126,7 @@
           ${CS.user ? `<button class="pill ${CS.user.equip?.avatar_mode === 'default' ? 'on' : ''}" data-avdefault>Use default text avatar</button>` : ''}</div>
         <div class="vt-grid">${list.map((a) => avTile(a)).join('')}</div>`
       : `<div class="empty">${ic('sparkles', 40, 'color:var(--gold)')}<h3>The collection is being painted</h3><p>New avatars show up here as they're finished.</p>${d.review ? `<p style="margin-top:10px"><a class="btn gold" href="/admin#/avatars">${d.review} painted and waiting for your review</a></p>` : CS.user?.isAdmin ? '<p class="muted" style="font-size:13px">Progress: Admin → Avatar factory.</p>' : ''}</div>`;
-    return create + pend + mine + grid;
+    return legendsBlock() + create + pend + mine + grid;
   }
 
   function render() {
@@ -99,7 +146,7 @@
     $('#view').innerHTML = `<section class="vt-hero"><div><span class="tag">${ic('gem', 14)}The Vault</span><h1>Look the part.</h1>
         <p>Avatars, frames, win effects, themes and filters. Cosmetic only, and yours forever.</p></div>
       ${u ? `<div class="vt-me"><div class="face">${(window.userFace || (() => ''))(u, 84)}</div><div><b style="font-family:var(--display)">${esc(u.username)}</b>
-        <div class="muted" style="font-size:13px">${u.equip?.avatar ? esc(KohlerFace.byId[u.equip.avatar]?.name || 'Custom avatar') : 'Default avatar'}${u.passUntil ? ` · <span style="color:#c4b5fd">Pass until ${new Date(u.passUntil).toLocaleDateString()}</span>` : ''}</div>
+        <div class="muted" style="font-size:13px">${u.equip?.avatar ? esc(KohlerFace.byId[u.equip.avatar]?.name || CS.legends?.legends?.find((l) => l.image === u.equip.avatar)?.name || 'Custom avatar') : 'Default avatar'}${u.passUntil ? ` · <span style="color:#c4b5fd">Pass until ${new Date(u.passUntil).toLocaleDateString()}</span>` : ''}</div>
         <div class="num" style="margin-top:4px;color:var(--neon);font-weight:700">${money(u.balance)}</div></div></div>` : `<button class="btn neon lg" data-auth>Sign in to collect</button>`}</section>
       <div class="tabs">${TABS.map(([k, l, i]) => `<button class="tab ${tab === k ? 'on' : ''}" data-tab="${k}">${ic(i, 18)}${l}</button>`).join('')}</div>
       ${tab === 'avatar' ? avatarsTab()
@@ -127,11 +174,14 @@
         ${b.reward && KV[b.reward] ? `<small class="rw">${b.earned ? 'Unlocked' : 'Unlocks'}: ${esc(KV[b.reward].name)}</small>` : ''}${b.earned ? `<small class="when">${new Date(b.earnedAt).toLocaleDateString()}</small>` : ''}</div>`).join('')}</div>`;
   }
   async function reload() {
-    const [v, a] = await Promise.all([api('/vault'), api('/avatars').catch(() => null)]);
+    const [v, a, lg] = await Promise.all([api('/vault'), api('/avatars').catch(() => null), api('/legends').catch(() => null)]);
     CS.vault = v; window.KV = Object.fromEntries(v.items.map((i) => [i.id, i]));
+    if (lg) CS.legends = { ...lg, byId: Object.fromEntries(lg.legends.map((l) => [l.id, l])) };
     if (a) { CS.avatars = a; KohlerFace.set(a.avatars); (a.pending || []).forEach((o) => follow(o.id)); }
   }
-  async function show() {
+  async function show(section) {
+    // #/vault/legendary opens straight on the Legendary characters
+    if (section === 'legendary') { tab = 'avatar'; tierFilter = 'legendary'; }
     if (!CS.vault || !CS.avatars) { $('#view').innerHTML = '<div class="empty" style="border:0">Opening the Vault…</div>'; await reload(); }
     else reload().then(() => location.hash.startsWith('#/vault') && !$('#modal').classList.contains('on') && render()).catch(() => {});
     render();
@@ -266,7 +316,7 @@
 
   document.addEventListener('click', (e) => {
     if (!location.hash.startsWith('#/vault') && !e.target.closest('#mbox')) return;
-    const t = e.target.closest('[data-tab],[data-buy],[data-eq],[data-uneq],[data-try],[data-auth],[data-avbuy],[data-aveq],[data-avuneq],[data-avdefault],[data-create],[data-tier],[data-order],[data-vcat]'); if (!t) return;
+    const t = e.target.closest('[data-tab],[data-buy],[data-eq],[data-uneq],[data-try],[data-auth],[data-avbuy],[data-aveq],[data-avuneq],[data-avdefault],[data-create],[data-tier],[data-order],[data-vcat],[data-lgbuy]'); if (!t) return;
     if (t.closest('#mbox') && !t.matches('[data-buy],[data-auth]')) return;
     e.preventDefault();
     const d = t.dataset;
@@ -277,6 +327,7 @@
     else if (d.try) { const it = KV[d.try]; if (it?.kind === 'theme') { window.KohlerTheme?.set(it.art); toast(`Previewing ${it.name}`); clearTimeout(window.__thPrev); window.__thPrev = setTimeout(() => window.KohlerTheme?.set(CS.user?.equipArt?.theme || null), 6000); } else KohlerFX.play(d.try, it?.art); }
     else if (d.vcat) { cat = d.vcat; render(); }
     else if (d.avbuy) buyAvatar(d.avbuy);
+    else if (d.lgbuy) buyLegend(d.lgbuy);
     else if (d.aveq) equipAvatar(d.aveq);
     else if (t.hasAttribute('data-avuneq')) equipAvatar('default');
     else if (t.hasAttribute('data-avdefault')) equipAvatar('default');

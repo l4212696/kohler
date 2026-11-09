@@ -67,6 +67,25 @@ body.embed #titleBox{display:none}
 .reel.spin .cells{animation:blur .09s linear infinite;filter:blur(2px)}
 @keyframes blur{from{transform:translateY(-12%)}to{transform:translateY(12%)}}
 .payline{position:absolute;left:12px;right:12px;top:50%;height:2px;background:color-mix(in srgb,var(--a) 60%,transparent);pointer-events:none;opacity:.5}
+/* Legends: character portraits in the reels and a host who talks */
+.lgwrap{display:flex;flex-direction:column;align-items:center;gap:12px}
+.host{display:flex;align-items:center;gap:10px;width:min(94vw,560px);min-height:64px}
+.host .hav{flex:none;width:58px;height:58px;border-radius:50%;overflow:hidden;display:grid;place-items:center;font-size:34px;background:rgba(0,0,0,.4);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--a) 70%,transparent),0 0 22px color-mix(in srgb,var(--a) 30%,transparent);transition:transform .25s cubic-bezier(.2,1.6,.4,1)}
+.host .hav img{width:100%;height:100%;object-fit:cover}
+.host.talk .hav{transform:scale(1.04)}
+.bub{position:relative;padding:8px 13px 9px;border-radius:14px;background:#fff;color:#11141b;font-weight:700;font-size:13.5px;line-height:1.3;max-width:100%;
+  opacity:0;transform:translateY(4px) scale(.96);transform-origin:left center;transition:opacity .18s,transform .22s cubic-bezier(.2,1.5,.4,1)}
+.bub:before{content:"";position:absolute;left:-6px;top:50%;margin-top:-6px;border:6px solid transparent;border-left:0;border-right-color:#fff}
+.bub b{display:block;font:800 10.5px Unbounded,sans-serif;letter-spacing:.02em;color:color-mix(in srgb,var(--a) 70%,#11141b);margin-bottom:1px;text-transform:uppercase}
+.bub.on{opacity:1;transform:none}
+.bub.big{background:linear-gradient(180deg,#fff6d0,#f5c542)}
+.cell img.pt{width:min(80%,86px);aspect-ratio:1;border-radius:50%;object-fit:cover;pointer-events:none;
+  box-shadow:0 0 0 2px rgba(255,255,255,.16),0 6px 14px rgba(0,0,0,.55)}
+.cell img.pt.jp{box-shadow:0 0 0 3px #f5c542,0 0 20px rgba(245,197,66,.6)}
+.cell.hit img.pt{box-shadow:0 0 0 3px var(--win),0 0 24px rgba(0,255,102,.6)}
+.rk .say{position:absolute;right:14px;top:14px;display:flex;align-items:center;gap:8px;max-width:calc(100% - 28px);pointer-events:none}
+.rk .say .hav{width:44px;height:44px;font-size:26px}
 /* roulette */
 .rl{width:min(96vw,720px)}
 .rl .result{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:12px}
@@ -258,6 +277,43 @@ async function play(action, params) {
   return out;
 }
 
+/* ═══ Legends: the characters starring in this game (cast set in Kohler Control → Legends) ═══ */
+const LG = { cast: [], img: {} };
+async function loadCast() {
+  if (!G.theme.cast) return;
+  try {
+    const d = await fetch('/api/legends', { credentials: 'same-origin' }).then((r) => r.json());
+    const all = Object.fromEntries((d.legends || []).map((l) => [l.id, l]));
+    LG.cast = (d.casts?.[G.theme.cast] || []).map((id) => all[id] || null);
+    // warm the portraits so the reels never flash empty
+    LG.cast.forEach((l) => { if (l?.image) for (const z of [128, 512]) { const i = new Image(); i.src = `/avatars/${l.image}/${z}.webp`; LG.img[l.id + z] = i; } });
+  } catch {}
+}
+const pic = (l, z = 128) => (l?.image ? `/avatars/${l.image}/${z}.webp` : null);
+// the reels switch to portraits only once the whole cast is painted (never a mix of portraits and emoji)
+const reelPic = (i) => (LG.cast.length === 7 && LG.cast.every((l) => l?.image) ? pic(LG.cast[i]) : null);
+const escH = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// a reel symbol: the character's portrait when it has one, its emoji otherwise
+function sym(i) {
+  const l = LG.cast[i], u = reelPic(i);
+  return u ? `<img class="pt${i === 6 ? ' jp' : ''}" src="${u}" alt="${escH(l.name)}" draggable="false">` : SYMS()[i];
+}
+const head = (l) => (pic(l) ? `<img src="${pic(l)}" alt="">` : '');
+let talkT;
+// a character says one of their lines (win / big / lose / idle)
+function talk(l, kind, box = $('#host')) {
+  if (!l || !box || !l.image) return;   // only characters with their painted portrait speak
+  const opts = l.lines?.[kind]?.length ? l.lines[kind] : l.lines?.win || [];
+  if (!opts.length) return;
+  box.querySelector('.hav').innerHTML = head(l);
+  const b = box.querySelector('.bub');
+  b.className = 'bub' + (kind === 'big' ? ' big' : '');
+  b.innerHTML = `<b>${escH(l.name)}</b>${escH(opts[Math.floor(Math.random() * opts.length)])}`;
+  void b.offsetWidth; b.classList.add('on'); box.classList.add('talk');
+  clearTimeout(talkT); talkT = setTimeout(() => { b.classList.remove('on'); box.classList.remove('talk'); }, kind === 'idle' ? 3200 : 2800);
+}
+const castHost = () => (LG.cast[6]?.image ? LG.cast[6] : LG.cast.find((l) => l?.image));
+
 /* bet control shared by engines */
 let bet = 100;
 function betBox() {
@@ -278,7 +334,9 @@ const SYMS = () => G.theme.symbols;
 const ENG = window.KS_ENG = {
   slot: {
     init() {
-      $('#stage').innerHTML = `<div class="reels" id="reels">${[0,1,2,3,4].map((i) => `<div class="reel" id="r${i}"><div class="cells">${[0,1,2].map(() => `<div class="cell">${SYMS()[Math.floor(Math.random() * 6)]}</div>`).join('')}</div></div>`).join('')}<div class="payline"></div></div>`;
+      const reels = `<div class="reels" id="reels">${[0,1,2,3,4].map((i) => `<div class="reel" id="r${i}"><div class="cells">${[0,1,2].map(() => `<div class="cell">${sym(Math.floor(Math.random() * 6))}</div>`).join('')}</div></div>`).join('')}<div class="payline"></div></div>`;
+      $('#stage').innerHTML = G.theme.cast && castHost() ? `<div class="lgwrap"><div class="host" id="host"><div class="hav">${head(castHost())}</div><div class="bub"></div></div>${reels}</div>` : reels;
+      if (G.theme.cast) setTimeout(() => talk(castHost(), 'idle'), 500);
       $('#bar').innerHTML = betBox() + `<button class="go" id="go">SPIN</button>`;
       wireBet(); $('#go').onclick = () => this.spin();
       addEventListener('keydown', (e) => { if (!typing(e) && e.code === 'Space') { e.preventDefault(); this.spin(); } });
@@ -288,7 +346,7 @@ const ENG = window.KS_ENG = {
       const stake = bet;
       document.querySelectorAll('.cell.hit').forEach((c) => c.classList.remove('hit'));
       const reels = [0,1,2,3,4].map((i) => $('#r' + i));
-      const shuffle = setInterval(() => reels.forEach((r) => r.classList.contains('spin') && r.querySelectorAll('.cell').forEach((c) => (c.textContent = SYMS()[Math.floor(Math.random() * 7)]))), 70);
+      const shuffle = setInterval(() => reels.forEach((r) => r.classList.contains('spin') && r.querySelectorAll('.cell').forEach((c) => (c.innerHTML = sym(Math.floor(Math.random() * 7))))), 70);
       reels.forEach((r) => r.classList.add('spin')); tone(220, .5, 'sawtooth', .015);
       const t0 = performance.now();
       const out = await play('spin', { bet: (bet / 100).toFixed(2) });
@@ -297,18 +355,25 @@ const ENG = window.KS_ENG = {
       for (let i = 0; i < 5; i++) {
         await new Promise((r) => setTimeout(r, T(120)));
         reels[i].classList.remove('spin');
-        reels[i].querySelectorAll('.cell').forEach((c, row) => (c.textContent = SYMS()[out.result.grid[i][row]]));
+        reels[i].querySelectorAll('.cell').forEach((c, row) => (c.innerHTML = sym(out.result.grid[i][row])));
         tone(380 + i * 60, .06, 'square', .03); buzz(6);
       }
       clearInterval(shuffle);
       if (out.result.line) for (let i = 0; i < out.result.line.count; i++) reels[i].querySelectorAll('.cell')[1].classList.add('hit');
       setBalance(out.balance, out.result.payoutCents);
       outcome(stake, out.result.payoutCents, 'no line this spin');
+      // the character on the winning line reacts; now and then someone grumbles about a miss
+      if (G.theme.cast) {
+        if (out.result.line && out.result.payoutCents > 0) talk(LG.cast[out.result.line.symbol] || castHost(), out.result.payoutCents >= stake * 20 ? 'big' : 'win');
+        else if (Math.random() < 0.35) talk(LG.cast[Math.floor(Math.random() * 7)] || castHost(), 'lose');
+      }
       busy = false; $('#go').disabled = false;
     },
     rules() {
-      return `<p class="meta">5 reels, the middle row pays left to right. 3, 4 or 5 matching symbols from the first reel win the multiplier × your bet. ${SYMS()[6]} pays only on 5.</p>
-        <table>${G.paytable.slice().sort((a, b) => b.mult - a.mult).map((l) => `<tr><td>${SYMS()[l.symbol].repeat(l.count)}</td><td style="text-align:right"><b>${l.mult}×</b></td></tr>`).join('')}</table>`;
+      const ic = (i) => (reelPic(i) ? `<img src="${reelPic(i)}" alt="" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:2px">` : SYMS()[i]);
+      const who = G.theme.cast && LG.cast.length ? `<p class="meta">Starring ${LG.cast.filter(Boolean).map((l) => `<b>${escH(l.name)}</b>`).join(', ')}. ${escH(LG.cast[6]?.name || 'The top character')} is the jackpot.</p>` : '';
+      return `<p class="meta">5 reels, the middle row pays left to right. 3, 4 or 5 matching symbols from the first reel win the multiplier × your bet. ${ic(6)} pays only on 5.</p>${who}
+        <table>${G.paytable.slice().sort((a, b) => b.mult - a.mult).map((l) => `<tr><td>${ic(l.symbol).repeat(l.count)}</td><td style="text-align:right"><b>${l.mult}×</b></td></tr>`).join('')}</table>`;
     },
   },
 
@@ -561,7 +626,9 @@ const ENG = window.KS_ENG = {
   rocket: {
     st: null, off: 0, raf: 0, poll: 0, hist: [], auto: '',
     init() {
-      $('#stage').innerHTML = `<div class="rk"><canvas id="rc"></canvas><div class="rkh" id="rh"></div><div class="rkm num" id="rm">1.00×</div><div class="rksub" id="rs">Place a bet and launch</div></div>`;
+      this.flyer = G.theme.flyer && LG.cast[0]?.image ? LG.cast[0] : null;
+      $('#stage').innerHTML = `<div class="rk"><canvas id="rc"></canvas><div class="rkh" id="rh"></div><div class="rkm num" id="rm">1.00×</div><div class="rksub" id="rs">Place a bet and launch</div>${this.flyer ? `<div class="say host" id="host"><div class="hav">${head(this.flyer)}</div><div class="bub"></div></div>` : ''}</div>`;
+      if (this.flyer) setTimeout(() => talk(this.flyer, 'idle'), 500);
       this.bar();
       this.draw(0, null); addEventListener('resize', () => this.draw(this.st ? this.ms() : 0, this.st));
     },
@@ -633,6 +700,10 @@ const ENG = window.KS_ENG = {
       this.st = { ...this.st, ...r, done: true };
       const ms = r.cashedAt ? (Math.log(r.cashedAt) / 0.07) * 1000 : (Math.log(r.crash) / 0.07) * 1000;
       this.draw(ms, this.st);
+      if (this.flyer) {
+        if (r.cashedAt) talk(this.flyer, r.cashedAt >= 10 ? 'big' : 'win');
+        else talk(this.flyer, 'lose');
+      }
       if (r.cashedAt) { $('#rm').textContent = r.cashedAt.toFixed(2) + '×'; $('#rm').className = 'rkm num cash'; $('#rs').textContent = `Cashed out +${usd(r.payoutCents)} · it went to ${r.crash.toFixed(2)}×`; outcome(this.st.bet, r.payoutCents); }
       else { $('#rm').textContent = r.crash.toFixed(2) + '×'; $('#rm').className = 'rkm num boom'; $('#rs').textContent = 'Blew up before you cashed out'; tone(90, .5, 'sawtooth', .06); loseFx(this.st.bet, 'blew up at ' + r.crash.toFixed(2) + '×'); }
       this.hist.unshift(r.crash); this.hist = this.hist.slice(0, 8);
@@ -640,7 +711,7 @@ const ENG = window.KS_ENG = {
       if (out.balance) setBalance(out.balance, r.payoutCents);
       this.bar();
     },
-    rules: () => `<p class="meta">The rocket's multiplier climbs from 1.00×. Cash out before it blows up to win bet × the multiplier at that moment. Set an auto cash-out and the server cashes you out even if you close the page. The blow-up point is fixed before launch: 1% of flights end at 1.00×, and the chance of reaching m× is 99 ÷ m percent.</p>`,
+    rules: () => `${G.theme.flyer ? `<p class="meta"><b>Sir Reginald Flapsworth</b> has strapped himself to a firework. Same rules as Rocket:</p>` : ''}<p class="meta">The rocket's multiplier climbs from 1.00×. Cash out before it blows up to win bet × the multiplier at that moment. Set an auto cash-out and the server cashes you out even if you close the page. The blow-up point is fixed before launch: 1% of flights end at 1.00×, and the chance of reaching m× is 99 ÷ m percent.</p>`,
   },
 
   keno: {
@@ -776,6 +847,7 @@ const ENG = window.KS_ENG = {
       return;
     }
     try { sessionStorage.removeItem('ks-reload-' + G.engine); } catch {}
+    await loadCast();
     eng.init();
     $('#infoBtn').onclick = () => { $('#infoBox').innerHTML = `<h3>${G.name}</h3><p class="meta">Return to player ${G.rtp}%. Every result is decided on the provider's server; nothing on this page can change it.${isDemo ? ' Demo play uses pretend money.' : ''}</p>${eng.rules()}<p class="meta">Bet ${usd(G.min)} to ${usd(G.max)}.</p>`; $('#info').classList.add('on'); };
     $('#info').onclick = (e) => { if (e.target.id === 'info') $('#info').classList.remove('on'); };

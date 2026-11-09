@@ -16,6 +16,7 @@ import { createCasino } from './lib/casino/index.js';
 import { migrate, ensureTestAccount } from './lib/boot.js';
 import { createVault } from './lib/vault.js';
 import { createAvatars } from './lib/avatars/index.js';
+import { createLegends } from './lib/legends.js';
 import { createPromos, BET_KINDS } from './lib/promos.js';
 import { qrDataUrl } from './lib/qr-art.js';
 import { createAchievements } from './lib/achievements.js';
@@ -968,6 +969,7 @@ const poolPot = createPoolPot({ q, withTx, move, audit, gamblingEnabled, limit, 
   const out = await achievements.played(c, id, cents);
   const u = (await c.query('select referred_by, ref_flag, test_mode from users where id = $1', [id])).rows[0];
   if (u?.referred_by) await promos.onBet(c, id, u);   // a settled seat counts toward a referrer's reward
+  await legends.onSurvivorPlay(c, id);                 // rounds played unlock epic Legendary characters
   return out;
 } });
 app.use('/api/pool', poolPot.router);
@@ -980,6 +982,10 @@ app.use('/api/vault', vault.router);
 // AI-painted avatars: the starter catalogue, purchases, custom orders and the image files
 const avatars = createAvatars({ q, withTx, move, audit, alert: (...a) => autopilot.alert(...a) });
 app.use('/api/avatars', avatars.router);
+// Legendary characters: premium avatars that star in games; some unlock by playing Survivor
+const legends = createLegends({ q, withTx, move, audit, avatars });
+avatars.useLegends(legends);
+app.use('/api/legends', legends.router);
 // first-deposit bonus and referrals
 const promos = createPromos({ q, withTx, move, audit, achievements });
 app.use('/api/promos', promos.router);
@@ -1140,7 +1146,8 @@ adminRouter.get('/stats', async (_req, res) => {
          (select count(*) from deposit_claims where status = 'pending')::int as claims_pending,
          (select count(*) from users where created_at > now() - interval '24 hours')::int as signups_24h,
          (select count(*) from admin_audit where action like 'alert.%' and created_at > now() - interval '24 hours')::int as alerts_24h,
-         (select count(*) from avatars where collection = 'starter' and status = 'pending')::int as avatars_pending`),
+         (select count(*) from avatars where collection = 'starter' and status = 'pending')::int as avatars_pending,
+         (select count(*) from legends where pending_id is not null)::int as legends_pending`),
   ]);
   res.json({
     ...r.rows[0],
@@ -1539,6 +1546,7 @@ adminRouter.use('/pool', poolPot.admin);   // god-only via the role middleware a
 adminRouter.use('/casino', casino.admin);
 adminRouter.use('/vault', vault.admin);
 adminRouter.use('/avatars', avatars.admin);
+adminRouter.use('/legends', legends.admin);
 adminRouter.use('/promos', promos.admin);
 
 /* payouts: manual by default, automatic when switched on */
@@ -1677,10 +1685,16 @@ app.use((err, _req, res, _next) => {
   console.error('[err]', err.message);
   res.status(err.code && Number.isInteger(err.code) ? err.code : 500).json({ error: err.message || 'server error' });
 });
-process.on('unhandledRejection', (e) => console.error('[unhandled]', e?.message || e));
+// The last crash-level error, shown (message only) on /health so a broken deploy says what broke.
+const lastFatal = { at: null, message: null };
+const noteFatal = (kind, e) => { lastFatal.at = new Date().toISOString(); lastFatal.message = `${kind}: ${String(e?.message || e).slice(0, 200)}`; };
+process.on('unhandledRejection', (e) => { console.error('[unhandled]', e?.stack || e?.message || e); noteFatal('unhandled', e); });
 process.on('uncaughtException', (e) => {
   console.error('[fatal]', e?.stack || e);
-  setTimeout(() => process.exit(1), 200); // npm run forever restarts it
+  noteFatal('fatal', e);
+  // On a normal server, exit and let `npm run forever` restart cleanly. On Vercel, exiting kills
+  // every request in flight and the next ones too (a bare 500 for the whole site), so keep going.
+  if (!process.env.VERCEL) setTimeout(() => process.exit(1), 200);
 });
 /* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ boot Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 
@@ -1689,9 +1703,9 @@ app.get('/health', async (_req, res) => {
   const t0 = Date.now();
   try {
     await Promise.race([q('select 1'), new Promise((_, no) => setTimeout(() => no(new Error('db timeout')), 8000))]);
-    res.json({ ok: true, db: 'up', dbMs: Date.now() - t0, uptimeSec: Math.round(process.uptime()) });
+    res.json({ ok: true, db: 'up', dbMs: Date.now() - t0, uptimeSec: Math.round(process.uptime()), ...(lastFatal.at ? { lastError: lastFatal } : {}) });
   } catch (e) {
-    res.status(503).json({ ok: false, db: 'down', error: e.message, uptimeSec: Math.round(process.uptime()) });
+    res.status(503).json({ ok: false, db: 'down', error: e.message, uptimeSec: Math.round(process.uptime()), ...(lastFatal.at ? { lastError: lastFatal } : {}) });
   }
 });
 // pages: served from public/ on a normal server. On serverless hosts public/ is on the CDN and not
@@ -1714,6 +1728,7 @@ async function bootSequence() {
       password: process.env.TEST_ACCOUNT_PASSWORD || 'test1234' }).catch((e) => console.error('[boot] test account', e.message));
     // the casino catalogue is not allowed to keep the shop and sign-in offline
     await casino.setup().catch((e) => console.error('[boot] casino catalogue:', e.message, '(the rest of the site is up; it retries on next start)'));
+    await legends.ready().catch((e) => console.error('[boot] legends:', e.message));
     booted = true; bootError = null;
     if (!process.env.VERCEL) avatars.boot();
     console.log('[boot] ready: database up to date, casino catalog loaded');
