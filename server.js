@@ -149,7 +149,6 @@ async function cached(key, ttlMs, fn) {
   return value;
 }
 const bust = (prefix) => { for (const k of cache.keys()) if (k.startsWith(prefix)) cache.delete(k); };
-app.use('/api/admin', (req, _res, next) => { if (req.method !== 'GET') bust('groups'); next(); });
 
 // rate limits live in Postgres so they hold across every serverless instance (lib/security.js)
 const limiter = createLimiter(q);
@@ -481,113 +480,8 @@ app.get('/api/storefront', async (_req, res) => {
 
 /* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ shop Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 
-const groupCard = `
-  select g.id, g.slug, g.name, g.logo_url, g.country, g.category, g.tags, g.is_gambling,
-         min(p.price_cents) filter (where p.active) as from_cents,
-         count(p.id) filter (where p.active) as option_count
-    from product_groups g
-    left join products p on p.group_id = g.id
-   where g.active
-   group by g.id`;
-
-app.get('/api/groups', async (_req, res) => {
-  const r = await cached('groups', 15_000, () => q(`${groupCard} order by g.sort, g.created_at desc limit 200`));
-  const enabled = await gamblingEnabled();
-  res.json({ groups: r.rows.filter((g) => enabled || !g.is_gambling) });
-});
-
-app.get('/api/groups/:slug', async (req, res) => {
-  const r = await q(`${groupCard.replace('where g.active', 'where g.active and g.slug = $1')}`, [req.params.slug]);
-  if (!r.rows[0] || (r.rows[0].is_gambling && !(await gamblingEnabled()))) return res.status(404).json({ error: 'not found' });
-  const opts = await q(
-    'select id, name, price_cents, stock from products where group_id = $1 and active order by sort, price_cents',
-    [r.rows[0].id]
-  );
-  const desc = await q('select description from product_groups where id = $1', [r.rows[0].id]);
-  res.json({ group: { ...r.rows[0], description: desc.rows[0].description }, options: opts.rows });
-});
-
-app.post('/api/orders', requireUser, async (req, res) => {
-  if (req.user.banned) return res.status(403).json({ error: 'suspended' });
-  const productId = String(req.body.productId || '');
-  // how to reach the buyer about this order: what they typed at checkout, else their account email
-  const contact = String(req.body.contact || req.user.email || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 160);
-  const note = String(req.body.note || '').trim().slice(0, 300);
-  if (contact.length < 5) return res.status(400).json({ error: 'Add an email or phone number so we can reach you about this order.' });
-  const gambling = await gamblingEnabled(); // read before taking a transaction connection
-  try {
-    const out = await withTx(async (c) => {
-      const pr = await c.query(
-        `select p.*, g.name as group_name from products p join product_groups g on g.id = p.group_id
-          where p.id = $1 and p.active and g.active
-            and (not g.is_gambling or $2)`, [productId, gambling]
-      );
-      const p = pr.rows[0];
-      if (!p) throw Object.assign(new Error('That product isn’t available any more.'), { code: 404 });
-      if (p.stock !== null && p.stock <= 0) throw Object.assign(new Error('Sorry, that option just sold out.'), { code: 409 });
-      const ur = await c.query('select balance_cents, bonus_locked_cents, wager_left_cents from users where id = $1 for update', [req.user.id]);
-      // pg returns bigint as a string: without Number() this was "1500" + 15 = "150015"
-      const price = Number(p.price_cents);
-      const platformFee = hasPass(req.user) ? 0 : feeFor(price);
-      const total = price + platformFee;
-      // bonus money is for playing, not for the shop
-      const balance = spendable(ur.rows[0]);
-      if (balance < total && Number(ur.rows[0].balance_cents) >= total)
-        throw Object.assign(new Error(`Bonus money can't be spent in the shop. You have ${usd(balance)} to spend; ${lockedMsg(ur.rows[0])}.`), { code: 402, need: total - balance });
-      if (balance < total)
-        throw Object.assign(new Error(`Not enough balance: this costs ${usd(total)} and you have ${usd(balance)}.`), { code: 402, need: total - balance });
-
-      const test = !!req.user.test_mode;
-      await move(c, req.user.id, -total, 'order', p.id, { group: p.group_id, platformFee, test: test || undefined });
-      if (p.stock !== null && !test) await c.query('update products set stock = stock - 1 where id = $1', [p.id]);
-      // test accounts never receive real delivery content (codes, logins)
-      const delivery = test ? `TEST ORDER. No real goods were delivered.\nA real order of "${p.name}" shows its delivery details here.` : p.delivery;
-      const o = await c.query(
-        `insert into orders (user_id, group_id, product_id, price_cents, platform_fee_cents, status, delivery, is_test, contact, note)
-         values ($1,$2,$3,$4,$5,'delivered',$6,$7,$8,$9) returning *`,
-        [req.user.id, p.group_id, p.id, p.price_cents, platformFee, delivery, test, contact, note || null]
-      );
-      if (!test) await c.query(
-        'insert into platform_fees (user_id, kind, ref, amount_cents) values ($1,$2,$3,$4)',
-        [req.user.id, 'order', p.id, platformFee]
-      );
-      return { ...o.rows[0], group_name: p.group_name, product_name: p.name };
-    });
-    // emails go out after the answer, so paying never waits on the mail service
-    const h = (x) => String(x ?? '').replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
-    const mailOn = !!(process.env.RESEND_API_KEY && process.env.MAIL_FROM), buyerEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact) ? contact : req.user.email;
-    if (!out.is_test && mailOn) {
-      sendEmail({
-        to: process.env.ORDER_EMAIL || 'l4212696@gmail.com',
-        subject: `New Kohler order: ${out.group_name}, ${out.product_name} (${usd(Number(out.price_cents))})`,
-        html: `<h2>New order</h2><p><b>${h(out.group_name)}</b> · ${h(out.product_name)} · ${usd(Number(out.price_cents))}</p><p>Order: ${out.id}</p>
-          <p>Buyer: ${h(req.user.username)} (${h(req.user.email || 'no account email')})<br>Contact: <b>${h(contact)}</b></p>${note ? `<p>Their note: <b>${h(note)}</b></p>` : ''}
-          <p>Delivered:</p><pre>${h(out.delivery)}</pre>`,
-      }).catch((e) => console.error('[email] order notification failed', e.message));
-      if (buyerEmail) sendEmail({
-        to: buyerEmail,
-        subject: `Your Kohler order: ${out.group_name}, ${out.product_name}`,
-        html: `<div style="font-family:Inter,Arial,sans-serif;font-size:15px;line-height:1.5;color:#111"><p>Hi ${h(req.user.username)},</p>
-          <p>Thanks for your order of <b>${h(out.group_name)}, ${h(out.product_name)}</b> (${usd(Number(out.price_cents) + Number(out.platform_fee_cents || 0))}).</p>
-          <p>Here's what you bought:</p><pre style="background:#f4f4f5;padding:12px;border-radius:8px;white-space:pre-wrap">${h(out.delivery || 'Delivery details will follow.')}</pre>
-          <p>It's also on your Orders page. If anything's wrong, reply to this email or open a ticket on the Help page.</p><p style="color:#888;font-size:12px">Kohler · order ${out.id}</p></div>`,
-      }).catch((e) => console.error('[email] receipt failed', e.message));
-    }
-    res.json({ order: { ...out, receipt: !out.is_test && mailOn && !!buyerEmail } });
-  } catch (e) {
-    res.status(e.code || 500).json({ error: e.message, need: e.need });
-  }
-});
-
-app.get('/api/orders', requireUser, async (req, res) => {
-  const r = await q(
-    `select o.id, o.price_cents, o.status, o.delivery, o.created_at, p.name, g.name as group_name, g.logo_url
-       from orders o left join products p on p.id = o.product_id
-       left join product_groups g on g.id = o.group_id
-      where o.user_id = $1 order by o.created_at desc limit 100`, [req.user.id]
-  );
-  res.json({ orders: r.rows });
-});
+// The shop (brands, options, orders) was removed in update 19. docs/SHOP.md describes it, and
+// Admin → Switches & health exports its data before the tables are deleted.
 
 /* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ wallet Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 
@@ -1058,8 +952,17 @@ app.post('/api/support', async (req, res) => {
     [req.user?.id || null, name, contact, subject, body]
   );
   res.json({ ticketId: r.rows[0].id });
+  supportMail(process.env.SUPPORT_EMAIL || process.env.ALERT_EMAIL || process.env.ORDER_EMAIL, `Kohler help: ${subject}`,
+    `<p><b>${esc(name)}</b>${req.user ? ` (${esc(req.user.username)})` : ''} · reach them at <b>${esc(contact)}</b></p><pre style="white-space:pre-wrap;font-family:inherit">${esc(body)}</pre><p>Reply in Kohler Control → Support.</p>`);
 });
 
+// support emails go out after the answer and never block it
+const esc = (x) => String(x ?? '').replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+function supportMail(to, subject, html) {
+  if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return;
+  sendEmail({ to, subject, html: `<div style="font-family:Inter,Arial,sans-serif;font-size:15px;line-height:1.5;color:#111">${html}<p style="color:#888;font-size:12px">Kohler</p></div>` })
+    .catch((e) => console.error('[email] support', e.message));
+}
 app.get('/api/support', requireUser, async (req, res) => {
   const t = await q('select id, subject, status, created_at from support_tickets where user_id = $1 order by created_at desc', [req.user.id]);
   const m = await q(
@@ -1072,8 +975,10 @@ app.get('/api/support', requireUser, async (req, res) => {
 app.post('/api/support/:id/reply', requireUser, async (req, res) => {
   const r = await q('select id from support_tickets where id = $1 and user_id = $2', [req.params.id, req.user.id]);
   if (!r.rows[0]) return res.status(404).json({ error: 'not found' });
-  await q('insert into support_messages (ticket_id, body) values ($1,$2)',
-    [req.params.id, String(req.body.body || '').slice(0, 5000)]);
+  const body = String(req.body.body || '').trim().slice(0, 5000);
+  if (!body) return res.status(400).json({ error: 'Write a message first.' });
+  await q('insert into support_messages (ticket_id, body) values ($1,$2)', [req.params.id, body]);
+  await q(`update support_tickets set status = 'open' where id = $1`, [req.params.id]);   // a reply reopens it
   res.json({ ok: true });
 });
 
@@ -1090,7 +995,7 @@ adminRouter.use((req, res, next) => {
 });
 // Finance: sees the money (overview, payouts, deposits, orders, players and game books) but can't
 // change anything, and never sees a player's email, contact details or delivered gift codes.
-const FINANCE_READ = /^\/(stats|payouts|withdrawals|claims|orders|users|house|autopilot)$|^\/(pool|casino|vault|promos)(\/|$)/;
+const FINANCE_READ = /^\/(stats|payouts|withdrawals|claims|users|house|autopilot)$|^\/(pool|casino|vault|promos)(\/|$)/;
 const stripPrivate = (v) => Array.isArray(v) ? v.map(stripPrivate) : v && typeof v === 'object' && !(v instanceof Date)
   ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, k === 'email' || k === 'contact' || k === 'ip' || k === 'delivery' ? null : stripPrivate(x)])) : v;
 adminRouter.use((req, res, next) => {
@@ -1102,19 +1007,12 @@ adminRouter.use((req, res, next) => {
 });
 adminRouter.use((req, res, next) => {
   if (req.user.admin_role === 'god' || req.user.admin_role === 'finance') return next();
-  const catalogWrite = req.method === 'POST' && /^\/(groups|products)(\/|$)/.test(req.path);
-  const catalogRead = req.method === 'GET' &&
-    (req.path === '/groups' || /^\/groups\/[^/]+\/products$/.test(req.path));
-  return catalogWrite || catalogRead
-    ? next()
-    : res.status(403).json({ error: 'god admin only' });
+  res.status(403).json({ error: 'god admin only' });
 });
 
 adminRouter.get('/stats', async (_req, res) => {
   const r = await q(`select
     (select count(*) from users)::int users,
-    (select count(*) from orders where not is_test)::int orders,
-    (select coalesce(sum(price_cents),0) from orders where not is_test)::bigint gmv,
     (select count(*) from support_tickets where status='open')::int open_tickets,
     (select coalesce(sum(balance_cents),0) from users where not test_mode)::bigint user_liability,
     (select count(*) from users where test_mode)::int test_accounts,
@@ -1163,11 +1061,6 @@ adminRouter.get('/stats', async (_req, res) => {
   });
 });
 
-adminRouter.get('/groups', async (_req, res) => {
-  const r = await q(`select g.*, (select count(*) from products p where p.group_id = g.id)::int options
-    from product_groups g order by g.sort, g.created_at desc`);
-  res.json({ groups: r.rows.map((g) => ({ ...g, wallet_pk_enc: undefined, has_pk: !!g.wallet_pk_enc })) });
-});
 
 adminRouter.get('/settings', async (_req, res) => {
   res.json({ gamblingEnabled: await gamblingEnabled() });
@@ -1184,100 +1077,6 @@ adminRouter.patch('/settings', async (req, res) => {
   res.json({ gamblingEnabled: enabled });
 });
 
-adminRouter.post('/groups', async (req, res) => {
-  const b = req.body;
-  const slug = String(b.slug || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '-') || nanoid(8);
-  const r = await q(
-    `insert into product_groups (slug, name, description, logo_url, country, category, tags, wallet_address, wallet_pk_enc, sort, active, is_gambling)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) returning *`,
-    [slug, b.name, b.description || '', b.logo_url || null, (b.country || 'WW').toUpperCase(),
-     b.category || 'Other',
-     Array.isArray(b.tags) ? b.tags : String(b.tags || '').split(',').map((s) => s.trim()).filter(Boolean),
-     b.wallet_address || null, seal(b.wallet_pk), cents(b.sort), b.active !== false, !!b.is_gambling]
-  );
-  await audit(req, 'group.create', { id: r.rows[0].id });
-  res.json({ group: { ...r.rows[0], wallet_pk_enc: undefined, has_pk: !!r.rows[0].wallet_pk_enc } });
-});
-
-adminRouter.patch('/groups/:id', async (req, res) => {
-  const b = req.body;
-  const sets = [];
-  const vals = [req.params.id];
-  const put = (col, v) => { sets.push(`${col} = $${vals.length + 1}`); vals.push(v); };
-  if (b.name !== undefined) put('name', b.name);
-  if (b.description !== undefined) put('description', b.description);
-  if (b.logo_url !== undefined) put('logo_url', b.logo_url);
-  if (b.country !== undefined) put('country', String(b.country).toUpperCase());
-  if (b.category !== undefined) put('category', String(b.category).trim() || 'Other');
-  if (b.tags !== undefined) put('tags', Array.isArray(b.tags) ? b.tags : String(b.tags).split(',').map((s) => s.trim()).filter(Boolean));
-  if (b.wallet_address !== undefined) put('wallet_address', b.wallet_address);
-  if (b.wallet_pk !== undefined && b.wallet_pk !== '') put('wallet_pk_enc', seal(b.wallet_pk));
-  if (b.sort !== undefined) put('sort', cents(b.sort));
-  if (b.active !== undefined) put('active', !!b.active);
-  if (b.is_gambling !== undefined) put('is_gambling', !!b.is_gambling);
-  if (!sets.length) return res.json({ ok: true });
-  await q(`update product_groups set ${sets.join(', ')} where id = $1`, vals);
-  await audit(req, 'group.update', { id: req.params.id, cols: sets });
-  res.json({ ok: true });
-});
-
-adminRouter.get('/groups/:id/key', async (req, res) => {
-  const r = await q('select wallet_pk_enc, wallet_address from product_groups where id = $1', [req.params.id]);
-  if (!r.rows[0]) return res.status(404).json({ error: 'not found' });
-  res.json({ privateKey: open(r.rows[0].wallet_pk_enc), address: r.rows[0].wallet_address });
-});
-
-adminRouter.delete('/groups/:id', async (req, res) => {
-  await q('delete from product_groups where id = $1', [req.params.id]);
-  await audit(req, 'group.delete', { id: req.params.id });
-  res.json({ ok: true });
-});
-
-adminRouter.get('/groups/:id/products', async (req, res) => {
-  const r = await q('select * from products where group_id = $1 order by sort, price_cents', [req.params.id]);
-  res.json({ products: r.rows });
-});
-
-adminRouter.post('/products', async (req, res) => {
-  const b = req.body;
-  const r = await q(
-    `insert into products (group_id, name, price_cents, stock, delivery, sort, active)
-     values ($1,$2,$3,$4,$5,$6,$7) returning *`,
-    [b.group_id, b.name, cents(b.price_cents), b.stock === '' || b.stock == null ? null : Number(b.stock),
-     b.delivery || '', cents(b.sort), b.active !== false]
-  );
-  res.json({ product: r.rows[0] });
-});
-
-adminRouter.patch('/products/:id', async (req, res) => {
-  const b = req.body;
-  const sets = [];
-  const vals = [req.params.id];
-  const put = (col, v) => { sets.push(`${col} = $${vals.length + 1}`); vals.push(v); };
-  if (b.name !== undefined) put('name', b.name);
-  if (b.price_cents !== undefined) put('price_cents', cents(b.price_cents));
-  if (b.stock !== undefined) put('stock', b.stock === '' || b.stock == null ? null : Number(b.stock));
-  if (b.delivery !== undefined) put('delivery', b.delivery);
-  if (b.sort !== undefined) put('sort', cents(b.sort));
-  if (b.active !== undefined) put('active', !!b.active);
-  if (!sets.length) return res.json({ ok: true });
-  await q(`update products set ${sets.join(', ')} where id = $1`, vals);
-  res.json({ ok: true });
-});
-
-adminRouter.delete('/products/:id', async (req, res) => {
-  await q('delete from products where id = $1', [req.params.id]);
-  res.json({ ok: true });
-});
-
-adminRouter.get('/orders', async (_req, res) => {
-  const r = await q(`select o.*, u.username, u.email, p.name, g.name as group_name from orders o
-    left join users u on u.id = o.user_id left join products p on p.id = o.product_id
-    left join product_groups g on g.id = o.group_id
-    order by o.created_at desc limit 200`);
-  res.json({ orders: r.rows });
-});
-
 adminRouter.get('/tickets', async (_req, res) => {
   const r = await q(`select t.*, u.username from support_tickets t
     left join users u on u.id = t.user_id order by t.created_at desc limit 200`);
@@ -1286,9 +1085,51 @@ adminRouter.get('/tickets', async (_req, res) => {
 });
 
 adminRouter.post('/tickets/:id/reply', async (req, res) => {
-  await q('insert into support_messages (ticket_id, from_admin, body) values ($1, true, $2)',
-    [req.params.id, String(req.body.body || '').slice(0, 5000)]);
+  const body = String(req.body.body || '').trim().slice(0, 5000);
+  if (!body) return res.status(400).json({ error: 'Write a reply first.' });
+  const t = (await q('select subject, contact, name from support_tickets where id = $1', [req.params.id])).rows[0];
+  if (!t) return res.status(404).json({ error: 'not found' });
+  await q('insert into support_messages (ticket_id, from_admin, body) values ($1, true, $2)', [req.params.id, body]);
   res.json({ ok: true });
+  // the player gets the reply by email when they left one (they also see it under Help in the casino)
+  supportMail(t.contact, `Re: ${t.subject}`, `<p>Hi ${esc(t.name)},</p><pre style="white-space:pre-wrap;font-family:inherit">${esc(body)}</pre><p>You can reply under Help in the Kohler casino.</p>`);
+});
+
+/* Shop data: the shop was removed in update 19 (docs/SHOP.md). Its tables stay until the owner
+   has downloaded a copy, then they can be deleted from here. */
+async function shopState() {
+  const t = (await q(`select to_regclass('public.orders') is not null o, to_regclass('public.products') is not null p, to_regclass('public.product_groups') is not null g`)).rows[0];
+  const exists = t.o || t.p || t.g;
+  const n = (tbl, ok) => (ok ? q(`select count(*)::int n from ${tbl}`).then((r) => r.rows[0].n) : 0);
+  const at = (await q(`select value from site_settings where key = 'shop_exported_at'`)).rows[0]?.value || null;
+  return { exists, counts: exists ? { brands: await n('product_groups', t.g), options: await n('products', t.p), orders: await n('orders', t.o) } : null, exportedAt: at, tables: t };
+}
+adminRouter.get('/shop', async (_req, res) => res.json(await shopState()));
+adminRouter.get('/shop/export', async (req, res) => {
+  const st = await shopState();
+  if (!st.exists) return res.status(404).json({ error: 'The shop data has already been deleted.' });
+  const rows = async (ok, sql) => (ok ? (await q(sql)).rows : []);
+  const unseal = (v) => { try { return v ? open(v) : null; } catch { return null; } };
+  const brands = (await rows(st.tables.g, 'select * from product_groups order by sort, created_at'))
+    .map(({ wallet_pk_enc, ...g }) => ({ ...g, wallet_private_key: unseal(wallet_pk_enc), wallet_pk_encrypted: wallet_pk_enc || null }));
+  const options = await rows(st.tables.p, 'select * from products order by group_id, sort, price_cents');
+  const orders = await rows(st.tables.o, `select o.*, u.username, u.email${st.tables.p ? ', p.name as option' : ''}${st.tables.g ? ', g.name as brand' : ''}
+      from orders o left join users u on u.id = o.user_id${st.tables.p ? ' left join products p on p.id = o.product_id' : ''}${st.tables.g ? ' left join product_groups g on g.id = o.group_id' : ''}
+      order by o.created_at`);
+  const now = new Date().toISOString();
+  await q(`insert into site_settings (key, value, updated_at) values ('shop_exported_at', $1, now()) on conflict (key) do update set value = excluded.value, updated_at = now()`, [now]);
+  await audit(req, 'shop.export', st.counts);
+  res.set({ 'content-type': 'application/json', 'content-disposition': `attachment; filename="kohler-shop-export-${now.slice(0, 10)}.json"`, 'cache-control': 'no-store' });
+  res.send(JSON.stringify({ exportedAt: now, counts: { brands: brands.length, options: options.length, orders: orders.length }, brands, options, orders }, null, 2));
+});
+adminRouter.post('/shop/delete', async (req, res) => {
+  const st = await shopState();
+  if (!st.exists) return res.json({ deleted: true, already: true });
+  if (!st.exportedAt) return res.status(400).json({ error: 'Download the shop data first.' });
+  if (req.body?.confirm !== 'DELETE') return res.status(400).json({ error: 'Type DELETE to confirm.' });
+  await withTx(async (c) => { await c.query('drop table if exists orders, products, product_groups cascade'); });
+  await audit(req, 'shop.delete', st.counts);
+  res.json({ deleted: true, counts: st.counts });
 });
 
 adminRouter.patch('/tickets/:id', async (req, res) => {
@@ -1345,8 +1186,9 @@ adminRouter.get('/security', async (_req, res) => {
 adminRouter.post('/users/:id/role', async (req, res) => {
   if (req.params.id === req.user.id) return res.status(400).json({ error: "You can't change your own role." });
   const isAdmin = !!req.body.isAdmin;
-  const role = ['god', 'finance'].includes(req.body.role) ? req.body.role : 'catalog';
-  await q('update users set is_admin = $2, admin_role = $3 where id = $1', [req.params.id, isAdmin, role]);
+  const role = ['god', 'finance'].includes(req.body.role) ? req.body.role : null;
+  if (isAdmin && !role) return res.status(400).json({ error: 'Pick a role: owner or finance.' });
+  await q('update users set is_admin = $2, admin_role = coalesce($3, admin_role) where id = $1', [req.params.id, isAdmin, role]);
   await audit(req, 'user.role', { id: req.params.id, isAdmin, role });
   res.json({ ok: true });
 });
@@ -1714,6 +1556,8 @@ const PUBLIC = path.join(__dirname, 'public'), hasPublic = existsSync(path.join(
 const page = (file) => (req, res) => (hasPublic ? res.sendFile(path.join(PUBLIC, file)) : res.redirect(302, '/' + file + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '')));
 app.get(['/admin', '/admin/'], page('admin.html'));
 app.get(['/casino', '/casino/'], page('casino.html'));
+// an API address that doesn't exist (e.g. the old shop) is a JSON 404, not the home page
+app.use('/api', (_req, res) => res.status(404).json({ error: 'not found' }));
 // a missing file (an icon, a script, a game page) is a 404, never the home page in disguise:
 // that made a half-uploaded deploy look like blank games and missing icons instead of an error
 app.use((req, res, next) => (/\.[a-z0-9]{2,5}$/i.test(req.path) && !req.path.endsWith('.html') || req.path.startsWith('/studio/') || req.path.startsWith('/assets/') ? res.status(404).type('text').send('Not found: ' + req.path) : next()));
@@ -1729,6 +1573,7 @@ async function bootSequence() {
     // the casino catalogue is not allowed to keep the shop and sign-in offline
     await casino.setup().catch((e) => console.error('[boot] casino catalogue:', e.message, '(the rest of the site is up; it retries on next start)'));
     await legends.ready().catch((e) => console.error('[boot] legends:', e.message));
+    avatars.fixWatermarks().catch((e) => console.error('[boot] watermarks:', e.message));   // one-off, then a quick no-op
     booted = true; bootError = null;
     if (!process.env.VERCEL) avatars.boot();
     console.log('[boot] ready: database up to date, casino catalog loaded');
