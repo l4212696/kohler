@@ -56,12 +56,15 @@
   function avTile(a, mine) {
     const u = CS.user, eq = u && KohlerFace.idFor(u.username, u.equip) === a.id && u.equip?.avatar === a.id;
     const owned = mine || !a.price || A().owned.includes(a.id);
+    const gone = a.supply != null && a.left === 0 && !owned;
     const act = !u ? `<button class="btn sm" data-auth>Sign in</button>`
       : eq ? `<button class="btn sm" data-avuneq>Equipped</button>`
       : owned ? `<button class="btn neon sm" data-aveq="${a.id}">Use</button>`
+      : gone ? `<button class="btn sm" disabled>Sold out</button>`
       : `<button class="btn gold sm" data-avbuy="${a.id}">${money(a.price)}</button>`;
+    const ed = a.supply == null ? '' : a.supply === 1 ? (a.left ? 'One of one' : 'One of one · taken') : gone ? `All ${a.supply} sold` : `${a.left} of ${a.supply} left`;
     return `<div class="vt av ${mine ? 'legendary' : a.tier} ${eq ? 'on' : ''}">
-      <div class="show img"><img src="${KohlerFace.url(a.id, 512)}" alt="${esc(a.name)}" loading="lazy" decoding="async">${mine ? '<span class="tier legendary" style="position:absolute;top:8px;left:8px">Yours only</span>' : ''}</div>
+      <div class="show img"><img src="${KohlerFace.url(a.id, 512)}" alt="${esc(a.name)}" loading="lazy" decoding="async">${mine ? '<span class="tier legendary" style="position:absolute;top:8px;left:8px">Yours only</span>' : ed ? `<span class="tier ed" style="position:absolute;top:8px;left:8px">${ed}</span>` : ''}</div>
       <div class="meta"><div class="row" style="justify-content:space-between;gap:6px"><b>${esc(a.name)}</b>${mine ? '' : `<span class="tier ${a.tier}">${a.tier}</span>`}</div>
         <div class="foot"><span class="muted" style="font-size:12px">${mine ? 'Custom' : owned && a.price ? 'Owned' : !a.price ? 'Free' : ''}</span>${act}</div></div></div>`;
   }
@@ -79,31 +82,28 @@
       : l.buyable && l.price ? `<button class="btn gold sm" data-lgbuy="${l.id}">${money(l.price)}</button>`
       : `<span class="muted" style="font-size:12px">${have}/${l.unlockRounds}</span>`;
     const line = (l.lines?.idle || l.lines?.win || [])[0];
-    return `<div class="vt av lg ${l.rarity} ${eq ? 'on' : ''}" style="--tc:${({ free: '#14532d', common: '#1d2634', rare: '#0c3550', epic: '#4a3510' })[l.rarity]}">
-      <div class="show"><img src="${KohlerFace.url(l.image, 512)}" alt="${esc(l.name)}" loading="lazy" decoding="async">
-        ${locked ? `<div class="lock"><span>${ic('lock', 20)}</span></div>` : ''}
-        <span class="tier legendary" style="position:absolute;top:8px;left:8px">Legendary</span></div>
-      <div class="meta"><div class="row" style="justify-content:space-between;gap:6px"><b>${esc(l.name)}</b><span class="tier ${l.rarity}">${l.rarity}</span></div>
+    return `<div class="vt av lg legendary ${eq ? 'on' : ''}">
+      <div class="show img"><img src="${KohlerFace.url(l.image, 512)}" alt="${esc(l.name)}" loading="lazy" decoding="async">
+        ${locked ? `<div class="lock"><span>${ic('lock', 20)}</span></div>` : ''}</div>
+      <div class="meta"><div class="row" style="justify-content:space-between;gap:6px"><b>${esc(l.name)}</b><span class="tier legendary">legendary</span></div>
         <span class="ttl">${esc(l.title)}</span>
         <span class="bio">${esc(l.bio)}</span>
         ${line ? `<span class="quote">“${esc(line)}”</span>` : ''}
         ${games.length ? `<small>Stars in ${games.map(esc).join(', ')}</small>` : ''}
         ${locked ? `<small>Unlocks after ${l.unlockRounds} Survivor rounds${l.buyable && l.price ? ', or buy it now' : ''}</small><div class="prog"><i style="width:${Math.round(have / l.unlockRounds * 100)}%"></i></div>` : ''}
-        <div class="foot"><span class="muted" style="font-size:12px">${l.owned && l.price ? 'Owned' : l.owned && l.unlockRounds ? 'Unlocked' : !l.price && !l.unlockRounds ? 'Free' : ''}</span>${act}</div></div></div>`;
+        <div class="foot"><span class="muted" style="font-size:12px">${l.owned && l.unlockRounds && !(l.buyable && l.price) ? 'Unlocked' : l.owned ? 'Owned' : ''}</span>${act}</div></div></div>`;
   }
-  function legendsBlock() {
-    const d = LGD(); if (!d.legends.length) return '';
-    const list = d.legends.filter((l) => tierFilter === 'all' || tierFilter === 'legendary' || l.rarity === tierFilter);
-    if (!list.length) return '';
-    const next = CS.user && d.unlocks ? d.legends.filter((l) => !l.owned && l.unlockRounds).sort((a, b) => a.unlockRounds - b.unlockRounds)[0] : null;
-    return `<div class="lg-hero" id="legendary"><div><span class="tag">${ic('crown', 14)}Legendary avatars</span><h2>Characters with a personality</h2>
-        <p>The wildest avatars on Kohler. Each one has a name, a story and something to say, and they star in Legends Lounge, Billionaire Zoo and Flapsworth Takes Flight.${d.unlocks ? ' Some epics can only be unlocked by playing Survivor.' : ''}</p></div>
-        ${next ? `<div class="ct"><span class="muted" style="font-size:12px">Survivor rounds played</span><b class="num">${d.rounds}</b><span class="muted" style="font-size:12px">${next.unlockRounds - d.rounds} more for ${esc(next.name)}</span></div>` : ''}</div>
-      <div class="vt-grid">${list.map(lgTile).join('')}</div>`;
+  // where the player stands on unlocking Legendary avatars by playing Survivor
+  function legendsStrip() {
+    const d = LGD(); if (!CS.user || !d.unlocks) return '';
+    const next = d.legends.filter((l) => !l.owned && l.unlockRounds).sort((a, b) => a.unlockRounds - b.unlockRounds)[0];
+    if (!next) return '';
+    const left = Math.max(0, next.unlockRounds - d.rounds);
+    return `<div class="vt-season">${ic('flame', 15)}<span><b>Survivor rounds played: ${d.rounds}.</b> ${left} more to unlock ${esc(next.name)}.</span></div>`;
   }
   function buyLegend(id) {
     const l = LGD().legends.find((x) => x.id === id); if (!l) return; if (!CS.user) return authModal();
-    confirmBuy({ title: l.name, blurb: `${l.title}. Legendary ${l.rarity} avatar, yours to keep.`, price: l.price,
+    confirmBuy({ title: l.name, blurb: `${l.title}. Legendary avatar, yours to keep.`, price: l.price,
       art: `<img src="${KohlerFace.url(l.image, 512)}" alt="" style="width:220px;height:220px;border-radius:28px;object-fit:cover">`, go: async () => {
         await api('/legends/' + encodeURIComponent(id) + '/buy', { method: 'POST' });
         await refreshMe().catch(() => {});
@@ -112,21 +112,26 @@
       } });
   }
   function avatarsTab() {
-    const d = A(), list = d.avatars.filter((a) => tierFilter === 'all' || a.tier === tierFilter);
-    const tiers = ['all', 'free', 'common', 'rare', 'epic', 'legendary'].filter((t) => t === 'all' || d.avatars.some((a) => a.tier === t) || (t === 'legendary' && LGD().legends.length));
-    if (tierFilter === 'legendary') return legendsBlock() || '';
+    // one collection: starter avatars and the Legendary characters, filtered by tier
+    const d = A(), L = LGD().legends;
+    const list = [...d.avatars.filter((a) => tierFilter === 'all' || a.tier === tierFilter).map((a) => avTile(a)),
+      ...(tierFilter === 'all' || tierFilter === 'legendary' ? L.map(lgTile) : [])];
+    const total = d.avatars.length + L.length;
+    const tiers = ['all', 'free', 'common', 'rare', 'epic', 'legendary'].filter((t) => t === 'all' || d.avatars.some((a) => a.tier === t) || (t === 'legendary' && L.length));
     const create = d.custom.enabled ? `<div class="mk-card"><div class="mk-faces">${d.avatars.slice(0, 4).map((a) => `<img src="${KohlerFace.url(a.id, 128)}" alt="">`).join('') || ''}</div>
         <div style="flex:1;min-width:220px"><span class="tag">${ic('sparkles', 14)}Made just for you</span><h2>Create your own avatar</h2>
           <p class="muted" style="margin:4px 0 0">Describe it, we paint ${d.custom.images} versions. Only you can use them.</p></div>
         <button class="btn gold lg" data-create>${ic('sparkles', 17)}Create · ${money(d.custom.price)}</button></div>` : '';
     const pend = d.pending.length ? `<div class="panelx" style="display:flex;align-items:center;gap:12px"><span class="live-dot"></span><b>Painting your custom avatars…</b><button class="btn sm" style="margin-left:auto" data-order="${d.pending[0].id}">Watch</button></div>` : '';
     const mine = d.mine.length ? `<div class="sect"><h2>Your custom avatars</h2><span>${d.mine.length}</span></div><div class="vt-grid">${d.mine.map((a) => avTile(a, true)).join('')}</div>` : '';
-    const grid = d.avatars.length ? `<div class="sect"><h2>The collection</h2><span>${d.avatars.length} avatars</span></div>
+    const grid = total ? `<div class="sect"><h2>The collection</h2><span>${total} avatars</span></div>
         <div class="filters">${tiers.map((t) => `<button class="pill ${t === tierFilter ? 'on' : ''}" data-tier="${t}">${t === 'all' ? 'All' : t[0].toUpperCase() + t.slice(1)}</button>`).join('')}
           ${CS.user ? `<button class="pill ${CS.user.equip?.avatar_mode === 'default' ? 'on' : ''}" data-avdefault>Use default text avatar</button>` : ''}</div>
-        <div class="vt-grid">${list.map((a) => avTile(a)).join('')}</div>`
+        ${tierFilter === 'all' || tierFilter === 'legendary' ? legendsStrip() : ''}
+        ${tierFilter === 'rare' ? `<div class="vt-season">${ic('gem', 15)}<span><b>Rare avatars are limited editions.</b> Only so many copies exist, some just one. When they're gone, they're gone.</span></div>` : ''}
+        <div class="vt-grid">${list.join('') || '<div class="empty">Nothing in this tier yet.</div>'}</div>`
       : `<div class="empty">${ic('sparkles', 40, 'color:var(--gold)')}<h3>The collection is being painted</h3><p>New avatars show up here as they're finished.</p>${d.review ? `<p style="margin-top:10px"><a class="btn gold" href="/admin#/avatars">${d.review} painted and waiting for your review</a></p>` : CS.user?.isAdmin ? '<p class="muted" style="font-size:13px">Progress: Admin → Avatar factory.</p>' : ''}</div>`;
-    return legendsBlock() + create + pend + mine + grid;
+    return create + pend + mine + grid;
   }
 
   function render() {
@@ -152,7 +157,7 @@
       ${tab === 'avatar' ? avatarsTab()
       : tab === 'pass' ? `<div class="pass-card"><div>${KohlerCharacter.frame({ ring: '#a78bfa', glow: true }, 96).replace(/position:absolute;left:[^;]+;top:[^;]+;/, '')}</div>
           <div><h2>Kohler Pass</h2><div class="muted">30 days. Buy again any time to stack another 30.</div>
-            <ul><li>No service fee on shop orders</li><li>The Pass Holder frame and a Pass badge</li></ul>
+            <ul><li>The Pass Holder frame and a Pass badge</li></ul>
             ${u?.passUntil ? `<p style="color:#c4b5fd;margin:10px 0 0">Active until ${new Date(u.passUntil).toLocaleString()}</p>` : ''}</div>
           <div style="text-align:center"><div style="font-family:var(--display);font-size:30px;font-weight:800">${money(pass.price)}</div>
             ${u ? `<button class="btn gold lg" data-buy="${pass.id}" style="margin-top:8px">${u.passUntil ? 'Add 30 days' : 'Get the Pass'}</button>` : '<button class="btn neon" data-auth>Sign in</button>'}</div></div>
@@ -211,7 +216,7 @@
   }
   function buyAvatar(id) {
     const a = KohlerFace.byId[id]; if (!a) return; if (!CS.user) return authModal();
-    confirmBuy({ title: a.name, blurb: `${a.tier[0].toUpperCase() + a.tier.slice(1)} avatar. Yours to keep and use any time.`, price: a.price,
+    confirmBuy({ title: a.name, blurb: a.supply != null ? `Limited edition: ${a.supply === 1 ? 'the only copy' : `${a.left} of ${a.supply} copies left`}. Yours to keep and use any time.` : `${a.tier[0].toUpperCase() + a.tier.slice(1)} avatar. Yours to keep and use any time.`, price: a.price,
       art: `<img src="${KohlerFace.url(id, 512)}" alt="" style="width:220px;height:220px;border-radius:28px;object-fit:cover">`, go: async () => {
         const out = await api('/avatars/buy', { method: 'POST', body: { id } });
         CS.user.balance = out.balance; CS.user.equip = out.equip;

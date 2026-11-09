@@ -317,7 +317,7 @@ body.nav-open .scrim{display:block}
 .vt .foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding-top:8px}
 .tier{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:6px;background:rgba(255,255,255,.08);color:var(--dim)}
 .tier.common{color:#cbd5e1}.tier.rare{color:#03140a;background:#38bdf8}.tier.epic{color:#fff;background:#8b5cf6}.tier.legendary{color:#241800;background:linear-gradient(90deg,#f3d58a,#e8c46a)}
-.tier.free{color:#03140a;background:var(--neon)}.tier.pass{color:#fff;background:#a78bfa}
+.tier.free{color:#03140a;background:var(--neon)}.tier.ed{color:#e0f2fe;background:rgba(7,9,13,.78);box-shadow:inset 0 0 0 1px rgba(56,189,248,.65);backdrop-filter:blur(4px)}.tier.pass{color:#fff;background:#a78bfa}
 .vt.legendary{border-color:rgba(232,196,106,.6);box-shadow:0 0 24px rgba(232,196,106,.12)}
 .vt.epic{border-color:rgba(139,92,246,.45)}
 .vt.on{border-color:var(--neon);box-shadow:0 0 0 1px var(--neon)}
@@ -417,6 +417,7 @@ body.test .game{top:calc(var(--top) + 28px)}
     <a href="#/limits" data-r="limits"><span class="i" style="--u:url(/assets/icons/shield-check.svg)"></span>Limits &amp; cool-off</a>
     <a href="/#/refer"><span class="i" style="--u:url(/assets/icons/users.svg)"></span>Invite friends</a>
     <a href="#/account" data-r="account"><span class="i" style="--u:url(/assets/icons/user-round.svg)"></span>Account</a>
+    <a href="#/support" data-r="support"><span class="i" style="--u:url(/assets/icons/message-circle.svg)"></span>Help<span class="cnt" id="cHelp"></span></a>
     <a href="/rules.html"><span class="i" style="--u:url(/assets/icons/info.svg)"></span>Rules &amp; fees</a>
     <a href="#" data-install hidden><span class="i" style="--u:url(/assets/icons/smartphone.svg)"></span>Install app</a>
   </nav>
@@ -602,7 +603,7 @@ const KNOWN_ENGINES = new Set(['slot', 'rocket', 'mines', 'coinflip', 'limbo', '
 // the Legendary characters starring in a game (portrait, or their emoji until it's painted)
 function castOf(g) { const ids = CS.legends?.casts?.[g.theme?.cast] || []; return ids.map((id) => CS.legends.byId[id]).filter(Boolean); }
 function lp(l, cls) {
-  return `<img class="lp ${cls}" src="/avatars/${l.image}/${cls === 'm' ? 512 : 128}.webp" alt="" loading="lazy">`;
+  return `<img class="lp ${cls}" src="/avatars/${l.image}/${cls === 'm' ? 512 : 128}.webp?v=2" alt="" loading="lazy">`;
 }
 function art(g, big) {
   const t = g.theme || {}, a = t.a || '#00ff66', b = t.b || '#07090d';
@@ -786,13 +787,63 @@ async function limits() {
   document.querySelectorAll('[data-co]').forEach((b) => (b.onclick = async () => (await KUI.confirm(`Lock Survivor for ${b.textContent}? This can't be undone early.`, { ok: 'Lock it', danger: true })) && save({ cooloffHours: +b.dataset.co })));
 }
 
+/* ── help: support tickets (answered in Kohler Control → Support) ── */
+async function viewSupport() {
+  closeGame();
+  const u = CS.user;
+  $('#view').innerHTML = `<div style="max-width:720px"><h1 style="font-family:var(--display);letter-spacing:-.04em;margin:0 0 6px">Help</h1>
+    <p class="muted" style="margin:0 0 18px">Something wrong with a deposit, a withdrawal or a game? Tell us here. We reply on this page${u ? '' : ' and'} through the contact you leave.</p>
+    <div id="threads"></div>
+    <form class="panelx" id="sf"><b style="display:block;margin-bottom:12px">New message</b>
+      ${u ? '' : `<label class="field"><span>Your name</span><input class="inp" id="sName" required maxlength="80"></label>`}
+      <label class="field"><span>Where can we reach you? (email, Telegram or WhatsApp)</span><input class="inp" id="sContact" required maxlength="160" value="${esc(u?.email || '')}"></label>
+      <label class="field"><span>Subject</span><input class="inp" id="sSubj" required maxlength="140" placeholder="e.g. My deposit hasn't arrived"></label>
+      <label class="field"><span>Message</span><textarea class="inp" id="sBody" required maxlength="5000" style="height:auto;min-height:120px;padding:12px 14px"></textarea></label>
+      <button class="btn neon" type="submit">Send message</button></form></div>`;
+  $('#sf').onsubmit = async (e) => {
+    e.preventDefault(); const b = e.submitter || $('#sf button'); b.disabled = true;
+    try {
+      await api('/support', { method: 'POST', body: { name: u ? u.username : $('#sName').value, contact: $('#sContact').value, subject: $('#sSubj').value, body: $('#sBody').value } });
+      toast('Sent. We\'ll get back to you.'); $('#sSubj').value = ''; $('#sBody').value = ''; supportThreads();
+    } catch (err) { toast(err.message); }
+    b.disabled = false;
+  };
+  supportThreads();
+}
+async function supportThreads() {
+  if (!CS.user || !$('#threads')) return;
+  const { tickets, messages } = await api('/support').catch(() => ({ tickets: [], messages: [] }));
+  try { localStorage.setItem('kh-help-seen', String(messages.filter((m) => m.from_admin).length)); } catch {}
+  $('#cHelp') && ($('#cHelp').textContent = '');
+  if (!tickets.length) { $('#threads').innerHTML = ''; return; }
+  $('#threads').innerHTML = `<div class="sect"><h2>Your conversations</h2></div>${tickets.map((t) => `<div class="panelx">
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><b>${esc(t.subject)}</b><span class="bdg ${t.status === 'open' ? 'gold' : ''}" style="position:static">${t.status === 'open' ? 'Open' : 'Answered'}</span></div>
+    <div class="muted" style="font-size:12px;margin:2px 0 10px">${new Date(t.created_at).toLocaleString()}</div>
+    ${messages.filter((m) => m.ticket_id === t.id).map((m) => `<div style="padding:9px 12px;border-radius:12px;margin-bottom:6px;background:${m.from_admin ? 'rgba(0,255,102,.08)' : 'rgba(255,255,255,.04)'}">
+      <b style="font-size:12px;color:${m.from_admin ? 'var(--neon)' : 'var(--dim)'}">${m.from_admin ? 'Kohler' : 'You'}</b><div style="white-space:pre-wrap">${esc(m.body)}</div></div>`).join('')}
+    <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input class="inp" placeholder="Reply" data-rin="${t.id}" maxlength="5000"><button class="btn" data-send="${t.id}">Send</button></div></div>`).join('')}`;
+  $('#threads').querySelectorAll('[data-send]').forEach((b) => (b.onclick = async () => {
+    const i = $(`[data-rin="${b.dataset.send}"]`); if (!i.value.trim()) return;
+    b.disabled = true;
+    try { await api('/support/' + b.dataset.send + '/reply', { method: 'POST', body: { body: i.value } }); supportThreads(); } catch (e) { toast(e.message); b.disabled = false; }
+  }));
+}
+// a dot on Help when Kohler has replied since you last looked
+async function helpBadge() {
+  if (!CS.user || location.hash.startsWith('#/support')) return;
+  const r = await api('/support').catch(() => null); if (!r) return;
+  let seen = 0; try { seen = Number(localStorage.getItem('kh-help-seen') || 0); } catch {}
+  const n = r.messages.filter((m) => m.from_admin).length - seen;
+  if ($('#cHelp')) $('#cHelp').textContent = n > 0 ? n : '';
+}
+
 /* ── auth ── */
 function viewAccount() {
   if (!CS.user) return authModal();
   const u = CS.user;
   $('#view').innerHTML = `<div class="stack" style="max-width:760px">
     <div style="display:flex;align-items:center;gap:16px"><div style="width:64px;height:64px">${userFace(u, 64)}</div>
-      <div><h1 style="font-size:32px">${esc(u.username)}</h1><p class="muted">${esc(u.email)}${u.isAdmin ? ` <span class="pill">${u.adminRole === 'god' ? 'Full admin' : u.adminRole === 'finance' ? 'Finance' : 'Catalog admin'}</span>` : ''}</p></div></div>
+      <div><h1 style="font-size:32px">${esc(u.username)}</h1><p class="muted">${esc(u.email)}${u.isAdmin ? ` <span class="pill">${u.adminRole === 'god' ? 'Full admin' : 'Finance'}</span>` : ''}</p></div></div>
     ${u.isAdmin ? `<a class="panel" href="/admin" style="display:flex;justify-content:space-between;align-items:center"><div><h3>Admin panel</h3><p class="muted" style="font-size:14px">Manage the Kohler casino and its content.</p></div><span class="btn neon">Open</span></a>` : ''}
     <div class="panel"><h3 style="margin-bottom:14px">Username</h3><form id="uf" style="display:flex;gap:10px"><input class="inp" type="text" id="uName" value="${esc(u.username)}" minlength="3" maxlength="24"><button class="btn" type="submit">Save</button></form></div>
     <form class="panel" id="pf"><h3 style="margin-bottom:14px">Password</h3>
@@ -807,7 +858,7 @@ function viewAccount() {
 function authModal(mode = 'in') {
   const reg = mode === 'up';
   $('#mbox').innerHTML = `<div style="margin-bottom:14px">${KohlerLogo.mark(44, true)}</div><h2 style="font-family:var(--display);margin:0 0 4px;letter-spacing:-.02em">${reg ? 'Create your account' : 'Welcome back'}</h2>
-    <p style="color:var(--dim);margin:0 0 18px">${reg ? '18+ only. Takes ten seconds.' : 'One account for the shop and the casino.'}</p>
+    <p style="color:var(--dim);margin:0 0 18px">${reg ? '18+ only. Takes ten seconds.' : 'Welcome back.'}</p>
     <form id="af">${reg ? `<label class="field"><span>Email</span><input class="inp" id="ae" type="email" required autocomplete="email"></label><label class="field"><span>Username</span><input class="inp" id="au" required minlength="3" autocomplete="username"></label>`
       : `<label class="field"><span>Email or username</span><input class="inp" id="aw" required autocomplete="username"></label>`}
       <label class="field"><span>Password</span><input class="inp" id="ap" type="password" required autocomplete="${reg ? 'new-password' : 'current-password'}"></label>
@@ -857,7 +908,7 @@ async function legendNews() {
   const r = await api('/legends/news').catch(() => null);
   for (const [i, l] of (r?.unlocked || []).filter((x) => x.image).entries()) setTimeout(() => {
     const d = document.createElement('div'); d.className = 'unlock'; d.setAttribute('role', 'status');
-    d.innerHTML = `<div class="p"><img src="/avatars/${l.image}/128.webp" alt=""></div><div><small>Legend unlocked</small><b>${esc(l.name)}</b><span class="muted" style="font-size:12.5px">${esc(l.title || '')}</span>
+    d.innerHTML = `<div class="p"><img src="/avatars/${l.image}/128.webp?v=2" alt=""></div><div><small>Legend unlocked</small><b>${esc(l.name)}</b><span class="muted" style="font-size:12.5px">${esc(l.title || '')}</span>
       <div class="row"><a class="btn neon sm" href="#/vault/legendary">Wear it</a><button class="btn sm" data-x>Later</button></div></div>`;
     document.body.appendChild(d);
     d.querySelector('[data-x]').onclick = () => d.remove(); d.querySelector('a').onclick = () => d.remove();
@@ -877,6 +928,7 @@ function route() {
   if (p === 'survivor') { CS.cat = 'survivor'; nav('survivor'); scrollTo(0, 0); return a ? Survivor.table(a.toUpperCase()).catch((e) => { toast(e.message); location.hash = '#/survivor'; }) : Survivor.lobby(); }
   if (p === 'vault') { nav('vault'); scrollTo(0, 0); Survivor.stop(); return Vault.show(a); }
   if (p === 'limits') { nav('limits'); return limits(); }
+  if (p === 'support') { nav('support'); scrollTo(0, 0); Survivor.stop(); return viewSupport(); }
   if (p === 'account') { nav('account'); scrollTo(0, 0); Survivor.stop(); return viewAccount(); }
   CS.cat = p === 'c' && a ? a : 'all';
   nav(CS.cat);
@@ -910,7 +962,7 @@ addEventListener('DOMContentLoaded', async () => {
     if (why) { $('#view').innerHTML = `<div class="empty"><h3>Kohler can't start yet</h3><p>${esc(why)}</p></div>`; return; }
     if (games.status === 'rejected' && games.reason?.status === 503 && tries++ < 20) { setTimeout(boot, 1500); }
     route();
-    if (CS.user) KohlerWithdraw.notices({ api, money, userId: CS.user.id, toast });
+    if (CS.user) { KohlerWithdraw.notices({ api, money, userId: CS.user.id, toast }); helpBadge(); }
     if (CS.games.length) $('#cSv').textContent = Survivor.live()?.live?.seated ? Survivor.live().live.seated + ' live' : '';
   };
   boot();

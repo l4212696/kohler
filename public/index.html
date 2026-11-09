@@ -162,7 +162,7 @@
     <nav class="nav" id="nav">
       <a href="/casino" class="casino">Casino</a>
       <a href="/casino#/survivor">Survivor</a>
-      <a href="#/support" data-r="support">Help</a>
+      <a href="/casino#/support">Help</a>
     </nav>
     <div class="grow"></div>
     <a class="bal" id="bal" href="#/wallet"><i></i><span class="num">Sign in</span></a>
@@ -175,11 +175,10 @@
 <nav class="tabs" id="tabs">
   <a href="/casino" data-r="games"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>Casino</a>
   <a href="#/wallet" data-r="wallet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M16 12.5h2"/><path d="M3 9h18"/></svg>Wallet</a>
-  <a href="#/orders" data-r="orders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>Orders</a>
   <a href="#/account" data-r="account"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="9" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>Account</a>
 </nav>
 
-<footer class="site"><span>© <span id="yr"></span> Kohler</span><a href="#/support">Help</a><a href="#" data-install hidden>Install app</a><a href="/rules.html">Rules &amp; fees</a><a href="/casino#/limits">Play limits</a><span>18+ for games.</span></footer>
+<footer class="site"><span>© <span id="yr"></span> Kohler</span><a href="/casino#/support">Help</a><a href="#" data-install hidden>Install app</a><a href="/rules.html">Rules &amp; fees</a><a href="/casino#/limits">Play limits</a><span>18+ for games.</span></footer>
 <div class="toast" id="toast"></div>
 <div id="sheetHost"></div>
 
@@ -299,59 +298,9 @@ function authSheet(mode = 'in', then) {
 }
 function needAuth(what = 'continue') {
   $('#view').innerHTML = `<div class="panel" style="max-width:460px;margin:30px auto;text-align:center">
-    <h2 style="margin-bottom:6px">Sign in to ${esc(what)}</h2><p class="muted" style="margin-bottom:18px">Your balance, orders and wallet live in your account.</p>
+    <h2 style="margin-bottom:6px">Sign in to ${esc(what)}</h2><p class="muted" style="margin-bottom:18px">Your balance and wallet live in your account.</p>
     <div class="row" style="display:flex;gap:10px;justify-content:center"><button class="btn go" id="na">Sign in</button><button class="btn" id="nr">Create account</button></div></div>`;
   $('#na').onclick = () => authSheet('in'); $('#nr').onclick = () => authSheet('up');
-}
-
-/* ── shop ── */
-const SEARCH_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
-let shopFilter = { q: '', cat: '', cc: '' };
-
-async function viewShop() {
-  $('#view').innerHTML = `
-    <section class="hero">
-      <div class="hero-copy">
-        <h1>Everyday discounted products</h1>
-        <label class="search">${SEARCH_ICON}<input type="search" id="q" placeholder="Search Netflix, Steam, Amazon…" value="${esc(shopFilter.q)}" aria-label="Search the shop"></label>
-      </div>
-      <div id="liveSlot"></div>
-    </section>
-    <div class="filters"><nav class="cats" id="cats" aria-label="Categories"></nav><select id="cc" aria-label="Region"><option value="">All regions</option></select></div>
-    <div class="sect"><h2>Marketplace</h2><p id="count"></p></div>
-    <div class="shop" id="grid"><div class="empty">Loading the shelves…</div></div>
-    <section id="playStrip" style="margin-top:40px"></section>`;
-  paintLive(); paintPlayStrip();
-  let groups = [];
-  try { groups = (await api('/groups')).groups; }
-  catch (e) { $('#grid').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
-  if (!groups.length) { $('#grid').innerHTML = '<div class="empty">Nothing on the shelves yet. Add product groups in the admin panel.</div>'; $('#count').textContent = ''; return; }
-  const cats = [...new Set(groups.map((g) => g.category || 'Other'))].sort();
-  const ccs = [...new Set(groups.map((g) => g.country).filter(Boolean))].sort();
-  const nIn = (c) => groups.filter((g) => (g.category || 'Other') === c).length;
-  $('#cats').innerHTML = `<button class="${shopFilter.cat ? '' : 'on'}" data-c="">All<sup>${groups.length}</sup></button>` +
-    cats.map((c) => `<button class="${shopFilter.cat === c ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}<sup>${nIn(c)}</sup></button>`).join('');
-  $('#cc').innerHTML += ccs.map((c) => `<option value="${esc(c)}" ${shopFilter.cc === c ? 'selected' : ''}>${esc(countryName(c))}</option>`).join('');
-  const paint = () => {
-    const t = shopFilter.q.trim().toLowerCase();
-    const list = groups.filter((g) => (!t || `${g.name} ${g.category} ${(g.tags || []).join(' ')}`.toLowerCase().includes(t))
-      && (!shopFilter.cat || (g.category || 'Other') === shopFilter.cat) && (!shopFilter.cc || g.country === shopFilter.cc));
-    $('#count').textContent = `${list.length} of ${groups.length}`;
-    $('#grid').innerHTML = list.length ? list.map(groupCard).join('') : `<div class="empty">Nothing matches "${esc(shopFilter.q)}". Try a shorter search or another category.</div>`;
-  };
-  $('#q').oninput = (e) => { shopFilter.q = e.target.value; paint(); };
-  $('#cats').onclick = (e) => { const b = e.target.closest('[data-c]'); if (!b) return; shopFilter.cat = b.dataset.c;
-    $('#cats').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); b.scrollIntoView({ inline: 'nearest', block: 'nearest' }); paint(); };
-  $('#cc').onchange = (e) => { shopFilter.cc = e.target.value; paint(); };
-  paint();
-}
-function groupCard(g) {
-  const out = g.from_cents == null;
-  return `<a class="g ${out ? 'out' : ''}" href="#/g/${encodeURIComponent(g.slug)}" style="--hue:${hueOf(g.category)}">
-    <div class="g-art" style="position:relative">${artBox(g.logo_url, (g.name || '?')[0])}<span class="flag">${flag(g.country)}${g.country && g.country !== 'WW' ? esc(g.country.toUpperCase()) : 'Global'}</span></div>
-    <div class="g-body"><div class="g-name">${esc(g.name)}</div><div class="g-cat"><i></i>${esc(g.category || 'Other')}</div>
-      <div class="g-foot"><span class="g-price num">${out ? 'Out of stock' : 'from ' + money(g.from_cents)}</span>
-        ${out ? '' : `<span class="g-opts">${g.option_count} option${g.option_count == 1 ? '' : 's'}</span>`}</div></div></a>`;
 }
 
 /* the one loud thing on the page: a live Survivor table */
@@ -490,73 +439,6 @@ async function bust() { if (!crashRound) return; const r = await api('/games/cra
 function resetCrash() { crashRound = null; const b = $('#go'); if (!b) return; b.disabled = false; b.textContent = 'Launch'; b.className = 'btn go lg wide'; b.onclick = startCrash; refreshMe(); }
 
 /* ── product group ── */
-async function viewGroup(slug) {
-  const { group, options } = await api('/groups/' + encodeURIComponent(slug));
-  S.group = group; S.sel = options.find((o) => o.stock !== 0) || null;
-  const bps = S.store?.feeBps ?? 100;
-  $('#view').innerHTML = `<a class="btn ghost" href="/" style="margin-bottom:12px;padding-left:0">Back to Kohler</a>
-    <div class="prod" style="--hue:${hueOf(group.category)}">
-      <div class="stack">
-        ${artBox(group.logo_url, group.name[0], 'prod-art')}
-        <div><div class="g-cat" style="margin-bottom:8px;flex-wrap:wrap"><i></i>${esc(group.category || 'Other')}<span style="display:inline-flex;align-items:center;gap:6px;margin-left:8px">${flag(group.country)} ${group.country === 'WW' || !group.country ? 'Works worldwide' : 'For ' + esc(countryName(group.country)) + ' accounts'}</span></div>
-          <h1>${esc(group.name)}</h1>
-          <p class="muted" style="margin-top:12px;max-width:62ch;white-space:pre-line">${esc(group.description || 'No description yet.')}</p></div>
-      </div>
-      <div class="panel" style="position:sticky;top:84px">
-        <h3 style="margin-bottom:12px">Choose an option</h3>
-        <div id="opts" role="radiogroup">${options.length ? '' : '<div class="empty" style="padding:16px">Out of stock right now.</div>'}</div>
-        <div class="sum" id="sum" style="margin-top:14px"></div>
-        <button class="btn go lg wide" id="buy" style="margin-top:14px">Buy now</button>
-      </div></div>`;
-  const paint = () => {
-    $('#opts').innerHTML = options.map((o, i) => `<div class="opt ${o === S.sel ? 'sel' : ''} ${o.stock === 0 ? 'sold' : ''}" data-i="${i}" role="radio" aria-checked="${o === S.sel}" tabindex="0">
-      <span class="radio"></span><span class="nm">${esc(o.name)}<span class="stk" style="display:block">${o.stock === 0 ? 'Sold out' : o.stock == null ? 'In stock' : o.stock + ' left'}</span></span><b class="num">${money(o.price_cents)}</b></div>`).join('');
-    const p = S.sel ? Number(S.sel.price_cents) : 0, fee = Math.ceil(p * bps / 10000);
-    $('#sum').innerHTML = S.sel ? `<div><span>Price</span><span class="num">${money(p)}</span></div><div><span>Service fee (${bps / 100}%)</span><span class="num">${money(fee)}</span></div>
-      <div class="total"><span>Total</span><span class="num">${money(p + fee)}</span></div>` : '';
-    $('#buy').disabled = !S.sel;
-  };
-  $('#opts').onclick = $('#opts').onkeydown = (e) => {
-    if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
-    const o = e.target.closest('[data-i]'); if (!o) return; e.preventDefault();
-    const opt = options[+o.dataset.i]; if (opt.stock === 0) return; S.sel = opt; buzz(6); paint();
-  };
-  paint(); $('#buy').onclick = buy;
-}
-async function buy() {
-  if (!S.user) return authSheet('in', () => viewGroup(S.group.slug));
-  if (!S.sel) return;
-  const opt = S.sel, bps = S.user.passUntil ? 0 : (S.store?.feeBps ?? 100), price = Number(opt.price_cents), fee = Math.ceil(price * bps / 10000);
-  // confirm first, and ask where to reach the buyer about this order (prefilled with their email)
-  const b = sheet(`<h2 style="margin-bottom:4px">Confirm your order</h2>
-    <p class="muted" style="margin-bottom:14px">${esc(S.group.name)} · ${esc(opt.name)}</p>
-    <div class="sum" style="margin-bottom:14px"><div><span>Price</span><span class="num">${money(price)}</span></div>
-      <div><span>Service fee${bps ? ` (${bps / 100}%)` : ' (Kohler Pass: none)'}</span><span class="num">${money(fee)}</span></div>
-      <div class="total"><span>Total from your balance</span><span class="num">${money(price + fee)}</span></div></div>
-    <label class="field"><span>Where can we reach you about this order?</span><input type="text" id="oc" maxlength="160" value="${esc(S.user.email || '')}" placeholder="Email, or phone with WhatsApp" autocomplete="email"></label>
-    <label class="field"><span>Anything we need to deliver it? <span class="muted" style="font-weight:500">(optional)</span></span><textarea id="on" maxlength="300" style="min-height:70px" placeholder="e.g. the country of your account, or the username to top up"></textarea></label>
-    <div class="err" id="oe"></div>
-    <button class="btn go lg wide" id="opay">Pay ${money(price + fee)}</button>
-`);
-  b.querySelector('#opay').onclick = async () => {
-    const contact = b.querySelector('#oc').value.trim(), note = b.querySelector('#on').value.trim();
-    if (contact.length < 5) { b.querySelector('#oe').textContent = 'Add an email or phone number so we can reach you if something goes wrong.'; b.querySelector('#oc').focus(); return; }
-    const btn = b.querySelector('#opay'); btn.disabled = true; btn.textContent = 'Paying…';
-    try {
-      const { order } = await api('/orders', { method: 'POST', body: { productId: opt.id, contact, note } });
-      await refreshMe(); winSound(); buzz([12, 30, 12]);
-      const d = sheet(`<h2 style="margin-bottom:4px">Paid. Here it is.</h2>
-        <p class="muted" style="margin-bottom:16px">${esc(S.group.name)}, ${esc(opt.name)}. Also saved on your Orders page${order.receipt ? ', and we emailed you a copy' : ''}.</p>
-        <label class="field"><span>Delivery</span><textarea readonly class="mono" style="min-height:140px">${esc(order.delivery || 'No delivery text was attached to this product.')}</textarea></label>
-        <div style="display:flex;gap:10px"><button class="btn go" style="flex:1" id="cp">Copy</button><button class="btn" id="done">Go to orders</button></div>`);
-      d.querySelector('#cp').onclick = () => { navigator.clipboard?.writeText(order.delivery || ''); toast('Copied', 'good'); };
-      d.querySelector('#done').onclick = () => { closeSheet(); location.hash = '#/orders'; };
-    } catch (e) {
-      btn.disabled = false; btn.textContent = `Pay ${money(price + fee)}`;
-      if (e.status === 402) { closeSheet(); depositSheet(e.data?.need); } else b.querySelector('#oe').textContent = e.message;
-    }
-  };
-}
 function depositSheet(need) {
   if (!S.user) return authSheet();
   const b = sheet(`<h2 style="margin-bottom:6px">Add funds first</h2><p class="muted" style="margin-bottom:18px">${need ? `You're ${money(need)} short. ` : ''}Top up your balance, then come back to finish.</p>
@@ -565,7 +447,7 @@ function depositSheet(need) {
 }
 
 /* ── wallet ── */
-const KIND = { deposit: 'Deposit', withdraw: 'Withdrawal', order: 'Purchase', bet: 'Game stake', payout: 'Game win', bonus: 'Daily bonus', bonus_first: 'First-deposit bonus', bonus_referral: 'Referral reward', bonus_ref_friend: 'Invite bonus', bonus_deposit: 'Deposit bonus',
+const KIND = { deposit: 'Deposit', withdraw: 'Withdrawal', order: 'Shop purchase', bet: 'Game stake', payout: 'Game win', bonus: 'Daily bonus', bonus_first: 'First-deposit bonus', bonus_referral: 'Referral reward', bonus_ref_friend: 'Invite bonus', bonus_deposit: 'Deposit bonus',
   adjust: 'Adjustment', pool_buyin: 'Survivor seat', pool_refund: 'Survivor refund', pool_payout: 'Survivor win', vault: 'Vault purchase', casino_bet: 'Casino bet', casino_win: 'Casino win' };
 async function viewWallet() {
   if (!S.user) return needAuth('see your wallet');
@@ -595,7 +477,7 @@ async function viewWallet() {
       <div class="panel"><h3 style="margin-bottom:14px">Withdraw</h3><div id="kwMount"></div><div id="kwList"></div></div>
       <div class="panel"><h3 style="margin-bottom:6px">Activity</h3><div class="rows act">${w.ledger.length ? w.ledger.map((l) => `<div>
         <span><span class="k">${KIND[l.kind] || esc(l.kind)}</span><small>${new Date(l.created_at).toLocaleString()}</small></span>
-        <b class="num ${Number(l.delta_cents) >= 0 ? 'in' : 'out'}">${Number(l.delta_cents) >= 0 ? '+' : ''}${money(l.delta_cents)}</b></div>`).join('') : '<div class="empty">Nothing yet. Your deposits, purchases and wins will show here.</div>'}</div></div>
+        <b class="num ${Number(l.delta_cents) >= 0 ? 'in' : 'out'}">${Number(l.delta_cents) >= 0 ? '+' : ''}${money(l.delta_cents)}</b></div>`).join('') : '<div class="empty">Nothing yet. Your deposits, bets and wins will show here.</div>'}</div></div>
     </div></div>`;
   $('#cpAddr')?.addEventListener('click', () => { navigator.clipboard?.writeText(w.address); toast('Address copied', 'good'); });
   $('#view').querySelectorAll('[data-add]').forEach((b) => b.onclick = async () => { try { await api('/wallet/test-topup', { method: 'POST', body: { amountCents: +b.dataset.add } }); buzz(10); await refreshMe(); viewWallet(); } catch (e) { toast(e.message, 'bad'); } });
@@ -603,22 +485,6 @@ async function viewWallet() {
   KohlerWithdraw.mount($('#kwMount'), { api, money, esc, balance: test ? w.balance : w.withdrawable ?? w.balance, test, cls: { primary: 'btn go', ghost: 'btn' },
     onDone: () => { refreshMe(); showList(); } });
   showList();
-}
-
-/* ── orders ── */
-async function viewOrders() {
-  if (!S.user) return needAuth('see your orders');
-  const { orders } = await api('/orders');
-  $('#view').innerHTML = `<div class="stack"><h1>Orders</h1><div class="panel orders">${orders.length ? orders.map((o) => `<div class="o">
-      <div style="display:flex;justify-content:space-between;gap:12px"><b>${esc(o.group_name || 'Product')} <span class="muted" style="font-weight:500">${esc(o.name || '')}</span></b><b class="num">${money(o.price_cents)}</b></div>
-      <div class="muted" style="font-size:13px">${new Date(o.created_at).toLocaleString()} </div>
-      ${o.delivery ? `<button class="btn" style="margin-top:10px;height:38px" data-d="${esc(o.delivery)}">Show delivery</button>` : ''}</div>`).join('')
-    : '<div class="empty">No orders yet. <a href="/" style="text-decoration:underline">Return to Kohler</a>.</div>'}</div></div>`;
-  $('#view').querySelectorAll('[data-d]').forEach((b) => b.onclick = () => {
-    const s = sheet(`<h2 style="margin-bottom:12px">Delivery</h2><textarea readonly class="mono" style="min-height:160px">${esc(b.dataset.d)}</textarea>
-      <button class="btn go wide" style="margin-top:12px" id="cp">Copy</button>`);
-    s.querySelector('#cp').onclick = () => { navigator.clipboard?.writeText(b.dataset.d); toast('Copied', 'good'); };
-  });
 }
 
 /* ── help ── */
@@ -684,14 +550,14 @@ async function viewAccount() {
   const u = S.user;
   $('#view').innerHTML = `<div class="stack" style="max-width:760px">
     <div style="display:flex;align-items:center;gap:16px"><div class="avatar" style="width:64px;height:64px;font-size:26px;border-radius:18px">${esc(u.username[0].toUpperCase())}</div>
-      <div><h1 style="font-size:32px">${esc(u.username)}</h1><p class="muted">${esc(u.email)}${u.isAdmin ? ` <span class="pill">${u.adminRole === 'god' ? 'Full admin' : u.adminRole === 'finance' ? 'Finance' : 'Catalog admin'}</span>` : ''}</p></div></div>
-    ${u.isAdmin ? `<a class="panel" href="/admin" style="display:flex;justify-content:space-between;align-items:center"><div><h3>Admin panel</h3><p class="muted" style="font-size:14px">Products, orders, users, Pool Pot and the house.</p></div><span class="btn go">Open</span></a>` : ''}
+      <div><h1 style="font-size:32px">${esc(u.username)}</h1><p class="muted">${esc(u.email)}${u.isAdmin ? ` <span class="pill">${u.adminRole === 'god' ? 'Full admin' : 'Finance'}</span>` : ''}</p></div></div>
+    ${u.isAdmin ? `<a class="panel" href="/admin" style="display:flex;justify-content:space-between;align-items:center"><div><h3>Admin panel</h3><p class="muted" style="font-size:14px">Players, payouts, games and the house.</p></div><span class="btn go">Open</span></a>` : ''}
     <div class="panel"><h3 style="margin-bottom:14px">Username</h3><form id="uf" style="display:flex;gap:10px"><input type="text" id="uName" value="${esc(u.username)}" minlength="3" maxlength="24"><button class="btn" type="submit">Save</button></form></div>
     <form class="panel" id="pf"><h3 style="margin-bottom:14px">Password</h3>
       <label class="field"><span>Current password</span><input type="password" id="pCur" autocomplete="current-password"></label>
       <label class="field"><span>New password (8+ characters)</span><input type="password" id="pNew" autocomplete="new-password" minlength="8"></label>
       <button class="btn" type="submit">Change password</button></form>
-    <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn" href="#/refer">Invite friends</a><a class="btn" href="/casino#/limits">Play limits and cool-off</a><a class="btn" href="#/support">Help</a><button class="btn danger" id="out">Sign out</button></div></div>`;
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn" href="#/refer">Invite friends</a><a class="btn" href="/casino#/limits">Play limits and cool-off</a><a class="btn" href="/casino#/support">Help</a><button class="btn danger" id="out">Sign out</button></div></div>`;
   $('#uf').onsubmit = async (e) => { e.preventDefault(); try { await api('/auth/username', { method: 'POST', body: { username: $('#uName').value } }); toast('Username saved', 'good'); await refreshMe(); viewAccount(); } catch (err) { toast(err.message === 'taken' ? 'That username is taken' : err.message, 'bad'); } };
   $('#pf').onsubmit = async (e) => { e.preventDefault(); try { await api('/auth/password', { method: 'POST', body: { current: $('#pCur').value, next: $('#pNew').value } }); toast('Password changed', 'good'); $('#pCur').value = $('#pNew').value = ''; } catch (err) { toast(err.message, 'bad'); } };
   $('#out').onclick = async () => { await api('/auth/logout', { method: 'POST' }); S.user = null; paintUser(); location.hash = '#/shop'; };
@@ -723,8 +589,7 @@ async function route() {
     if (p === 'g') { viewGateway(); return; }
     else if (p === 'wallet') await viewWallet();
     else if (p === 'games' || p === 'play') { location.replace('/casino'); return; }
-    else if (p === 'orders') { viewGateway(); return; }
-    else if (p === 'support') await viewSupport();
+    else if (p === 'support') { location.replace('/casino#/support'); return; }
     else if (p === 'account') await viewAccount();
     else if (p === 'refer') await viewRefer();
     else { viewGateway(); }

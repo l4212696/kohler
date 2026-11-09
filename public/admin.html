@@ -1,0 +1,950 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07090d">
+<meta name="robots" content="noindex">
+<title>Kohler Control</title>
+<link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="/assets/brand.js"></script>
+<script src="/assets/avatar.js"></script>
+<link rel="stylesheet" href="/assets/ui.css">
+<script src="/assets/ui.js" defer></script>
+<style>
+:root{--obs:#07090d;--slate:#0e131b;--slate2:#151c27;--slate3:#1d2634;--line:rgba(255,255,255,.07);--line2:rgba(255,255,255,.14);
+  --txt:#eef2f8;--dim:#8b96aa;--faint:#5d6779;--gold:#e8c46a;--neon:#00ff66;--rose:#ff4d6d;--sky:#38bdf8;--violet:#a78bfa;
+  --side:248px;--display:'Unbounded',ui-sans-serif,system-ui,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--obs);color:var(--txt);font:14px/1.5 Inter,ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+:focus-visible{outline:2px solid var(--neon);outline-offset:2px;border-radius:8px}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--dim)}.faint{color:var(--faint)}
+.up{color:var(--neon)}.down{color:var(--rose)}.gold{color:var(--gold)}
+.hide{display:none!important}
+
+.side{position:fixed;inset:0 auto 0 0;width:var(--side);display:flex;flex-direction:column;gap:2px;padding:18px 12px;background:linear-gradient(180deg,#0b0f15,#080b10);border-right:1px solid var(--line);overflow-y:auto;z-index:20}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px 18px;font-family:var(--display);font-weight:700;font-size:16px}
+.brand small{display:block;font:700 10px Inter;letter-spacing:.18em;color:var(--gold);text-transform:uppercase}
+.navh{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding:14px 12px 6px}
+.side a{display:flex;align-items:center;gap:10px;height:38px;padding:0 12px;border-radius:10px;color:var(--dim);font-weight:600;position:relative}
+.side a:hover{color:var(--txt);background:rgba(255,255,255,.03)}
+.side a.on{color:var(--txt);background:linear-gradient(90deg,rgba(0,255,102,.1),transparent)}
+.side a.on:before{content:"";position:absolute;left:-12px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--neon);box-shadow:0 0 10px var(--neon)}
+.side a .badge{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--gold);color:#241800;font-size:11px;font-weight:800;display:grid;place-items:center}
+.side a .badge.red{background:var(--rose);color:#fff}
+.side .foot{margin-top:auto;padding:12px;border-radius:14px;background:var(--slate);border:1px solid var(--line);font-size:12.5px}
+.ico{width:18px;height:18px;flex:0 0 18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+main{margin-left:var(--side);padding:26px 30px 60px;max-width:calc(1320px + var(--side))}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+h1{font-family:var(--display);font-weight:800;font-size:28px;letter-spacing:-.04em;margin:0;line-height:1.1}
+h2{font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:-.02em;margin:0}
+h3{font-size:14px;margin:0}
+.sub{color:var(--dim);margin-top:6px}
+.burger{display:none}
+@media(max-width:900px){
+  :root{--side:0px}.side{width:260px;transform:translateX(-105%);transition:transform .2s}body.nav .side{transform:none;box-shadow:20px 0 60px #000}
+  main{padding:18px 14px 50px}.burger{display:grid;place-items:center;width:40px;height:40px;border-radius:11px;background:var(--slate);border:1px solid var(--line);margin-bottom:14px}
+}
+
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
+@media(max-width:1200px){.g4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:800px){.g4,.g3,.g2{grid-template-columns:1fr}}
+.card{background:var(--slate);border:1px solid var(--line);border-radius:18px;padding:18px}
+.card.hl{border-color:rgba(232,196,106,.5);background:radial-gradient(120% 120% at 100% 0,rgba(232,196,106,.08),transparent 60%),var(--slate)}
+.card.ok{border-color:rgba(0,255,102,.35)}
+.card.bad{border-color:rgba(255,77,109,.5);background:radial-gradient(120% 120% at 100% 0,rgba(255,77,109,.08),transparent 60%),var(--slate)}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.kpi .l{font-size:12px;font-weight:600;color:var(--dim)}
+.kpi .v{font-family:var(--display);font-weight:800;font-size:26px;letter-spacing:-.04em;margin:6px 0 2px;line-height:1.1}
+.kpi .s{font-size:12.5px;color:var(--faint)}
+.sec{margin:28px 0 12px;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:36px;padding:0 14px;border-radius:10px;font-weight:700;font-size:13px;background:var(--slate2);border:1px solid var(--line2);white-space:nowrap}
+.btn:hover{filter:brightness(1.15)}.btn:disabled{opacity:.45;pointer-events:none}
+.btn.neon{background:linear-gradient(180deg,#3dff8c,#00d955);color:#03140a;border-color:transparent}
+.btn.gold{background:linear-gradient(180deg,#f3d58a,#c99a35);color:#241800;border-color:transparent}
+.btn.red{background:transparent;border-color:rgba(255,77,109,.5);color:var(--rose)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--dim)}
+.btn.sm{height:30px;padding:0 10px;font-size:12px;border-radius:8px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.inp,select.inp,textarea.inp{height:38px;border-radius:10px;background:var(--obs);border:1px solid var(--line2);padding:0 12px;outline:0;width:100%}
+textarea.inp{height:auto;min-height:80px;padding:10px 12px;resize:vertical}
+.inp:focus{border-color:rgba(0,255,102,.55)}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.field>span{font-size:12px;font-weight:600;color:var(--dim)}
+.fields{display:grid;gap:0 12px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+
+/* switch */
+.sw{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid var(--line)}
+.sw:last-child{border-bottom:0}
+.sw b{display:block;font-weight:600}.sw small{color:var(--dim);font-size:12.5px}
+.tog{position:relative;width:46px;height:26px;flex:0 0 46px;border-radius:13px;background:var(--slate3);border:1px solid var(--line2);transition:background .15s}
+.tog:after{content:"";position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#cbd5e1;transition:transform .15s}
+.tog.on{background:var(--neon);border-color:transparent}.tog.on:after{transform:translateX(20px);background:#03140a}
+
+/* tables */
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);padding:8px 10px;border-bottom:1px solid var(--line)}
+.tbl td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tr:hover td{background:rgba(255,255,255,.015)}
+.tbl .r{text-align:right}
+.scroll{overflow-x:auto}
+.tag{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:6px;font-size:11px;font-weight:700;background:rgba(255,255,255,.07);color:var(--dim);white-space:nowrap}
+.tag.g{background:rgba(0,255,102,.14);color:var(--neon)}.tag.y{background:rgba(232,196,106,.16);color:var(--gold)}.tag.r{background:rgba(255,77,109,.15);color:#ff8fa3}.tag.b{background:rgba(56,189,248,.14);color:var(--sky)}.tag.v{background:rgba(167,139,250,.16);color:var(--violet)}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px;word-break:break-all}
+.user{display:flex;align-items:center;gap:10px}.user svg{flex:0 0 auto}
+.empty{padding:30px 10px;text-align:center;color:var(--dim)}
+
+/* chart */
+.bars{display:flex;align-items:flex-end;gap:6px;height:150px;padding-top:10px}
+.bars .b{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;position:relative;height:100%}
+.bars .b i{display:block;border-radius:4px 4px 0 0;min-height:2px}
+.bars .b i.f{background:var(--gold)}.bars .b i.c{background:var(--neon);border-radius:0}
+.bars .b:hover:after{content:attr(data-t);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);white-space:pre;background:var(--slate3);border:1px solid var(--line2);padding:6px 8px;border-radius:8px;font-size:11.5px;z-index:2}
+.bars-x{display:flex;gap:6px;margin-top:6px}.bars-x span{flex:1;text-align:center;font-size:10.5px;color:var(--faint)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--dim)}.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.split{display:flex;flex-direction:column;gap:8px}
+.split .ln{display:flex;align-items:center;gap:10px;font-size:13px}
+.split .ln .bar{flex:1;height:8px;border-radius:4px;background:var(--slate3);overflow:hidden}.split .ln .bar i{display:block;height:100%;border-radius:4px}
+.alert{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}.alert:last-child{border-bottom:0}
+.dot{width:8px;height:8px;border-radius:50%;flex:0 0 8px;margin-top:6px}
+
+.avg{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+.avg.sm{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
+.avc{padding:0;overflow:hidden}.avc img{display:block;width:100%;aspect-ratio:1;object-fit:cover;background:var(--slate2)}
+.avc.rejected{opacity:.45}.avc.pending{border-color:rgba(232,196,106,.5)}
+.modal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:16px;pointer-events:auto}
+.modal.on{display:flex}
+.modal .box{width:100%;max-width:480px;max-height:92vh;overflow:auto;padding:22px;border-radius:20px;background:var(--slate);border:1px solid var(--line2);pointer-events:auto}
+.modal input,.modal select,.modal textarea{pointer-events:auto;user-select:text;-webkit-user-select:text}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,16px);opacity:0;z-index:80;padding:10px 16px;border-radius:12px;background:var(--slate2);border:1px solid var(--line2);font-weight:600;transition:.2s;pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}.toast.bad{border-color:var(--rose)}
+.err{color:var(--rose);font-size:13px;min-height:18px}
+.loading{display:flex;align-items:center;gap:10px;color:var(--dim);font-size:13.5px;margin:0 0 14px}.spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--line2);border-top-color:var(--neon);animation:sp .8s linear infinite}@keyframes sp{to{transform:rotate(1turn)}}
+.card.sk{background:linear-gradient(90deg,var(--slate) 0%,var(--slate2) 50%,var(--slate) 100%);background-size:200% 100%;animation:sk 1.4s ease infinite;opacity:.6}@keyframes sk{to{background-position:-200% 0}}
+/* finance (view only): actions are hidden, settings shown but can't be changed */
+body.ro #view button:not([data-ro]):not([data-f]):not([data-sh]):not([data-u]):not(.kx-sel):not(.tog),body.ro #mbox button:not([data-ro]):not(.kx-sel):not(.tog){display:none!important}
+/* …and no switches, boxes or settings at all: finance only reads */
+body.ro .tog,body.ro .sw:has(.tog),body.ro #view label.field:has(input:not([data-ro])),body.ro #view label.field:has(select),body.ro #view label.field:has(textarea),
+body.ro #view input:not([data-ro]),body.ro #view select,body.ro #view textarea,body.ro #view .kx-sel,body.ro #mbox input,body.ro #mbox select,body.ro #mbox .kx-sel,
+body.ro #view .card:has(#qGamble),body.ro #view .card:has(#auto),body.ro #view .card:has(#rMax),body.ro #view .card:has(#sEn),body.ro #view .card:has(#hAfter),body.ro #view .card:has(#gMin){display:none!important}
+body.ro #mbox label.field:has(#adj),body.ro #mbox .sw{display:none}
+.robar{margin:0 0 16px;padding:10px 14px;border-radius:12px;background:rgba(232,196,106,.08);border:1px solid rgba(232,196,106,.35);color:var(--gold);font-size:13px;font-weight:600}
+body.ro #view [disabled],body.ro #mbox [disabled]{cursor:not-allowed}
+.gate{min-height:100vh;display:grid;place-items:center;padding:20px}
+.gate .card{width:100%;max-width:380px;padding:26px}
+</style>
+</head>
+<body>
+<aside class="side" id="side"></aside>
+<main id="main"><button class="burger" id="burger" aria-label="Menu"><svg class="ico" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><div id="view"></div></main>
+<div class="modal" id="modal"><div class="box" id="mbox"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = (c) => (Number(c) < 0 ? '−' : '') + '$' + (Math.abs(Number(c || 0)) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const short = (c) => { const v = Math.abs(Number(c || 0)) / 100, s = Number(c) < 0 ? '−' : ''; return s + '$' + (v >= 10000 ? (v / 1000).toFixed(1) + 'k' : v.toLocaleString('en-US', { maximumFractionDigits: v >= 100 ? 0 : 2 })); };
+const ago = (t) => { if (!t) return '—'; const s = (Date.now() - new Date(t)) / 1000; return s < 60 ? 'just now' : s < 3600 ? Math.floor(s / 60) + 'm ago' : s < 86400 ? Math.floor(s / 3600) + 'h ago' : Math.floor(s / 86400) + 'd ago'; };
+const when = (t) => t ? new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+let tT; const toast = (m, bad) => { const t = $('#toast'); t.textContent = m; t.className = 'toast on' + (bad ? ' bad' : ''); clearTimeout(tT); tT = setTimeout(() => (t.className = 'toast'), 2600); };
+// GETs retry through cold starts and brief outages; a slow call gives up after 25s with a clear
+// message instead of leaving a blank page. A view's data that arrives after you've moved to another
+// tab is dropped (the promise never settles), so an old view can't paint over the new one.
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function api(p, o = {}) {
+  const method = o.method || 'GET', seq = A.seq, read = method === 'GET';
+  const stale = () => read && !o.keep && seq !== A.seq;
+  for (let attempt = 0; ; attempt++) {
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), o.timeout || 25000);
+    let r, text = '';
+    try {
+      r = await fetch('/api' + p, { method, headers: { 'content-type': 'application/json' }, body: o.body ? JSON.stringify(o.body) : undefined, credentials: 'same-origin', signal: ctl.signal });
+      text = await r.text();
+    } catch (e) {
+      clearTimeout(timer);
+      if (stale()) return new Promise(() => {});
+      if (read && attempt < 2) { await sleep(900 * (attempt + 1)); continue; }
+      throw Object.assign(new Error(e.name === 'AbortError' ? 'Kohler took too long to answer. Try again.' : "Couldn't reach Kohler. Check your connection and try again."), { status: 0 });
+    }
+    clearTimeout(timer);
+    if (stale()) return new Promise(() => {});
+    if (read && [502, 503, 504].includes(r.status) && attempt < 3) { await sleep(1200 * (attempt + 1)); continue; }
+    let j = {}; try { j = text ? JSON.parse(text) : {}; } catch {}
+    if (r.status === 403 && j.need2fa && !o.quiet) setTimeout(() => twoFactor(j.need2fa), 0);
+    if (!r.ok) {
+      const msg = j.error || (/FUNCTION_INVOCATION_TIMEOUT/.test(text) ? 'The server ran out of time on that one (hosting limit). Try again.'
+        : r.status === 503 ? 'Kohler is still starting up. Try again in a few seconds.' : r.status === 401 ? 'Your session ended. Sign in again.' : `Server error (${r.status}). Try again.`);
+      throw Object.assign(new Error(msg), { status: r.status, need2fa: j.need2fa });
+    }
+    return j;
+  }
+}
+// optional parts of a page: if one fails the rest still shows, with a note saying what's missing
+const opt = (p, label) => api(p).catch((e) => { if (e.need2fa) throw e; A.miss.push(label); return null; });
+const I = (d) => `<svg class="ico" viewBox="0 0 24 24">${d}</svg>`;
+const ICO = {
+  overview: I('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'),
+  payouts: I('<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 21h16"/>'),
+  deposits: I('<path d="M12 21V9M7 14l5-5 5 5"/><path d="M4 3h16"/>'),
+  users: I('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>'),
+  survivor: I('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="4" r="1.6"/><circle cx="19" cy="15" r="1.6"/><circle cx="5" cy="15" r="1.6"/><path d="M10 10l4 4M14 10l-4 4"/>'),
+  casino: I('<rect x="3" y="5" width="15" height="14" rx="2.5"/><path d="M7.5 9v6M10.5 9v6M13.5 9v6M18 9h2a1 1 0 0 1 1 1v3"/>'),
+  vault: I('<path d="M6 3h12l3 6-9 12L3 9z"/><path d="M3 9h18M9 3l3 6 3-6M12 21 9 9M12 21l3-12"/>'),
+  catalog: I('<path d="M4 7h16l-1.2 11.2a2 2 0 0 1-2 1.8H7.2a2 2 0 0 1-2-1.8z"/><path d="M9 7a3 3 0 0 1 6 0"/>'),
+  orders: I('<rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M9 8h6M9 12h6M9 16h4"/>'),
+  support: I('<path d="M4 5h16v11H9l-5 4z"/>'),
+  avatars: I('<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="10" r="3.5"/><path d="M6.5 19a6 6 0 0 1 11 0"/>'),
+  legends: I('<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/><path d="M5 19h14"/>'),
+  promos: I('<path d="M20 12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8"/><rect x="2.5" y="7" width="19" height="5" rx="1"/><path d="M12 7v14M12 7S10.5 3 8 3a2 2 0 0 0 0 4h4zM12 7s1.5-4 4-4a2 2 0 0 1 0 4h-4z"/>'),
+  system: I('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>'),
+};
+const NAV = [['Run the business', [['overview', 'Overview'], ['payouts', 'Payouts'], ['deposits', 'Deposits'], ['users', 'Players'], ['promos', 'Promos']]],
+  ['Games', [['survivor', 'Survivor'], ['casino', 'Casino'], ['avatars', 'Avatar factory'], ['legends', 'Legends'], ['vault', 'Vault sales']]],
+  ['Players', [['support', 'Support']]],
+  ['Platform', [['system', 'Switches & health']]]];
+const A = { me: null, stats: null, tab: 'overview', seq: 0, miss: [] };
+const god = () => A.me?.adminRole === 'god';
+// finance: sees the money pages, read-only, no player emails (the server enforces both)
+const fin = () => A.me?.adminRole === 'finance';
+const FIN_NAV = [['Money', [['overview', 'Overview'], ['payouts', 'Payouts'], ['deposits', 'Deposits'], ['users', 'Players'], ['promos', 'Promos']]],
+  ['Game books', [['survivor', 'Survivor'], ['casino', 'Casino'], ['vault', 'Vault sales']]]];
+const canSee = (tab) => god() || (fin() && FIN_NAV.some(([, items]) => items.some(([k]) => k === tab)));
+const home = () => 'overview';
+// finance is read-only: every box, switch and dropdown on the page is disabled (not just hidden),
+// so nothing can be typed, toggled or picked, and the server refuses any change anyway
+function lockView() {
+  if (!fin()) return;
+  document.querySelectorAll('#view input:not([data-ro]), #view select, #view textarea, #view .tog, #view .kx-sel, #mbox input, #mbox select, #mbox textarea, #mbox .tog, #mbox .kx-sel')
+    .forEach((el) => { if (el.disabled) return; el.disabled = true; el.readOnly = true; el.tabIndex = -1; el.setAttribute('aria-disabled', 'true'); });   // only once per element (no loop with the dropdown painter)
+}
+new MutationObserver(() => lockView()).observe(document.body, { childList: true, subtree: true });
+
+function side() {
+  const o = A.stats?.ops || {};
+  const badge = { payouts: o.payouts_pending + o.payouts_processing, deposits: o.claims_pending, support: A.stats?.open_tickets, system: o.alerts_24h, avatars: o.avatars_pending, legends: o.legends_pending };
+  const groups = god() ? NAV : FIN_NAV;
+  $('#side').innerHTML = `<a class="brand" href="/" style="height:auto;padding:0 8px 18px;background:none">${KohlerLogo.mark(32, true)}<span>Kohler<small>Control</small></span></a>
+    ${groups.map(([h, items]) => `<div class="navh">${h}</div>${items.map(([k, l]) => `<a href="#/${k}" class="${A.tab === k ? 'on' : ''}">${ICO[k]}${l}${badge[k] ? `<span class="badge ${k === 'system' ? 'red' : ''}">${badge[k]}</span>` : ''}</a>`).join('')}`).join('')}
+    <div class="foot"><div class="user">${KohlerAvatar(A.me.username, { size: 30 })}<div><b>${esc(A.me.username)}</b><div class="faint">${god() ? 'Owner' : 'Finance · view only'}</div></div></div>
+      <div class="row" style="margin-top:10px"><a class="btn sm" href="/casino" style="height:30px">Casino</a></div></div>`;
+}
+function modal(html) { $('#mbox').innerHTML = html; $('#modal').classList.add('on'); }
+const close = () => $('#modal').classList.remove('on');
+$('#modal').onclick = (e) => { if (e.target.id === 'modal') close(); };
+function ask(title, body, label, cls = 'neon') {
+  return new Promise((res) => { modal(`<h2 style="margin-bottom:8px">${title}</h2><div class="muted" style="margin-bottom:16px">${body}</div><div class="row" style="justify-content:flex-end"><button class="btn ghost" id="mNo">Cancel</button><button class="btn ${cls}" id="mYes">${label}</button></div>`);
+    $('#mNo').onclick = () => { close(); res(false); }; $('#mYes').onclick = () => { close(); res(true); }; });
+}
+const tog = (id, on) => `<button class="tog ${on ? 'on' : ''}" id="${id}" role="switch" aria-checked="${!!on}"></button>`;
+const sw = (id, on, title, sub) => `<div class="sw"><div><b>${title}</b><small>${sub}</small></div>${tog(id, on)}</div>`;
+const who = (name) => `<span class="user">${KohlerAvatar(name || '?', { size: 26 })}<b style="font-weight:600">${esc(name || 'deleted')}</b></span>`;
+function bindTog(id, fn) { const b = $('#' + id); if (!b) return; b.onclick = async () => { const on = !b.classList.contains('on'); b.disabled = true; try { await fn(on); b.classList.toggle('on', on); toast('Saved'); } catch (e) { toast(e.message, true); } b.disabled = false; }; }
+
+/* ═════════ views ═════════ */
+const V = {};
+
+V.overview = async () => {
+  const [s, ap, pay, sv] = await Promise.all([api('/admin/stats'), opt('/admin/autopilot', 'Autopilot'), opt('/admin/payouts', 'Payouts'), opt('/admin/pool', 'Survivor')]);
+  A.stats = s; side();
+  const R = s.revenue, LABEL = { order: 'Shop fees', pool_fee: 'Survivor fees', withdrawal: 'Withdrawal fees', withdrawal_refund: 'Fee refunds', vault: 'Vault sales', avatar: 'Custom avatars', bonus: 'Bonuses given' };
+  const parts = [...R.fees.map((f) => ({ k: LABEL[f.kind] || f.kind, ...f })), { k: 'Casino (bets − wins)', ...R.casino }];
+  const sum = (key) => parts.reduce((a, p) => a + p[key], 0);
+  const max = Math.max(1, ...R.days.map((d) => Math.max(0, d.fees) + Math.max(0, d.ggr)));
+  const colors = { 'Custom avatars': '#fb923c', 'Shop fees': 'var(--sky)', 'Survivor fees': 'var(--gold)', 'Withdrawal fees': 'var(--violet)', 'Vault sales': '#f472b6', 'Casino (bets − wins)': 'var(--neon)' };
+  const liveSv = sv ? sv.tables.reduce((a, t) => a + (t.round?.seats || 0), 0) : 0;
+  const crit = (ap?.alerts || []).filter((x) => x.detail?.level === 'critical' && Date.now() - new Date(x.created_at) < 6 * 3600e3);
+  const p = pay?.settings, hot = pay?.hotWallet;
+  $('#view').innerHTML = `<div class="top"><div><h1>Good ${new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, ${esc(A.me.username)}</h1>
+      <div class="sub">${crit.length ? `<b class="down">${crit.length} critical alert${crit.length > 1 ? 's' : ''} in the last 6 hours.</b> ` : 'Everything checked out. '}Autopilot last ran ${ago(ap?.lastRun)}.</div></div>
+      <div class="row"><a class="btn" href="/casino">Open casino</a><button class="btn neon" id="apRun">Run checks now</button></div></div>
+    <div class="grid g4">
+      <div class="card hl kpi"><div class="l">Revenue today</div><div class="v num gold">${money(sum('d1'))}</div><div class="s">${money(sum('d30'))} in 30 days</div></div>
+      <div class="card kpi"><div class="l">Owed to players</div><div class="v num">${money(s.user_liability)}</div><div class="s">Real balances. Keep this much BTC on hand.</div></div>
+      <a class="card kpi ${s.ops.payouts_pending ? 'hl' : ''}" href="#/payouts"><div class="l">Payouts waiting</div><div class="v num">${s.ops.payouts_pending}</div><div class="s">${money(s.ops.payouts_pending_cents)} · auto payouts <b class="${p?.auto ? 'up' : 'muted'}">${p?.auto ? 'on' : 'off'}</b></div></a>
+      <a class="card kpi" href="#/survivor"><div class="l">Survivor right now</div><div class="v num">${liveSv}</div><div class="s">seated · ${sv ? money(sv.stats.fees_24h) + ' fees today' : '—'}</div></a>
+    </div>
+    <div class="grid g3" style="grid-template-columns:2fr 1fr;margin-top:14px">
+      <div class="card"><div class="card-h"><h2>Last 14 days</h2><div class="legend"><span><i style="background:var(--gold)"></i>Fees &amp; sales</span><span><i style="background:var(--neon)"></i>Casino</span></div></div>
+        <div class="bars">${R.days.map((d) => `<div class="b" data-t="${new Date(d.day).toLocaleDateString([], { month: 'short', day: 'numeric' })}\nFees ${money(d.fees)}\nCasino ${money(d.ggr)}">
+          <i class="c" style="height:${Math.max(0, d.ggr) / max * 100}%"></i><i class="f" style="height:${Math.max(0, d.fees) / max * 100}%;border-radius:0 0 0 0"></i></div>`).join('')}</div>
+        <div class="bars-x">${R.days.map((d, i) => `<span>${i % 2 ? '' : new Date(d.day).getDate()}</span>`).join('')}</div></div>
+      <div class="card"><div class="card-h"><h2>Where it comes from</h2><span class="faint">30 days</span></div>
+        <div class="split">${parts.filter((x) => x.d30 || x.total).sort((a, b) => b.d30 - a.d30).map((x) => `<div class="ln"><span style="width:130px">${esc(x.k)}</span><span class="bar"><i style="width:${Math.max(2, x.d30 / Math.max(1, sum('d30')) * 100)}%;background:${colors[x.k] || 'var(--dim)'}"></i></span><b class="num" style="width:76px;text-align:right">${short(x.d30)}</b></div>`).join('') || '<div class="empty">No revenue yet. It shows up here as soon as anyone plays or buys.</div>'}</div>
+        <div class="faint" style="font-size:12px;margin-top:12px">Test accounts are never counted.</div></div>
+    </div>
+    <div class="grid g3" style="margin-top:14px">
+      <div class="card"><div class="card-h"><h2>Quick switches</h2></div>
+        ${sw('qGamble', s.gambling ?? true, 'Games on the site', 'Casino, Survivor and game links')}
+        ${sv ? sw('qPause', !sv.settings.paused, 'Survivor open', 'Off pauses new seats; live tables still finish') : ''}
+        ${p ? sw('qAuto', p.auto, 'Automatic BTC payouts', hot ? `From the hot wallet, up to ${money(p.maxCents)} each` : 'Needs Bitcoin enabled on the server') : ''}</div>
+      <div class="card"><div class="card-h"><h2>Needs you</h2></div>
+        ${[[s.ops.payouts_pending, 'withdrawals to pay', '#/payouts'], [s.ops.payouts_processing, 'payouts stuck in processing', '#/payouts'], [s.ops.claims_pending, 'deposit claims to check', '#/deposits'], [s.ops.avatars_pending, 'new avatars to review', '#/avatars'], [s.open_tickets, 'open support tickets', '#/support']]
+          .filter(([n]) => n).map(([n, l, h]) => `<a class="sw" href="${h}"><div><b class="num">${n} ${l}</b></div><span class="btn sm">Open</span></a>`).join('') || '<div class="empty">Nothing waiting. Enjoy it.</div>'}</div>
+      <div class="card"><div class="card-h"><h2>Recent alerts</h2><a class="btn sm ghost" href="#/system">All</a></div>
+        ${(ap?.alerts || []).slice(0, 5).map((x) => `<div class="alert"><span class="dot" style="background:${x.detail?.level === 'critical' ? 'var(--rose)' : x.detail?.level === 'info' ? 'var(--dim)' : 'var(--gold)'}"></span><div>${esc(x.detail?.message || x.action)}<div class="faint" style="font-size:12px">${ago(x.created_at)}</div></div></div>`).join('') || '<div class="empty">No alerts.</div>'}</div>
+    </div>
+    <div class="grid g4" style="margin-top:14px">
+      <div class="card kpi"><div class="l">Players</div><div class="v num">${s.users}</div><div class="s">+${s.ops.signups_24h} today · ${s.test_accounts} test</div></div>
+      <a class="card kpi" href="#/support"><div class="l">Open help tickets</div><div class="v num ${s.open_tickets ? 'gold' : ''}">${s.open_tickets}</div><div class="s">players waiting for a reply</div></a>
+      <div class="card kpi"><div class="l">Casino all-time</div><div class="v num ${R.casino.total >= 0 ? '' : 'down'}">${money(R.casino.total)}</div><div class="s">bets minus wins</div></div>
+      <div class="card kpi"><div class="l">Hot wallet</div><div class="v num">${hot?.balanceSats != null ? (hot.balanceSats / 1e8).toFixed(5) + ' ₿' : '—'}</div><div class="s">${hot ? 'pays automatic payouts' : 'Bitcoin not enabled'}</div></div>
+    </div>`;
+  $('#apRun').onclick = async () => { $('#apRun').disabled = true; await api('/admin/autopilot/run', { method: 'POST' }).catch((e) => toast(e.message, true)); toast('Checks done'); V.overview(); };
+  bindTog('qGamble', (on) => api('/admin/settings', { method: 'PATCH', body: { gamblingEnabled: on } }));
+  bindTog('qPause', (on) => api('/admin/pool/settings', { method: 'PATCH', body: { paused: !on } }));
+  bindTog('qAuto', async (on) => { if (on && !(await ask('Turn on automatic payouts?', `Withdrawals that pass every rule (under ${money(p.maxCents)}, ${money(p.dailyCents)} a day in total, account older than ${p.minAgeHours}h${p.requireDeposit ? ', has deposited' : ''}) will be sent from the hot wallet without you. Anything else still waits for you.`, 'Turn on'))) throw new Error('Cancelled'); return api('/admin/payouts', { method: 'PATCH', body: { auto: on } }); });
+};
+
+V.payouts = async () => {
+  const [st, { withdrawals }] = await Promise.all([api('/admin/payouts'), api('/admin/withdrawals')]);
+  const p = st.settings, hot = st.hotWallet;
+  const tagFor = (w) => ({ pending: '<span class="tag y">waiting</span>', processing: '<span class="tag b">processing</span>', sent: `<span class="tag g">sent${w.auto ? ' · auto' : ''}</span>`, rejected: '<span class="tag r">rejected</span>' })[w.status] || `<span class="tag">${esc(w.status)}</span>`;
+  const list = (ws) => ws.length ? `<div class="scroll"><table class="tbl"><tr><th>Player</th><th class="r">Amount</th><th>To address</th><th>Requested</th><th>Status</th><th></th></tr>${ws.map((w) => `<tr>
+      <td>${who(w.username)}</td><td class="r num"><b>${money(w.amount_cents)}</b>${w.amount_sats ? `<div class="faint">${(w.amount_sats / 1e8).toFixed(6)} ₿</div>` : ''}</td>
+      <td class="mono" style="max-width:260px">${esc(w.address)}${w.tx_hash ? `<div class="faint">tx ${esc(w.tx_hash.slice(0, 18))}…</div>` : ''}${w.note ? `<div class="faint">${esc(w.note)}</div>` : ''}</td>
+      <td class="faint">${when(w.created_at)}</td><td>${tagFor(w)}</td>
+      <td class="r"><div class="row" style="justify-content:flex-end">${w.status === 'pending' ? `<button class="btn sm neon" data-paid="${w.id}">Mark paid</button><button class="btn sm red" data-rej="${w.id}">Reject</button>` : w.status === 'processing' ? `<button class="btn sm" data-rq="${w.id}">Requeue</button>` : ''}</div></td></tr>`).join('')}</table></div>` : '<div class="empty">Nothing here.</div>';
+  const open = withdrawals.filter((w) => w.status === 'pending' || w.status === 'processing'), done = withdrawals.filter((w) => !open.includes(w)).slice(0, 40);
+  $('#view').innerHTML = `<div class="top"><div><h1>Payouts</h1><div class="sub">Players request withdrawals in dollars; they're paid in BTC. You start in manual mode: pay from any wallet, then mark it paid here.</div></div>
+      <button class="btn" id="runNow" ${hot ? '' : 'disabled'}>Run automatic payouts now</button></div>
+    <div class="grid g3">
+      <div class="card ${p.auto ? 'ok' : ''}">${sw('auto', p.auto, 'Automatic payouts', p.auto ? 'On: safe withdrawals send themselves' : 'Off: every withdrawal waits for you')}
+        <p class="faint" style="font-size:12.5px;margin:10px 0 0">Auto mode also stops itself for 6 hours after any critical alert.</p></div>
+      <div class="card"><div class="card-h"><h2>Hot wallet</h2>${hot ? '<span class="tag g">ready</span>' : '<span class="tag r">off</span>'}</div>
+        ${hot ? `<div class="mono" style="margin-bottom:8px">${esc(hot.address)}</div><div class="row" style="justify-content:space-between"><b class="num">${hot.balanceSats != null ? (hot.balanceSats / 1e8).toFixed(6) + ' ₿' : 'balance unavailable'}</b><button class="btn sm" id="useHot">Sweep deposits here</button></div>
+          <p class="faint" style="font-size:12.5px;margin:10px 0 0">Automatic payouts are sent from this address. Keep enough BTC in it to cover the daily limit.</p>`
+          : '<p class="muted" style="margin:0">Set CHAIN_ENABLED=true and DEPOSIT_MNEMONIC in .env, then restart. Manual payouts work without it.</p>'}</div>
+      <div class="card"><div class="card-h"><h2>Where deposits go</h2><span class="tag ${st.network === 'mainnet' ? 'g' : 'y'}">${esc(st.network || '')}</span></div>
+        <p class="faint" style="font-size:12.5px;margin:0 0 8px">Every player deposit is swept to this "parent" address. Use your own cold wallet (safest), or the hot wallet if automatic payouts should spend deposits directly.</p>
+        <div class="mono" style="margin-bottom:8px;word-break:break-all">${st.parent ? esc(st.parent) : '<span style="color:var(--rose)">not set: deposits stay on their deposit addresses</span>'}</div>
+        <div class="row" style="flex-wrap:nowrap"><input class="inp mono" id="parentIn" placeholder="bc1q… your cold wallet address" style="flex:1"><button class="btn sm" id="parentGo">Save</button></div></div>
+      <div class="card"><div class="card-h"><h2>Queue</h2></div>
+        <div class="sw"><span>Waiting</span><b class="num">${st.queue.pending} · ${money(st.queue.pending_cents)}</b></div>
+        <div class="sw"><span>Processing</span><b class="num ${st.queue.processing ? 'gold' : ''}">${st.queue.processing}</b></div>
+        <div class="sw"><span>Auto-paid last 24h</span><b class="num">${money(st.queue.auto_24h)} of ${money(p.dailyCents)}</b></div></div>
+    </div>
+    <div class="card" style="margin-top:14px"><div class="card-h"><h2>Automatic payout rules</h2><button class="btn sm neon" id="saveRules">Save rules</button></div>
+      <div class="fields"><label class="field"><span>Max per withdrawal ($)</span><input class="inp num" id="rMax" type="number" min="0" step="1" value="${p.maxCents / 100}"></label>
+        <label class="field"><span>Max per day, all players ($)</span><input class="inp num" id="rDay" type="number" min="0" step="1" value="${p.dailyCents / 100}"></label>
+        <label class="field"><span>Account at least (hours old)</span><input class="inp num" id="rAge" type="number" min="0" step="1" value="${p.minAgeHours}"></label>
+        <label class="field"><span>Must have deposited before</span><select class="inp" id="rDep"><option value="1" ${p.requireDeposit ? 'selected' : ''}>Yes</option><option value="0" ${p.requireDeposit ? '' : 'selected'}>No</option></select></label></div>
+      <p class="faint" style="font-size:12.5px;margin:0">Anything outside these rules stays in the queue for you, even with auto mode on.</p></div>
+    <div class="sec"><h2>Needs action</h2><span class="faint">${open.length}</span></div><div class="card" style="padding:6px 8px">${list(open)}</div>
+    <div class="sec"><h2>History</h2></div><div class="card" style="padding:6px 8px">${list(done)}</div>`;
+  bindTog('auto', async (on) => { if (on && !hot) throw new Error('Turn on Bitcoin first (see Hot wallet).'); if (on && !(await ask('Turn on automatic payouts?', 'Withdrawals inside your rules will be signed and broadcast from the hot wallet without you.', 'Turn on'))) throw new Error('Cancelled'); await api('/admin/payouts', { method: 'PATCH', body: { auto: on } }); });
+  $('#saveRules').onclick = async () => { try { await api('/admin/payouts', { method: 'PATCH', body: { maxCents: Math.round(+$('#rMax').value * 100), dailyCents: Math.round(+$('#rDay').value * 100), minAgeHours: +$('#rAge').value, requireDeposit: $('#rDep').value === '1' } }); toast('Rules saved'); } catch (e) { toast(e.message, true); } };
+  $('#runNow') && ($('#runNow').onclick = async () => { const r = await api('/admin/payouts/run', { method: 'POST' }).catch((e) => toast(e.message, true)); if (r) toast(`Sent ${r.sent ?? 0}, skipped ${r.skipped ?? 0}`); V.payouts(); });
+  $('#parentGo').onclick = async () => { const v = $('#parentIn').value.trim(); if (!v) return; if (!(await ask('Send all future deposits here?', `<span class="mono" style="word-break:break-all">${esc(v)}</span><br><br>Check it character by character against your wallet. Bitcoin sent to a wrong address is gone.`, 'Use this address'))) return; try { await api('/admin/payouts/parent', { method: 'POST', body: { address: v } }); toast('Saved'); V.payouts(); } catch (e) { toast(e.message, true); } };
+  $('#useHot') && ($('#useHot').onclick = async () => { if (await ask('Use the hot wallet as the house address?', 'Deposits will be counted against this address, so automatic payouts draw from the same pot.', 'Use it')) { await api('/admin/payouts/use-hot-wallet', { method: 'POST' }); toast('House address updated'); } });
+  $('#view').onclick = async (e) => {
+    const b = e.target.closest('[data-paid],[data-rej],[data-rq]'); if (!b) return;
+    const w = withdrawals.find((x) => x.id === (b.dataset.paid || b.dataset.rej || b.dataset.rq));
+    if (b.dataset.paid) {
+      modal(`<h2>Mark as paid</h2><p class="muted">Send <b>${money(w.amount_cents)}</b>${w.amount_sats ? ` (${(w.amount_sats / 1e8).toFixed(6)} BTC)` : ''} to this address from any wallet, then paste the transaction id.</p>
+        <div class="mono" style="padding:10px;border-radius:10px;background:var(--obs);border:1px solid var(--line);margin-bottom:12px">${esc(w.address)}</div>
+        <label class="field"><span>Transaction id or payment reference</span><input class="inp" id="tx"></label><label class="field"><span>Note (optional)</span><input class="inp" id="nt"></label>
+        <div class="err" id="me"></div><div class="row" style="justify-content:flex-end"><button class="btn ghost" onclick="close()">Cancel</button><button class="btn neon" id="go">Mark paid</button></div>`);
+      $('#go').onclick = async () => { try { await api(`/admin/withdrawals/${w.id}/mark-sent`, { method: 'POST', body: { txid: $('#tx').value, note: $('#nt').value } }); close(); toast('Marked paid'); V.payouts(); } catch (err) { $('#me').textContent = err.message; } };
+    } else if (b.dataset.rej) {
+      if (await ask('Reject and refund?', `${esc(w.username)} gets ${money(w.amount_cents)} back on their balance, plus any withdrawal fee.`, 'Reject & refund', 'red')) { await api(`/admin/withdrawals/${w.id}/reject`, { method: 'POST' }); toast('Refunded'); V.payouts(); }
+    } else if (await ask('Put back in the queue?', 'Only do this after checking the blockchain: make sure no transaction to this address went out. Otherwise you could pay twice.', 'I checked, requeue', 'gold')) { await api(`/admin/withdrawals/${w.id}/requeue`, { method: 'POST' }); toast('Back in the queue'); V.payouts(); }
+  };
+};
+
+V.deposits = async () => {
+  const { claims } = await api('/admin/claims');
+  $('#view').innerHTML = `<div class="top"><div><h1>Deposits</h1><div class="sub">Bitcoin sent to a player's personal address is credited automatically. Claims show up here only when a player reports a payment the watcher didn't catch.</div></div></div>
+    <div class="card" style="padding:6px 8px">${claims.length ? `<div class="scroll"><table class="tbl"><tr><th>Player</th><th>Method</th><th>Reference</th><th>Note</th><th>When</th><th></th></tr>${claims.map((c) => `<tr>
+      <td>${who(c.username)}</td><td><span class="tag">${esc(c.method)}</span></td><td class="mono">${esc(c.txid)}</td><td class="faint">${esc(c.note || '')}</td><td class="faint">${when(c.created_at)}</td>
+      <td class="r"><div class="row" style="justify-content:flex-end"><button class="btn sm neon" data-ok="${c.id}" data-m="${esc(c.method)}">Approve</button><button class="btn sm red" data-no="${c.id}">Reject</button></div></td></tr>`).join('')}</table></div>` : '<div class="empty">No claims waiting.</div>'}</div>`;
+  $('#view').onclick = async (e) => {
+    const ok = e.target.closest('[data-ok]'), no = e.target.closest('[data-no]');
+    if (ok) {
+      modal(`<h2>Approve deposit</h2><p class="muted">${ok.dataset.m === 'btc' ? 'Leave sats empty to read the amount off the blockchain.' : 'Enter the amount received, in sats at today\'s price.'}</p>
+        <label class="field"><span>Sats received</span><input class="inp num" id="sats" type="number" min="0"></label><div class="err" id="me"></div>
+        <div class="row" style="justify-content:flex-end"><button class="btn ghost" onclick="close()">Cancel</button><button class="btn neon" id="go">Credit player</button></div>`);
+      $('#go').onclick = async () => { try { const r = await api(`/admin/claims/${ok.dataset.ok}/approve`, { method: 'POST', body: { sats: +$('#sats').value || undefined } }); close(); toast('Credited ' + money(r.credited)); V.deposits(); } catch (err) { $('#me').textContent = err.message; } };
+    }
+    if (no && await ask('Reject this claim?', 'The player is not credited.', 'Reject', 'red')) { await api(`/admin/claims/${no.dataset.no}/reject`, { method: 'POST' }); V.deposits(); }
+  };
+};
+
+V.users = async () => {
+  const { users } = await api('/admin/users');
+  let q = '', f = 'all';
+  const paint = () => {
+    const list = users.filter((u) => (!q || (u.username + ' ' + (u.email || '')).toLowerCase().includes(q)) && (f === 'all' || (f === 'admin' && u.is_admin) || (f === 'test' && u.test_mode) || (f === 'banned' && u.banned)));
+    $('#ul').innerHTML = list.length ? `<table class="tbl"><tr><th>Player</th><th class="r">Balance</th><th>Role</th><th>Joined</th><th></th></tr>${list.slice(0, 200).map((u) => `<tr>
+      <td><span class="user">${KohlerAvatar(u.username, { size: 30 })}<span><b>${esc(u.username)}</b>${u.email ? `<div class="faint" style="font-size:12px">${esc(u.email)}</div>` : ''}</span></span></td>
+      <td class="r num"><b>${money(u.balance_cents)}</b>${u.test_mode ? '<div><span class="tag y">test money</span></div>' : ''}</td>
+      <td>${u.is_admin ? `<span class="tag ${u.admin_role === 'god' ? 'g' : u.admin_role === 'finance' ? 'y' : 'b'}">${u.admin_role === 'god' ? 'owner' : 'finance'}</span>` : '<span class="faint">player</span>'} ${u.banned ? '<span class="tag r">banned</span>' : ''}</td>
+      <td class="faint">${when(u.created_at)}</td><td class="r"><button class="btn sm" data-u="${u.id}">${fin() ? 'View' : 'Manage'}</button></td></tr>`).join('')}</table>` : '<div class="empty">No players match.</div>';
+  };
+  $('#view').innerHTML = `<div class="top"><div><h1>Players</h1><div class="sub">${users.length} accounts. Balances move only through the ledger, so every change here is recorded.</div></div><button class="btn neon" id="newTest">New test account</button></div>
+    <div class="row" style="margin-bottom:12px"><input class="inp" id="uq" data-ro placeholder="${fin() ? 'Search name' : 'Search name or email'}" style="max-width:320px">${['all', 'admin', 'test', 'banned'].map((x) => `<button class="btn sm ${x === f ? 'neon' : ''}" data-f="${x}">${x}</button>`).join('')}</div>
+    <div class="card scroll" style="padding:6px 8px" id="ul"></div>`;
+  paint();
+  $('#uq').oninput = (e) => { q = e.target.value.toLowerCase(); paint(); };
+  $('#view').onclick = (e) => {
+    const fb = e.target.closest('[data-f]'); if (fb) { f = fb.dataset.f; document.querySelectorAll('[data-f]').forEach((x) => x.classList.toggle('neon', x === fb)); return paint(); }
+    const b = e.target.closest('[data-u]'); if (!b) return;
+    const u = users.find((x) => x.id === b.dataset.u), self = u.id === A.me.id;
+    modal(`<div class="user" style="margin-bottom:14px">${KohlerAvatar(u.username, { size: 44 })}<div><h2>${esc(u.username)}</h2>${u.email ? `<div class="faint">${esc(u.email)}</div>` : ''}</div></div>
+      <div class="card" style="padding:12px 14px;margin-bottom:12px"><div class="sw" style="padding:4px 0"><span>Balance</span><b class="num">${money(u.balance_cents)}</b></div></div>
+      <label class="field"><span>Adjust balance (+ adds, − removes), in $</span><div class="row" style="flex-wrap:nowrap"><input class="inp num" id="adj" type="number" step="0.01" placeholder="e.g. 25 or -10"><button class="btn neon" id="adjGo">Apply</button></div></label>
+      ${self ? '' : sw('mAdmin', u.is_admin && u.admin_role === 'god', 'Owner admin', 'Full access to money, payouts and games') + sw('mFin', u.is_admin && u.admin_role === 'finance', 'Finance (view only)', 'Sees payouts, deposits, players and game books. Can\'t change anything or see emails') + sw('mCat', u.is_admin && u.admin_role === 'catalog', 'Catalog editor', 'Can add and edit shop products only')}
+      ${sw('mTest', u.test_mode, 'Test account', 'Fake money; switching zeroes the balance through the ledger')}
+      ${self ? '' : sw('mBan', u.banned, 'Banned', 'Blocks play and withdrawals, and signs them out everywhere')}
+      ${!self && u.is_admin && u.totp_enabled ? `<div class="sw"><span>Two-factor sign-in<div class="faint" style="font-size:12px">On. Reset it if they lost their phone.</div></span><button class="btn sm red" id="r2fa">Reset</button></div>` : ''}
+      <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-ro onclick="close();V.users()">Done</button></div>`);
+    $('#adjGo').onclick = async () => { const v = Math.round(+$('#adj').value * 100); if (!v) return; if (!(await ask('Adjust balance?', `${v > 0 ? 'Add' : 'Remove'} ${money(Math.abs(v))} ${v > 0 ? 'to' : 'from'} ${esc(u.username)}.`, 'Apply'))) return; await api(`/admin/users/${u.id}/balance`, { method: 'POST', body: { deltaCents: v } }).then(() => toast('Balance updated')).catch((er) => toast(er.message, true)); V.users(); };
+    bindTog('mAdmin', (on) => api(`/admin/users/${u.id}/role`, { method: 'POST', body: { isAdmin: on, role: 'god' } }));
+    bindTog('mFin', (on) => api(`/admin/users/${u.id}/role`, { method: 'POST', body: { isAdmin: on, role: 'finance' } }));
+    bindTog('mTest', (on) => api(`/admin/users/${u.id}/test-mode`, { method: 'POST', body: { testMode: on } }));
+    bindTog('mBan', (on) => api(`/admin/users/${u.id}/ban`, { method: 'POST', body: { banned: on } }));
+    $('#r2fa') && ($('#r2fa').onclick = async () => { if (!(await ask('Reset two-factor?', `${esc(u.username)} sets it up again at their next admin sign-in.`, 'Reset', 'red'))) return; await api(`/admin/users/${u.id}/reset-2fa`, { method: 'POST' }); toast('Reset'); close(); V.users(); });
+  };
+  $('#newTest').onclick = () => {
+    modal(`<h2>New test account</h2><p class="muted">Starts with $1,000 of fake money. Its games use simulated players and nothing it does touches real books.</p>
+      <label class="field"><span>Username</span><input class="inp" id="tu" value="tester${Math.floor(Math.random() * 900 + 100)}"></label><label class="field"><span>Password (8+)</span><input class="inp" id="tp" type="text"></label>
+      <div class="err" id="me"></div><div class="row" style="justify-content:flex-end"><button class="btn ghost" onclick="close()">Cancel</button><button class="btn neon" id="go">Create</button></div>`);
+    $('#go').onclick = async () => { try { await api('/admin/users/test-account', { method: 'POST', body: { username: $('#tu').value, password: $('#tp').value } }); close(); toast('Test account created'); V.users(); } catch (err) { $('#me').textContent = err.message; } };
+  };
+};
+
+V.survivor = async () => {
+  const [d, { rounds }] = await Promise.all([api('/admin/pool'), api('/admin/pool/rounds')]);
+  const s = d.settings, st = d.stats, rc = d.reconcile, MODE = { duel: 'Duel · 2 seats', classic: 'Classic · 3 seats', squad: 'Squad · 5 seats', blitz: 'Blitz · 10 seats', crew: 'Private' };
+  $('#view').innerHTML = `<div class="top"><div><h1>Survivor</h1><div class="sub">Everyone stakes the same, one (two at 10 seats) is knocked out, survivors split the knocked-out stake. Kohler keeps ${s.feeBps / 100}% of the knocked-out stake.</div></div>
+      <button class="btn neon" id="newT">New table</button></div>
+    <div class="grid g4">
+      <div class="card hl kpi"><div class="l">Fees today</div><div class="v num gold">${money(st.fees_24h)}</div><div class="s">${money(st.fees_all)} all-time</div></div>
+      <div class="card kpi"><div class="l">Rounds today</div><div class="v num">${st.rounds_24h}</div><div class="s">${st.rounds_all} all-time</div></div>
+      <div class="card kpi"><div class="l">Staked today</div><div class="v num">${money(st.volume_24h)}</div><div class="s">${money(st.live_escrow)} sitting in live tables</div></div>
+      <div class="card kpi ${rc.ok ? 'ok' : 'bad'}"><div class="l">Books</div><div class="v num ${rc.ok ? 'up' : 'down'}">${rc.ok ? 'Balanced' : 'Off by ' + money(rc.drift)}</div><div class="s">Kohler seats net ${money(st.house_seat_net)} over ${st.house_sat} rounds</div></div>
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card"><div class="card-h"><h2>Game switches</h2></div>
+        ${sw('sEn', s.enabled, 'Survivor live', 'Shown in the casino and the shop')}${sw('sPa', !s.paused, 'Taking new seats', 'Off = paused for maintenance; live tables still finish')}
+        ${sw('sCrew', s.crewTables, 'Private tables', 'Players can open their own table and invite friends')}</div>
+      <div class="card"><div class="card-h"><h2>Kohler seats</h2><button class="btn sm neon" id="saveH">Save</button></div>
+        ${sw('sFill', s.houseFill, 'Fill slow tables', `Tables of ${s.houseMinTable}+ seats that stall get up to ${s.houseMax} Kohler seats, labelled "Kohler · House"`)}
+        <div class="fields" style="margin-top:12px"><label class="field"><span>Wait before filling (seconds)</span><input class="inp num" id="hAfter" type="number" min="5" value="${s.houseAfterSecs}"></label>
+          <label class="field"><span>Max Kohler seats per table</span><input class="inp num" id="hMax" type="number" min="0" max="5" value="${s.houseMax}"></label>
+          <label class="field"><span>Fee on knocked-out stake (%)</span><input class="inp num" id="hFee" type="number" min="0" max="25" step="0.5" value="${s.feeBps / 100}"></label></div>
+        <p class="faint" style="font-size:12.5px;margin:0">A Kohler seat plays at the same odds as everyone. It doesn't change your expected profit (the fee is your profit); it gets players to the draw faster, so more rounds happen.</p></div>
+    </div>
+    <div class="sec"><h2>Tables</h2><button class="btn sm ghost" id="showClosed">${d.tables.filter((t) => !t.active).length} closed tables ${A.showClosed ? '(hide)' : '(show)'}</button></div>
+    <div class="card scroll" style="padding:6px 8px"><table class="tbl"><tr><th>Table</th><th>Mode</th><th class="r">Stake</th><th>Seated</th><th>Kohler fill</th><th>Status</th><th></th></tr>
+      ${d.tables.filter((t) => t.active || A.showClosed).sort((a, b) => b.active - a.active).map((t) => `<tr><td><b>${esc(t.name)}</b><div class="faint mono">${t.code}</div></td><td>${MODE[t.mode] || esc(t.mode)}</td><td class="r num"><b>${money(t.stake)}</b></td>
+        <td class="num">${t.round ? `${t.round.seats}/${t.maxSeats}` : '—'}${t.round?.houseN ? ` <span class="tag y">${t.round.houseN} Kohler</span>` : ''}</td>
+        <td>${t.maxSeats >= 5 ? tog('hf' + t.code, t.houseFill !== false) : '<span class="faint">n/a</span>'}</td>
+        <td>${t.active ? (t.isPrivate ? '<span class="tag v">private</span>' : '<span class="tag g">open</span>') : '<span class="tag">closed</span>'}</td>
+        <td class="r"><div class="row" style="justify-content:flex-end"><a class="btn sm" href="/casino#/survivor/${t.code}" target="_blank">View</a>${t.round && t.round.seats ? `<button class="btn sm" data-cancel="${t.round.id}">Refund round</button>` : ''}<button class="btn sm ${t.active ? 'red' : ''}" data-act="${t.code}" data-on="${!t.active}">${t.active ? 'Close' : 'Reopen'}</button></div></td></tr>`).join('')}</table></div>
+    <div class="sec"><h2>Recent rounds</h2></div>
+    <div class="card scroll" style="padding:6px 8px">${rounds.length ? `<table class="tbl"><tr><th>When</th><th>Table</th><th>Knocked out</th><th class="r">Each survivor won</th><th class="r">Fee</th></tr>${rounds.slice(0, 40).map((r) => `<tr>
+      <td class="faint">${when(r.settled_at)}</td><td><b>${esc(r.name)}</b> <span class="faint">#${r.seq}</span></td>
+      <td>${r.status === 'cancelled' ? '<span class="tag">refunded</span>' : (r.loser_names || []).map((n) => `<span class="tag ${n === 'Kohler' ? 'y' : 'r'}">${esc(n)}</span>`).join(' ')}${r.house_in ? ' <span class="faint">Kohler sat</span>' : ''}</td>
+      <td class="r num up">${r.status === 'settled' ? '+' + money(r.share_cents) : '—'}</td><td class="r num gold">${money(r.fee_cents)}</td></tr>`).join('')}</table>` : '<div class="empty">No rounds yet.</div>'}</div>`;
+  $('#showClosed').onclick = () => { A.showClosed = !A.showClosed; V.survivor(); };
+  const P = (b) => api('/admin/pool/settings', { method: 'PATCH', body: b });
+  bindTog('sEn', (on) => P({ enabled: on })); bindTog('sPa', (on) => P({ paused: !on })); bindTog('sCrew', (on) => P({ crewTables: on })); bindTog('sFill', (on) => P({ houseFill: on }));
+  d.tables.forEach((t) => bindTog('hf' + t.code, (on) => api('/admin/pool/tables/' + t.code, { method: 'PATCH', body: { houseFill: on } })));
+  $('#saveH').onclick = async () => { try { await P({ houseAfterSecs: +$('#hAfter').value, houseMax: +$('#hMax').value, feeBps: Math.round(+$('#hFee').value * 100) }); toast('Saved'); V.survivor(); } catch (e) { toast(e.message, true); } };
+  $('#view').onclick = async (e) => {
+    const a = e.target.closest('[data-act]'), c = e.target.closest('[data-cancel]');
+    if (a) { const on = a.dataset.on === 'true'; if (!on && !(await ask('Close this table?', 'Anyone seated in the live round gets their stake back.', 'Close table', 'red'))) return; await api('/admin/pool/tables/' + a.dataset.act, { method: 'PATCH', body: { active: on } }); toast(on ? 'Reopened' : 'Closed and refunded'); V.survivor(); }
+    if (c && await ask('Refund this round?', 'Every seat gets its stake back and the table starts a fresh round.', 'Refund', 'red')) { await api(`/admin/pool/rounds/${c.dataset.cancel}/cancel`, { method: 'POST' }); toast('Refunded'); V.survivor(); }
+  };
+  $('#newT').onclick = () => {
+    modal(`<h2>New Survivor table</h2><p class="muted">Public tables appear in the casino lobby straight away.</p>
+      <div class="fields"><label class="field"><span>Mode</span><select class="inp" id="nm">${['duel', 'classic', 'squad', 'blitz'].map((m) => `<option value="${m}" ${m === 'squad' ? 'selected' : ''}>${MODE[m]}</option>`).join('')}</select></label>
+        <label class="field"><span>Stake ($)</span><input class="inp num" id="ns" type="number" min="0.1" step="0.01" value="10"></label></div>
+      <label class="field"><span>Name (optional)</span><input class="inp" id="nn" maxlength="32"></label><div class="err" id="me"></div>
+      <div class="row" style="justify-content:flex-end"><button class="btn ghost" onclick="close()">Cancel</button><button class="btn neon" id="go">Create</button></div>`);
+    $('#go').onclick = async () => { try { await api('/admin/pool/tables', { method: 'POST', body: { mode: $('#nm').value, stakeCents: Math.round(+$('#ns').value * 100), name: $('#nn').value || undefined } }); close(); toast('Table open'); V.survivor(); } catch (err) { $('#me').textContent = err.message; } };
+  };
+};
+
+V.casino = async () => {
+  const d = await api('/admin/casino');
+  const cat = (g) => g.category === 'originals' ? 'Originals' : g.category === 'slots' ? 'Slots' : 'Table';
+  let filter = 'all';
+  const paint = () => {
+    const gs = d.games.filter((g) => filter === 'all' || cat(g) === filter).sort((a, b) => (b.bets - b.wins) - (a.bets - a.wins) || a.name.localeCompare(b.name));
+    $('#gl').innerHTML = `<table class="tbl"><tr><th>Game</th><th>Type</th><th class="r">RTP</th><th class="r">Rounds</th><th class="r">Bets</th><th class="r">Kohler kept</th><th>Live</th></tr>${gs.map((g) => `<tr>
+      <td><b>${esc(g.name)}</b></td><td><span class="tag ${cat(g) === 'Originals' ? 'g' : cat(g) === 'Slots' ? 'v' : 'b'}">${cat(g)}</span></td><td class="r num">${g.rtp}%</td>
+      <td class="r num">${g.rounds}</td><td class="r num">${money(g.bets)}</td><td class="r num ${g.bets - g.wins >= 0 ? 'gold' : 'down'}"><b>${money(g.bets - g.wins)}</b></td><td>${tog('g_' + g.id, g.active)}</td></tr>`).join('')}</table>`;
+    d.games.forEach((g) => bindTog('g_' + g.id, (on) => api('/admin/casino/games/' + g.id, { method: 'PATCH', body: { active: on } })));
+  };
+  $('#view').innerHTML = `<div class="top"><div><h1>Casino</h1><div class="sub">Every game is built in-house, so 100% of what players lose stays with Kohler. RTP is the long-run share of bets paid back.</div></div></div>
+    <div class="grid g4">
+      <div class="card hl kpi"><div class="l">Kept today</div><div class="v num gold">${money(d.totals.ggr24)}</div><div class="s">bets ${money(d.totals.b24)} − wins ${money(d.totals.w24)}</div></div>
+      <div class="card kpi"><div class="l">Kept all-time</div><div class="v num">${money(d.totals.ggr)}</div><div class="s">on ${money(d.totals.bets)} of bets</div></div>
+      <div class="card kpi"><div class="l">Games live</div><div class="v num">${d.games.filter((g) => g.active).length}/${d.games.length}</div><div class="s">switch any off below</div></div>
+      <div class="card kpi ${d.pendingWins?.pending || d.pendingWins?.failed ? 'bad' : ''}"><div class="l">Wins retrying</div><div class="v num">${d.pendingWins?.pending || 0}</div><div class="s">${d.pendingWins?.failed ? `<b style="color:var(--rose)">${d.pendingWins.failed} need a look</b> (see logs)` : 'credited automatically when the wallet answers'}</div></div>
+    </div>
+    <div class="row" style="margin:22px 0 12px">${['all', 'Originals', 'Slots', 'Table'].map((x) => `<button class="btn sm ${x === filter ? 'neon' : ''}" data-cf="${x}">${x === 'all' ? 'All games' : x}</button>`).join('')}</div>
+    <div class="card scroll" style="padding:6px 8px" id="gl"></div>`;
+  paint();
+  $('#view').onclick = (e) => { const b = e.target.closest('[data-cf]'); if (!b) return; filter = b.dataset.cf; document.querySelectorAll('[data-cf]').forEach((x) => x.classList.toggle('neon', x === b)); paint(); };
+};
+
+V.vault = async () => {
+  const d = await api('/admin/vault');
+  $('#view').innerHTML = `<div class="top"><div><h1>Vault sales</h1><div class="sub">Characters, frames, win effects and the Kohler Pass. Pure revenue: nothing to pay out, no odds involved.</div></div><a class="btn" href="/casino#/vault" target="_blank">Open the Vault</a></div>
+    <div class="grid g4">
+      <div class="card hl kpi"><div class="l">Today</div><div class="v num gold">${money(d.sales.day)}</div><div class="s">items</div></div>
+      <div class="card kpi"><div class="l">30 days</div><div class="v num">${money(d.sales.month)}</div><div class="s">items</div></div>
+      <div class="card kpi"><div class="l">Items sold</div><div class="v num">${d.sales.items}</div><div class="s">${money(d.sales.all_time)} all-time</div></div>
+      <div class="card kpi"><div class="l">Kohler Pass</div><div class="v num">${money(d.sales.pass)}</div><div class="s">${d.sales.passes} passes sold</div></div>
+    </div>
+    <div class="sec"><h2>Best sellers</h2></div>
+    <div class="card" style="padding:6px 8px">${d.top.length ? `<table class="tbl"><tr><th>Item</th><th class="r">Sold</th><th class="r">Revenue</th></tr>${d.top.map((t) => `<tr><td><b>${esc(t.name)}</b></td><td class="r num">${t.sold}</td><td class="r num gold"><b>${money(t.revenue)}</b></td></tr>`).join('')}</table>` : '<div class="empty">No sales yet. Test-account purchases are never counted.</div>'}</div>
+    <div class="card" style="margin-top:14px"><h2 style="margin-bottom:6px">Selling more</h2><p class="muted" style="margin:0">Characters show in every Survivor seat, so each sale advertises the next one. Legendary characters glow; the Pass pays for itself for anyone who shops twice a month. Prices live in <span class="mono">lib/vault.js</span>.</p></div>`;
+};
+
+V.avatars = async () => {
+  const filter = A.avFilter || 'pending';
+  const d = await api('/admin/avatars' + (filter === 'all' ? '' : '?status=' + filter));
+  const p = d.progress, s = d.settings, cat = d.providers.catalogue, cus = d.providers.custom;
+  const used = d.usage.filter((u) => u.kind === 'catalogue').reduce((a, u) => a + u.images, 0), neur = d.usage.reduce((a, u) => a + u.neurons, 0);
+  const pct = Math.min(100, Math.round(p.approved / Math.max(1, s.target) * 100));
+  const TIERS = { free: 0, common: 99, rare: 299, epic: 699, legendary: 1999 };
+  const bk = d.providers.backup;
+  const setup = !cat.configured ? `<div class="card hl" style="margin-bottom:14px"><h2 style="margin-bottom:8px">Connect the fast free painter (5 minutes)</h2>${bk ? `<p class="muted" style="margin:0 0 8px">Until then the backup painter (Pollinations) paints, one picture every ${Math.round(bk.gapSecs / 60)} min.</p>` : ''}
+      <ol style="margin:0;padding-left:20px;line-height:1.9;color:#d4dbe8">
+        <li>Create a free account at <b>dash.cloudflare.com</b>.</li>
+        <li>Copy your <b>Account ID</b> (Workers &amp; Pages → right-hand side, or the URL after <span class="mono">dash.cloudflare.com/</span>).</li>
+        <li>Go to <b>My Profile → API Tokens → Create Token → "Workers AI"</b> template, create it and copy the token.</li>
+        <li>Add <span class="mono">CF_ACCOUNT_ID</span> and <span class="mono">CF_API_TOKEN</span> to your environment variables (Vercel: Project → Settings → Environment Variables), then redeploy. Running it yourself? Put them in <span class="mono">.env</span> and restart.</li></ol>
+      <p class="muted" style="margin:10px 0 0">The free plan paints about 150 avatars a day at no cost. The factory pauses when the allowance runs out and carries on after it resets at midnight UTC.</p></div>` : '';
+  const state = s.paused ? '<span class="tag">paused</span>' : (!cat.configured || cat.error || cat.quotaUntil) && bk && (p.queued || p.custom_queued) ? `<span class="tag y">backup painter${bk.nextAt ? ', next at ' + new Date(bk.nextAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>` : !cat.configured ? '<span class="tag r">not connected</span>' : cat.error ? '<span class="tag r">key refused</span>'
+    : cat.quotaUntil ? `<span class="tag y">resting until ${new Date(cat.quotaUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>` : p.queued ? '<span class="tag g">painting</span>' : '<span class="tag g">idle, target reached</span>';
+  $('#view').innerHTML = `<div class="top"><div><h1>Avatar factory</h1><div class="sub">AI-painted avatars: ${s.target} starter avatars on the free Cloudflare allowance, plus custom avatars players pay for. Style: hyper-exaggerated 3D meme portraits.</div></div>
+      <div class="row">${cat.configured ? `<button class="btn" id="aTest">Test connection</button>` : ''}${s.paused ? '<button class="btn neon" id="aStart">Start painting</button>' : `<button class="btn" id="aPause">Pause</button>`}</div></div>
+    ${setup}
+    ${cat.error ? `<div class="card bad" style="margin-bottom:14px"><b>Cloudflare said no.</b> <span class="muted">${esc(cat.error)}</span> It tries again every 10 minutes${bk ? '; the backup painter covers in the meantime' : ''}. Fix the environment variables and redeploy, or press Start to retry now.</div>` : ''}
+    ${d.serverless && (cat.configured || bk) && !s.paused && (p.queued || p.custom_queued) ? `<div class="card hl" style="margin-bottom:14px;display:flex;gap:10px;align-items:center"><span class="dot" style="background:var(--neon);width:9px;height:9px;border-radius:50%"></span><div><b>Painting while this page is open</b> <span class="muted" id="aLive"></span><div class="faint" style="font-size:12.5px">On Vercel nothing runs in the background, so this page drives the painter. Close it and the daily cron carries on.</div></div></div>` : ''}
+    ${!d.providers.imageTools ? `<div class="card hl" style="margin-bottom:14px"><b>Image tools missing.</b> <span class="muted">Run <span class="mono">npm i</span> once so avatars get compressed, thumbnailed and checked for duplicates.</span></div>` : ''}
+    <div class="grid g4">
+      <div class="card hl kpi"><div class="l">Starter collection</div><div class="v num gold">${p.approved}/${s.target}</div><div style="height:6px;border-radius:3px;background:var(--slate3);margin:6px 0"><i style="display:block;height:100%;width:${pct}%;border-radius:3px;background:linear-gradient(90deg,#b8902e,#e8c46a)"></i></div><div class="s">${state} · ${p.queued} queued</div></div>
+      <a class="card kpi ${p.pending ? 'hl' : ''}" href="#/avatars" data-af="pending"><div class="l">Waiting for your review</div><div class="v num">${p.pending}</div><div class="s">${s.autoApprove ? 'auto-approve is on' : 'approve them below'}</div></a>
+      <div class="card kpi"><div class="l">Painted today</div><div class="v num">${used}<span class="faint" style="font-size:15px"> / ${s.dailyImages}</span></div><div class="s">≈ ${neur.toLocaleString()} of ${d.freeNeurons.toLocaleString()} free neurons</div></div>
+      <div class="card kpi"><div class="l">Custom avatar sales</div><div class="v num">${money(d.sales.revenue30)}</div><div class="s">${d.sales.orders} orders · ${money(d.sales.revenue)} all-time</div></div>
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card"><div class="card-h"><h2>Settings</h2><button class="btn sm neon" id="aSave">Save</button></div>
+        ${sw('aAuto', s.autoApprove, 'Publish without review', 'Off: new starter avatars wait for you to approve them')}
+        ${sw('aCus', s.customEnabled, 'Sell custom avatars', cus?.configured ? `Painted on ${cus.id === 'cloudflare-paid' ? 'your separate paid account' : 'the same Cloudflare account'}` : 'Needs the Cloudflare keys')}
+        <div class="fields" style="margin-top:12px"><label class="field"><span>Custom avatar price ($ for ${s.customImages})</span><input class="inp num" id="aPrice" type="number" min="0" step="0.01" value="${s.customPrice / 100}"></label>
+          <label class="field"><span>Starter collection size</span><input class="inp num" id="aTarget" type="number" min="0" max="1000" value="${s.target}"></label>
+          <label class="field"><span>Max painted per day (free plan ≈ 170)</span><input class="inp num" id="aDaily" type="number" min="0" max="170" value="${s.dailyImages}"></label></div>
+        <p class="faint" style="font-size:12.5px;margin:0">Each custom order costs you about $0.003 to paint. Rejecting a starter avatar makes the factory paint a replacement.</p></div>
+      <div class="card"><div class="card-h"><h2>Health</h2>${p.failed ? `<button class="btn sm" id="aRetry">Retry ${p.failed} failed</button>` : ''}</div>
+        <div class="sw"><span>Starter painter</span><span class="mono">${esc(cat.id)} · ${esc(cat.model)}</span></div>
+        <div class="sw"><span>Custom painter</span><span class="mono">${cus ? esc(cus.id) : 'off'}</span></div>
+        <div class="sw"><span>Backup painter</span><span class="mono">${bk ? `pollinations · 1 per ${Math.round(bk.gapSecs / 60)} min` : 'off'}</span></div>
+        <div class="sw"><span>Custom orders in the queue</span><b class="num">${p.custom_queued}</b></div>
+        ${d.recentErrors.length ? d.recentErrors.map((e) => `<div class="alert"><span class="dot" style="background:var(--gold)"></span><div style="flex:1">${esc(e.last_error)}<div class="faint" style="font-size:12px">${e.n}× in 24h</div></div></div>`).join('') : '<div class="faint" style="padding:10px 0">No errors in the last 24 hours.</div>'}</div>
+    </div>
+    <div class="sec"><div class="row">${['pending', 'approved', 'rejected', 'all'].map((x) => `<button class="btn sm ${x === filter ? 'neon' : ''}" data-af="${x}">${x === 'pending' ? `To review (${p.pending})` : x === 'approved' ? `Live (${p.approved})` : x === 'rejected' ? `Rejected (${p.rejected})` : 'All'}</button>`).join('')}</div>
+      ${filter === 'pending' && p.pending ? '<button class="btn neon" id="aAll">Approve all</button>' : ''}</div>
+    <div class="avg">${d.avatars.length ? d.avatars.map((a) => `<div class="card avc ${a.status}">
+        <img src="/avatars/${a.id}/512.webp?v=2" alt="" loading="lazy">
+        <div style="padding:10px"><input class="inp" style="height:32px;font-weight:700" value="${esc(a.name)}" data-nm="${a.id}">
+          <div class="faint" style="font-size:11.5px;margin:6px 0">${esc((a.subject || '').replace(/^(a|an) /, ''))} · ${esc((a.personality || '').replace(/_/g, ' '))}</div>
+          <div class="row" style="flex-wrap:nowrap"><select class="inp" style="height:32px" data-tr="${a.id}">${Object.keys(TIERS).map((t) => `<option value="${t}" ${t === a.tier ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+          <div class="row" style="flex-wrap:nowrap;margin-top:6px;gap:6px"><label class="field" style="margin:0;flex:1"><span style="font-size:11px">Price $</span><input class="inp num" style="height:32px" type="number" min="0" step="0.01" value="${(a.price_cents / 100).toFixed(2)}" data-pr="${a.id}"></label>
+            <label class="field" style="margin:0;flex:1"><span style="font-size:11px">Copies${a.sold ? ` · ${a.sold} sold` : ''}</span><input class="inp num" style="height:32px" type="number" min="1" step="1" placeholder="no limit" value="${a.supply ?? ''}" data-sp="${a.id}"></label></div>
+          <div class="row" style="margin-top:8px">${a.status !== 'approved' ? `<button class="btn sm neon" data-ok="${a.id}">Approve</button>` : '<span class="tag g">live</span>'}${a.status !== 'rejected' ? `<button class="btn sm red" data-no="${a.id}">Reject</button>` : ''}<span class="faint num" style="margin-left:auto;font-size:12px">${a.price_cents ? money(a.price_cents) : 'free'}</span></div></div></div>`).join('')
+      : `<div class="card empty" style="grid-column:1/-1">${filter === 'pending' ? 'Nothing to review.' : 'No avatars here yet.'}</div>`}</div>
+    <div class="sec"><h2>Custom avatars players made</h2><span class="faint">latest 60</span></div>
+    <div class="avg sm">${d.customs.length ? d.customs.map((a) => `<div class="card avc"><img src="/avatars/${a.id}/128.webp?v=2" alt="" loading="lazy"><div style="padding:8px;font-size:12px"><b>${esc(a.username || '')}</b>${a.extra ? `<div class="faint">“${esc(a.extra)}”</div>` : ''}<button class="btn sm red" style="margin-top:6px;width:100%" data-rm="${a.id}">Remove</button></div></div>`).join('')
+      : '<div class="card empty" style="grid-column:1/-1">No custom avatars yet.</div>'}</div>`;
+  bindTog('aAuto', (on) => api('/admin/avatars/settings', { method: 'PATCH', body: { autoApprove: on } }));
+  bindTog('aCus', (on) => api('/admin/avatars/settings', { method: 'PATCH', body: { customEnabled: on } }));
+  $('#aSave').onclick = async () => { try { await api('/admin/avatars/settings', { method: 'PATCH', body: { customPrice: Math.round(+$('#aPrice').value * 100), target: +$('#aTarget').value, dailyImages: +$('#aDaily').value } }); toast('Saved'); V.avatars(); } catch (e) { toast(e.message, true); } };
+  $('#aStart') && ($('#aStart').onclick = async () => { await api('/admin/avatars/start', { method: 'POST' }); toast('Painting started'); V.avatars(); });
+  $('#aPause') && ($('#aPause').onclick = async () => { await api('/admin/avatars/pause', { method: 'POST' }); toast('Paused'); V.avatars(); });
+  $('#aRetry') && ($('#aRetry').onclick = async () => { await api('/admin/avatars/retry-failed', { method: 'POST' }); toast('Back in the queue'); V.avatars(); });
+  $('#aAll') && ($('#aAll').onclick = async () => { const r = await api('/admin/avatars/approve-all', { method: 'POST' }); toast(`${r.approved} avatars are live`); V.avatars(); });
+  $('#aTest') && ($('#aTest').onclick = async () => {
+    $('#aTest').disabled = true; $('#aTest').textContent = 'Painting a test pug…';
+    try { const r = await api('/admin/avatars/test', { method: 'POST' }); modal(`<h2>It works</h2><p class="muted">Painted in ${(r.ms / 1000).toFixed(1)}s. Test images aren't saved.</p><img src="${r.preview}" alt="" style="width:100%;border-radius:16px;margin:8px 0 14px"><div class="row" style="justify-content:flex-end"><button class="btn neon" onclick="close()">Nice</button></div>`); }
+    catch (e) { modal(`<h2>Cloudflare said no</h2><p class="muted">${esc(e.message)}</p><div class="row" style="justify-content:flex-end"><button class="btn" onclick="close()">Close</button></div>`); }
+    V.avatars();
+  });
+  // serverless: keep painting in ~25s slices while this page stays open
+  clearTimeout(A.avLoop);
+  if (d.serverless && (cat.configured || bk) && !s.paused && (p.queued || p.custom_queued) && !A.avBusy) {
+    A.avLoop = setTimeout(async () => {
+      if (location.hash !== '#/avatars') return;
+      A.avBusy = true; const el = $('#aLive'); if (el) el.textContent = '· painting the next batch…';
+      let wait = 600;
+      try { const r = await api('/admin/avatars/work', { method: 'POST' }); if (r.painted) toast(`${r.painted} new avatar${r.painted === 1 ? '' : 's'} painted`); else wait = 15_000; }
+      catch (e) { toast(e.message, true); wait = 15_000; }
+      finally { A.avBusy = false; }
+      // refresh, but never while you're typing in a box on this page (that wiped what you typed)
+      const again = () => { if (location.hash !== '#/avatars') return; const f = document.activeElement; if (f && $('#view').contains(f) && /^(INPUT|TEXTAREA|SELECT)$/.test(f.tagName)) return setTimeout(again, 3000); V.avatars(); };
+      if (location.hash === '#/avatars') setTimeout(again, wait);
+    }, 600);
+  }
+  $('#view').onclick = async (e) => {
+    const af = e.target.closest('[data-af]'); if (af) { e.preventDefault(); A.avFilter = af.dataset.af; return V.avatars(); }
+    const ok = e.target.closest('[data-ok]'), no = e.target.closest('[data-no]'), rm = e.target.closest('[data-rm]');
+    if (ok || no) { await api('/admin/avatars/' + (ok || no).dataset[ok ? 'ok' : 'no'], { method: 'PATCH', body: { status: ok ? 'approved' : 'rejected' } }); toast(ok ? 'Live' : 'Rejected. A replacement will be painted.'); V.avatars(); }
+    if (rm && await ask('Remove this custom avatar?', 'It disappears everywhere and the player goes back to a default avatar. They are not refunded automatically.', 'Remove', 'red')) { await api(`/admin/avatars/custom/${rm.dataset.rm}/remove`, { method: 'POST' }); toast('Removed'); V.avatars(); }
+  };
+  $('#view').onchange = async (e) => {
+    const tr = e.target.closest('[data-tr]'), nm = e.target.closest('[data-nm]'), pr = e.target.closest('[data-pr]'), sp = e.target.closest('[data-sp]');
+    try {
+      if (tr) { await api('/admin/avatars/' + tr.dataset.tr, { method: 'PATCH', body: { tier: tr.value } }); toast(tr.value === 'rare' ? 'Rare: limited to 10 copies. Change the number any time.' : 'Tier and price updated'); V.avatars(); }
+      if (pr) { await api('/admin/avatars/' + pr.dataset.pr, { method: 'PATCH', body: { price: Math.round(+pr.value * 100) } }); toast('Price saved'); }
+      if (sp) { await api('/admin/avatars/' + sp.dataset.sp, { method: 'PATCH', body: { supply: sp.value === '' ? null : +sp.value } }); toast(sp.value === '' ? 'No limit' : +sp.value === 1 ? 'One of one' : `Limited to ${sp.value} copies`); }
+    } catch (err) { toast(err.message, true); V.avatars(); }
+    if (nm) { await api('/admin/avatars/' + nm.dataset.nm, { method: 'PATCH', body: { name: nm.value } }); toast('Renamed'); }
+  };
+};
+
+
+V.support = async () => {
+  const { tickets, messages } = await api('/admin/tickets');
+  let show = 'open';
+  const paint = () => {
+    const ts = tickets.filter((t) => show === 'all' || t.status === show);
+    $('#tl').innerHTML = ts.length ? ts.map((t) => `<div class="card" style="margin-bottom:10px"><div class="card-h"><div><b>${esc(t.subject)}</b><div class="faint" style="font-size:12px">${esc(t.username || t.name)} · ${esc(t.contact)} · ${ago(t.created_at)}</div></div>${t.status === 'open' ? '<span class="tag y">open</span>' : '<span class="tag">closed</span>'}</div>
+      <p style="margin:0 0 10px;white-space:pre-wrap">${esc(t.body)}</p>
+      ${messages.filter((m) => m.ticket_id === t.id).map((m) => `<div style="padding:8px 12px;border-radius:10px;margin-bottom:6px;background:${m.from_admin ? 'rgba(0,255,102,.07)' : 'var(--slate2)'}"><b style="font-size:12px;color:${m.from_admin ? 'var(--neon)' : 'var(--dim)'}">${m.from_admin ? 'Kohler' : 'Player'}</b><div style="white-space:pre-wrap">${esc(m.body)}</div></div>`).join('')}
+      <div class="row" style="flex-wrap:nowrap;margin-top:8px"><input class="inp" placeholder="Write a reply" data-rin="${t.id}"><button class="btn neon" data-rep="${t.id}">Send</button><button class="btn" data-st="${t.id}" data-to="${t.status === 'open' ? 'closed' : 'open'}">${t.status === 'open' ? 'Close' : 'Reopen'}</button></div></div>`).join('') : '<div class="card empty">Nothing here.</div>';
+  };
+  $('#view').innerHTML = `<div class="top"><div><h1>Support</h1><div class="sub">Players see your replies on their Help page.</div></div><div class="row">${['open', 'closed', 'all'].map((x) => `<button class="btn sm ${x === show ? 'neon' : ''}" data-sh="${x}">${x}</button>`).join('')}</div></div><div id="tl"></div>`;
+  paint();
+  $('#view').onclick = async (e) => {
+    const sh = e.target.closest('[data-sh]'), rep = e.target.closest('[data-rep]'), stb = e.target.closest('[data-st]');
+    if (sh) { show = sh.dataset.sh; document.querySelectorAll('[data-sh]').forEach((x) => x.classList.toggle('neon', x === sh)); paint(); }
+    if (rep) { const v = $(`[data-rin="${rep.dataset.rep}"]`).value.trim(); if (!v) return; await api(`/admin/tickets/${rep.dataset.rep}/reply`, { method: 'POST', body: { body: v } }); toast('Reply sent'); V.support(); }
+    if (stb) { await api(`/admin/tickets/${stb.dataset.st}`, { method: 'PATCH', body: { status: stb.dataset.to } }); V.support(); }
+  };
+};
+
+V.promos = async () => {
+  const d = await api('/admin/promos');
+  const K = d.kinds, st = d.stats, now = new Date();
+  const status = (p) => !p.enabled ? ['Off', 'var(--faint)'] : new Date(p.startsAt) > now ? ['Starts ' + when(p.startsAt), 'var(--sky)'] : p.endsAt && new Date(p.endsAt) <= now ? ['Ended', 'var(--faint)']
+    : p.budget != null && p.spent >= p.budget ? ['Budget used up', 'var(--gold)'] : ['Live', 'var(--neon)'];
+  const sum = (p) => { const c = p.config; return p.kind === 'deposit_match'
+      ? `${c.firstOnly ? 'First deposit' : 'One deposit per player'}${c.minDeposit ? ` of ${money(c.minDeposit)}+` : ''} matched ${c.pct}% up to ${money(c.cap)}`
+      : p.kind === 'referral' ? `Friend deposits ${money(c.minDeposit)}+ → friend gets ${money(c.friendReward)}; referrer gets ${money(c.referrerReward)}${c.friendWager ? ` after the friend bets ${money(c.friendWager)}` : ''}${c.maxPerReferrer ? ` · max ${c.maxPerReferrer} per referrer` : ''}`
+      : `Every ${c.every} active friends → ${money(c.reward)}`; };
+  $('#view').innerHTML = `<div class="top"><div><h1>Promos</h1><div class="sub">Bonus money for deposits and referrals. Every live promo applies, and each payment happens once. Bonus money is locked until it's been played the number of times you set.</div></div><button class="btn neon" id="pNew">New promo</button></div>
+    <div class="grid g4">
+      <div class="card kpi"><div class="l">Bonus given, 30 days</div><div class="v num">${money(st.granted30)}</div></div>
+      <div class="card kpi"><div class="l">Still locked in balances</div><div class="v num">${money(st.lockedNow)}</div></div>
+      <div class="card kpi"><div class="l">Referred players</div><div class="v num">${st.referred}</div><div class="s faint">${st.active} deposited</div></div>
+      <div class="card kpi"><div class="l">Held for review</div><div class="v num ${st.held ? 'gold' : ''}">${st.held}</div><div class="s faint">same network as referrer</div></div></div>
+    <div class="sec"><h2>Your promos</h2></div>
+    <div class="stack" style="display:grid;gap:12px">${d.promos.length ? d.promos.map((p) => { const [t, col] = status(p); return `<div class="card" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+      <div style="flex:1;min-width:240px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:15.5px">${esc(p.name)}</b><span class="tag">${esc(K[p.kind]?.label || p.kind)}</span><span class="tag" style="color:${col}">${esc(t)}</span></div>
+        <div class="muted" style="font-size:13.5px;margin-top:4px">${sum(p)} · bonus played ${p.config.wagerX}×</div>
+        <div class="faint" style="font-size:12.5px;margin-top:4px">${p.uses} ${p.uses === 1 ? 'payment' : 'payments'} · ${money(p.spent)}${p.budget != null ? ` of ${money(p.budget)} budget` : ' paid'}${p.endsAt ? ` · ends ${when(p.endsAt)}` : ''}</div></div>
+      <button class="btn sm" data-edit="${p.id}">Edit</button>${tog('pt' + p.id, p.enabled)}</div>`; }).join('') : '<div class="card empty">No promos yet. Add one to start paying bonuses.</div>'}</div>
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card"><div class="card-h"><h2>Referral rules</h2><button class="btn sm neon" id="gSave">Save</button></div>
+        <label class="field"><span>A friend counts as "active" once they've deposited ($)</span><input class="inp num" id="gMin" type="number" min="0" step="1" value="${d.general.activeMin / 100}"></label>
+        <div class="faint" style="font-size:12.5px;margin:-4px 0 8px">Used by milestone promos and referral badges. Refer-a-friend promos use their own amount.</div>
+        ${sw('gNet', d.general.sameNetworkBlock, 'Hold same-network referrals', 'A friend who signs up from the referrer\'s network is probably the same person. Hold them until you release them below.')}</div>
+      <div class="card"><div class="card-h"><h2>Top referrers</h2></div>${d.top.length ? d.top.map((t) => `<div class="sw" style="padding:9px 0"><span>${who(t.username)}</span><span class="num faint">${t.active} deposited · ${t.signed} joined${t.held ? ` · <span class="gold">${t.held} held</span>` : ''}</span></div>`).join('') : '<div class="empty">Nobody has referred anyone yet.</div>'}</div></div>
+    ${d.held.length ? `<div class="sec"><h2>Held referrals</h2><span class="faint">signed up from the referrer's network</span></div><div class="card">${d.held.map((h) => `<div class="sw" style="padding:9px 0"><span>${who(h.friend)} <span class="faint">invited by</span> <b>${esc(h.referrer)}</b> <span class="faint">· ${ago(h.created_at)}${h.deposited ? ' · has deposited' : ''}</span></span><button class="btn sm" data-rel="${esc(h.friend)}">Release</button></div>`).join('')}</div>` : ''}`;
+
+  const editor = (p) => {
+    const kind = p.kind, k = K[kind], c = { ...k.defaults, ...(p.config || {}) };
+    const dt = (v) => v ? new Date(new Date(v).getTime() - new Date(v).getTimezoneOffset() * 6e4).toISOString().slice(0, 16) : '';
+    const field = ([key, type, label]) => type === 'bool' ? sw('pf_' + key, c[key], label, '')
+      : `<label class="field"><span>${esc(label)}</span><input class="inp num" id="pf_${key}" type="number" min="0" step="${type === 'money' ? '0.01' : '1'}" value="${type === 'money' ? c[key] / 100 : c[key]}"></label>`;
+    modal(`<h2 style="margin-bottom:4px">${p.id ? 'Edit promo' : 'New promo'}</h2><p class="muted" style="margin:0 0 14px;font-size:13.5px">${esc(k.label)}: ${esc(k.blurb)}</p>
+      <label class="field"><span>Name players see</span><input class="inp" id="pf_name" maxlength="60" value="${esc(p.name || k.label)}"></label>
+      ${k.fields.filter((f) => f[1] === 'bool').map(field).join('')}
+      <div class="fields" style="margin-top:8px">${k.fields.filter((f) => f[1] !== 'bool').map(field).join('')}</div>
+      <div class="fields"><label class="field"><span>Starts</span><input class="inp" id="pf_start" type="datetime-local" value="${dt(p.startsAt)}"></label>
+        <label class="field"><span>Ends (blank = no end)</span><input class="inp" id="pf_end" type="datetime-local" value="${dt(p.endsAt)}"></label>
+        <label class="field"><span>Budget ($, blank = no limit)</span><input class="inp num" id="pf_budget" type="number" min="0" step="1" value="${p.budget != null ? p.budget / 100 : ''}"></label></div>
+      <div class="err" id="pf_err"></div>
+      <div class="row" style="justify-content:space-between;margin-top:6px">${p.id && !p.uses ? '<button class="btn ghost" id="pfDel" style="color:var(--rose)">Delete</button>' : '<span></span>'}
+        <div class="row"><button class="btn ghost" id="pfNo">Cancel</button><button class="btn neon" id="pfYes">${p.id ? 'Save' : 'Create and switch on'}</button></div></div>`);
+    $('#pfNo').onclick = close;
+    k.fields.filter((f) => f[1] === 'bool').forEach(([key]) => { const b = $('#pf_' + key); b.onclick = () => b.classList.toggle('on'); });
+    $('#pfYes').onclick = async () => {
+      const config = Object.fromEntries(k.fields.map(([key, type]) => [key, type === 'bool' ? $('#pf_' + key).classList.contains('on') : type === 'money' ? Math.round(+$('#pf_' + key).value * 100) : +$('#pf_' + key).value]));
+      const bud = $('#pf_budget').value.trim(), start = $('#pf_start').value, end = $('#pf_end').value;
+      const body = { name: $('#pf_name').value, config, budget: bud === '' ? null : Math.round(+bud * 100), endsAt: end ? new Date(end).toISOString() : null, ...(start ? { startsAt: new Date(start).toISOString() } : {}) };
+      $('#pfYes').disabled = true;
+      try { await api(p.id ? '/admin/promos/' + p.id : '/admin/promos', { method: p.id ? 'PATCH' : 'POST', body: p.id ? body : { ...body, kind } }); close(); toast(p.id ? 'Saved' : 'Promo is live'); V.promos(); }
+      catch (e) { $('#pf_err').textContent = e.message; $('#pfYes').disabled = false; }
+    };
+    $('#pfDel') && ($('#pfDel').onclick = async () => { try { await api('/admin/promos/' + p.id, { method: 'DELETE' }); close(); toast('Deleted'); V.promos(); } catch (e) { $('#pf_err').textContent = e.message; } });
+  };
+  $('#pNew').onclick = () => {
+    modal(`<h2 style="margin-bottom:12px">What kind of promo?</h2><div style="display:grid;gap:10px">${Object.entries(K).map(([key, k]) => `<button class="card" data-kind="${key}" style="text-align:left;cursor:pointer;padding:14px"><b>${esc(k.label)}</b><div class="muted" style="font-size:13px;margin-top:3px">${esc(k.blurb)}</div></button>`).join('')}</div>
+      <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn ghost" id="pkNo">Cancel</button></div>`);
+    $('#pkNo').onclick = close;
+    document.querySelectorAll('[data-kind]').forEach((b) => (b.onclick = () => editor({ kind: b.dataset.kind })));
+  };
+  document.querySelectorAll('[data-edit]').forEach((b) => (b.onclick = () => editor(d.promos.find((p) => p.id === +b.dataset.edit))));
+  d.promos.forEach((p) => bindTog('pt' + p.id, async (on) => { await api('/admin/promos/' + p.id, { method: 'PATCH', body: { enabled: on } }); setTimeout(V.promos, 400); }));
+  bindTog('gNet', (on) => api('/admin/promos', { method: 'PATCH', body: { sameNetworkBlock: on } }));
+  $('#gSave').onclick = async () => { try { await api('/admin/promos', { method: 'PATCH', body: { activeMin: Math.round(+$('#gMin').value * 100) } }); toast('Saved'); } catch (e) { toast(e.message, true); } };
+  document.querySelectorAll('[data-rel]').forEach((b) => (b.onclick = async () => {
+    if (!(await ask('Release this referral?', `Do this only if you're sure <b>${esc(b.dataset.rel)}</b> is a different person from who invited them. If they've already deposited enough, the referral bonuses are paid now.`, 'Release'))) return;
+    try { const r = await api('/admin/promos/release/' + encodeURIComponent(b.dataset.rel), { method: 'POST' }); toast(r.paid ? `Released. ${money(r.paid)} paid to the referrer.` : 'Released'); V.promos(); } catch (e) { toast(e.message, true); }
+  }));
+};
+
+/* Legends: the Legendary characters (lib/legends.js) */
+V.legends = async () => {
+  const d = await api('/admin/legends');
+  const L = d.legends, S = d.settings;
+  const GN = { 'ks-legends-lounge': 'Legends Lounge (slot)', 'ks-billionaire-zoo': 'Billionaire Zoo (slot)', 'ks-flapsworth': 'Flapsworth Takes Flight (crash)' };
+  const img = (id, z = 128) => `/avatars/${id}/${z}.webp?v=2`;
+  const face = (l, id, z = 64) => id ? `<img src="${img(id, z > 64 ? 512 : 128)}" alt="" style="width:${z}px;height:${z}px;border-radius:50%;object-fit:cover;flex:none;box-shadow:0 0 0 2px rgba(232,196,106,.6)">`
+    : `<span style="width:${z}px;height:${z}px;border-radius:50%;display:grid;place-items:center;font-size:${Math.round(z * .55)}px;background:#151c27;flex:none">${esc(l.emoji)}</span>`;
+  const missing = L.filter((l) => !l.image && !l.pending && !l.job).length, painting = L.filter((l) => l.job && l.job.status !== 'failed').length, waiting = L.filter((l) => l.pending).length;
+  const how = (l) => [l.unlockRounds ? `unlocks after ${l.unlockRounds} Survivor rounds` : '', l.buyable && l.price ? money(l.price) : !l.unlockRounds && !l.price ? 'free' : l.unlockRounds && !l.buyable ? 'unlock only' : ''].filter(Boolean).join(' · ');
+  const card = (l) => `<div class="card" style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap${l.status === 'hidden' ? ';opacity:.6' : ''}">
+      ${face(l, l.image)}
+      <div style="flex:1;min-width:220px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="font-size:15px">${esc(l.name)}</b>${l.status === 'hidden' ? '<span class="tag">hidden</span>' : ''}
+          ${l.job ? `<span class="tag ${l.job.status === 'failed' ? 'r' : 'y'}">${l.job.status === 'failed' ? 'painting failed' : 'painting…'}</span>` : ''}</div>
+        <div class="muted" style="font-size:13px;margin-top:2px">${esc(l.title)} · ${how(l)}${l.owners ? ` · ${l.owners} own it` : ''}</div>
+        <div class="faint" style="font-size:12.5px;margin-top:4px">${esc(l.bio)}</div>
+        ${l.job?.status === 'failed' && l.job.error ? `<div class="faint" style="font-size:12px;margin-top:4px;color:var(--rose)">${esc(l.job.error)}</div>` : ''}
+        ${l.pending ? `<div style="display:flex;gap:12px;align-items:center;margin-top:10px;padding:10px;border-radius:12px;background:rgba(232,196,106,.08);border:1px solid rgba(232,196,106,.35)">
+          <a href="${img(l.pending, 512)}" target="_blank" rel="noopener">${face(l, l.pending, 96)}</a><div><b>New portrait</b><div class="faint" style="font-size:12.5px;margin:2px 0 8px">${l.image ? 'Approving swaps it in for everyone wearing this character.' : 'Approve it to put this character in the Vault and the games.'}</div>
+          <div class="row"><button class="btn sm neon" data-lap="${l.id}">Approve</button><button class="btn sm" data-lrj="${l.id}">Reject</button></div></div></div>` : ''}</div>
+      <div class="row" style="flex-wrap:wrap"><button class="btn sm" data-led="${l.id}">Edit</button>${l.job && l.job.status !== 'failed' ? '' : `<button class="btn sm" data-lpt="${l.id}">${l.image || l.pending ? 'Repaint' : 'Paint'}</button>`}${tog('lv_' + l.id, l.status === 'live')}</div></div>`;
+  const castRow = (g) => { const ids = S.casts[g] || []; return `<div style="margin-bottom:14px"><div class="row" style="justify-content:space-between;margin-bottom:6px"><b>${esc(GN[g] || g)}</b><button class="btn sm" data-cast="${g}">Save</button></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px">${ids.map((id, i) => `<label class="field" style="margin:0"><span>${ids.length === 1 ? 'Pilot' : i === 6 ? 'Jackpot (pays on 5 only)' : `Symbol ${i + 1}${i === 0 ? ' (lowest)' : ''}`}</span>
+        <select class="inp" data-cg="${g}" data-ci="${i}">${L.map((l) => `<option value="${l.id}" ${l.id === id ? 'selected' : ''}>${esc(l.emoji + ' ' + l.name)}</option>`).join('')}</select></label>`).join('')}</div></div>`; };
+  $('#view').innerHTML = `<div class="top"><div><h1>Legends</h1><div class="sub">Named characters with a personality. Same look as the starter avatars, pushed further. They're the Legendary section of the Vault and star in Legends Lounge, Billionaire Zoo and Flapsworth Takes Flight. Every new portrait waits for your approval here.</div></div>
+      <div class="row">${missing ? `<button class="btn" id="lPaint">Paint ${missing} missing portrait${missing === 1 ? '' : 's'}</button>` : ''}<button class="btn neon" id="lNew">New character</button></div></div>
+    ${d.serverless && painting ? `<div class="card hl" style="margin-bottom:14px;display:flex;gap:10px;align-items:center"><span class="dot" style="background:var(--neon);width:9px;height:9px;border-radius:50%"></span><div><b>Painting while this page is open</b> <span class="muted" id="lLive"></span><div class="faint" style="font-size:12.5px">${painting} in the queue. On Vercel this page drives the painter; the daily cron carries on if you close it.</div></div></div>` : ''}
+    <div class="grid g4">
+      <div class="card kpi"><div class="l">Characters</div><div class="v num">${L.length}</div><div class="s faint">${L.filter((l) => l.status === 'live').length} live</div></div>
+      <div class="card kpi"><div class="l">With a portrait</div><div class="v num">${L.filter((l) => l.image).length}</div><div class="s faint">${painting} painting</div></div>
+      <div class="card kpi"><div class="l">Waiting for you</div><div class="v num ${waiting ? 'gold' : ''}">${waiting}</div><div class="s faint">new portraits</div></div>
+      <div class="card kpi"><div class="l">Owned</div><div class="v num">${L.reduce((a, l) => a + l.owners, 0)}</div><div class="s faint">bought or unlocked</div></div></div>
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card"><div class="card-h"><h2>Survivor unlocks</h2></div>
+        ${sw('lUnl', S.unlocks, 'Unlock characters by playing Survivor', 'Characters with an unlock number become free after that many settled Survivor rounds. Set the number on each character. Switching this off stops new unlocks; nobody loses one they have.')}</div>
+      <div class="card"><div class="card-h"><h2>Who stars in which game</h2></div><div class="faint" style="font-size:12.5px;margin:-4px 0 10px">Recasting changes the pictures only. Payouts stay the same.</div>
+        ${d.games.map(castRow).join('')}</div></div>
+    ${[['Unlocked by playing Survivor', L.filter((l) => l.unlockRounds)], ['In the Vault', L.filter((l) => !l.unlockRounds)]].map(([h, g]) => g.length ? `<div class="sec"><h2>${h}</h2><span class="faint">${g.length}</span></div><div style="display:grid;gap:10px">${g.map(card).join('')}</div>` : '').join('')}`;
+
+  const editor = (l = {}) => {
+    const ln = (k) => (l.lines?.[k] || []).join('\n');
+    modal(`<h2 style="margin-bottom:4px">${l.id ? esc(l.name) : 'New character'}</h2><p class="muted" style="margin:0 0 12px;font-size:13px">${l.id ? 'Changes to the description need a repaint to show up in the portrait.' : 'It starts hidden. Paint it, approve the portrait, then switch it on.'}</p>
+      <div class="fields"><label class="field"><span>Name</span><input class="inp" id="lf_name" maxlength="60" value="${esc(l.name || '')}"></label>
+        <label class="field"><span>Title</span><input class="inp" id="lf_title" maxlength="60" value="${esc(l.title || '')}" placeholder="Ruler of All Gold"></label>
+        <label class="field"><span>Emoji (stand-in)</span><input class="inp" id="lf_emoji" maxlength="8" value="${esc(l.emoji || '⭐')}"></label></div>
+      <div class="fields">
+        <label class="field"><span>Surface</span><select class="inp" id="lf_texture">${d.textures.map((t) => `<option ${t === (l.texture || 'fur') ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+        <label class="field"><span>Price ($, 0 = free)</span><input class="inp num" id="lf_price" type="number" min="0" step="0.01" value="${((l.price ?? d.defaultPrice) / 100).toFixed(2)}"></label>
+        <label class="field"><span>Unlock after Survivor rounds (blank = no)</span><input class="inp num" id="lf_unlock" type="number" min="0" step="1" value="${l.unlockRounds || ''}"></label></div>
+      ${sw('lf_buy', l.buyable ?? true, 'Can be bought', 'Off = unlock only (set the rounds above).')}
+      <label class="field"><span>What to paint (the character)</span><textarea class="inp" id="lf_subject" rows="2" maxlength="300">${esc(l.subject || '')}</textarea></label>
+      <div class="fields"><label class="field"><span>Personality / expression</span><input class="inp" id="lf_personality" maxlength="160" value="${esc(l.personality || '')}"></label>
+        <label class="field"><span>Wearing</span><input class="inp" id="lf_accessory" maxlength="200" value="${esc(l.accessory || '')}"></label></div>
+      <div class="fields"><label class="field"><span>Background</span><input class="inp" id="lf_background" maxlength="200" value="${esc(l.background || '')}"></label>
+        <label class="field"><span>Extra detail</span><input class="inp" id="lf_extra" maxlength="200" value="${esc(l.extra || '')}"></label></div>
+      <label class="field"><span>Bio (shown in the Vault)</span><input class="inp" id="lf_bio" maxlength="240" value="${esc(l.bio || '')}"></label>
+      <div class="fields">${[['win', 'Says on a win'], ['big', 'Says on a big win'], ['lose', 'Says on a loss'], ['idle', 'Says when the game opens']].map(([k, t]) => `<label class="field"><span>${t} (one per line)</span><textarea class="inp" id="lf_l_${k}" rows="3">${esc(ln(k))}</textarea></label>`).join('')}</div>
+      ${l.prompt ? `<details style="margin:4px 0 10px"><summary class="faint" style="cursor:pointer;font-size:12.5px">Painter prompt</summary><div class="mono faint" style="font-size:11.5px;white-space:pre-wrap;margin-top:6px">${esc(l.prompt)}</div></details>` : ''}
+      <div class="err" id="lf_err"></div>
+      <div class="row" style="justify-content:space-between;margin-top:6px">${l.id && !l.owners ? '<button class="btn ghost" id="lfDel" style="color:var(--rose)">Delete</button>' : '<span></span>'}
+        <div class="row"><button class="btn ghost" id="lfNo">Cancel</button><button class="btn neon" id="lfYes">${l.id ? 'Save' : 'Create'}</button></div></div>`);
+    $('#lfNo').onclick = close;
+    $('#lf_buy').onclick = () => $('#lf_buy').classList.toggle('on');
+    $('#lfYes').onclick = async () => {
+      const v = (k) => $('#lf_' + k).value;
+      const body = { name: v('name'), title: v('title'), emoji: v('emoji'), texture: v('texture'), price: Math.round(+v('price') * 100), unlockRounds: v('unlock') === '' ? null : +v('unlock'),
+        buyable: $('#lf_buy').classList.contains('on'), subject: v('subject'), personality: v('personality'), accessory: v('accessory'), background: v('background'), extra: v('extra'), bio: v('bio'),
+        lines: Object.fromEntries(['win', 'big', 'lose', 'idle'].map((k) => [k, $('#lf_l_' + k).value])) };
+      $('#lfYes').disabled = true;
+      try { await api(l.id ? '/admin/legends/' + l.id : '/admin/legends', { method: l.id ? 'PATCH' : 'POST', body }); close(); toast(l.id ? 'Saved' : 'Created. Paint its portrait next.'); V.legends(); }
+      catch (e) { $('#lf_err').textContent = e.message; $('#lfYes').disabled = false; }
+    };
+    $('#lfDel') && ($('#lfDel').onclick = async () => { if (!(await ask('Delete ' + esc(l.name) + '?', 'Its portraits stay in the database but it leaves the Vault and the games.', 'Delete', 'red'))) return;
+      try { await api('/admin/legends/' + l.id, { method: 'DELETE' }); toast('Deleted'); V.legends(); } catch (e) { toast(e.message, true); } });
+  };
+  const by = (id) => L.find((l) => l.id === id);
+  $('#lNew').onclick = () => editor();
+  $('#lPaint') && ($('#lPaint').onclick = async () => { try { const r = await api('/admin/legends/paint-missing', { method: 'POST' }); toast(`${r.queued} portrait${r.queued === 1 ? '' : 's'} queued`); V.legends(); } catch (e) { toast(e.message, true); } });
+  bindTog('lUnl', (on) => api('/admin/legends', { method: 'PATCH', body: { unlocks: on } }));
+  L.forEach((l) => bindTog('lv_' + l.id, async (on) => { await api('/admin/legends/' + l.id, { method: 'PATCH', body: { status: on ? 'live' : 'hidden' } }); setTimeout(V.legends, 300); }));
+  $('#view').onclick = async (e) => {
+    const t = e.target.closest('[data-led],[data-lpt],[data-lap],[data-lrj],[data-cast]'); if (!t) return;
+    const x = t.dataset;
+    try {
+      if (x.led) return editor(by(x.led));
+      t.disabled = true;
+      if (x.lpt) { const r = await api('/admin/legends/' + x.lpt + '/paint', { method: 'POST' }); toast(r.already ? 'Already painting' : 'Queued. It shows up here for approval when it\'s done.'); }
+      if (x.lap) { await api('/admin/legends/' + x.lap + '/approve', { method: 'POST' }); toast('Approved'); }
+      if (x.lrj) { await api('/admin/legends/' + x.lrj + '/reject', { method: 'POST' }); toast('Rejected. Press Repaint for another.'); }
+      if (x.cast) { const ids = [...document.querySelectorAll(`[data-cg="${x.cast}"]`)].sort((a, b) => a.dataset.ci - b.dataset.ci).map((s) => s.value); await api('/admin/legends', { method: 'PATCH', body: { cast: { game: x.cast, ids } } }); toast('Cast saved'); }
+      V.legends();
+    } catch (err) { toast(err.message, true); t.disabled = false; }
+  };
+  // serverless: drive the painter while this page is open (same as the Avatar factory page)
+  clearTimeout(A.lgLoop);
+  if (d.serverless && painting && !A.avBusy) A.lgLoop = setTimeout(async () => {
+    if (location.hash !== '#/legends') return;
+    A.avBusy = true; const el = $('#lLive'); if (el) el.textContent = '· painting…';
+    let wait = 600;
+    try { const r = await api('/admin/avatars/work', { method: 'POST' }); if (!r.painted) wait = 15_000; } catch { wait = 15_000; } finally { A.avBusy = false; }
+    const again = () => { if (location.hash !== '#/legends') return; const f = document.activeElement; if (f && ($('#view').contains(f) || $('#mbox').contains(f)) && /^(INPUT|TEXTAREA|SELECT)$/.test(f.tagName) || $('#modal').classList.contains('on')) return setTimeout(again, 3000); V.legends(); };
+    setTimeout(again, wait);
+  }, 600);
+};
+
+V.system = async () => {
+  const [set, ap, em, sec, shop] = await Promise.all([api('/admin/settings'), api('/admin/autopilot'), opt('/admin/email', 'Email'), opt('/admin/security', 'Security checklist'), opt('/admin/shop', 'Shop data')]);
+  const SECC = { ok: 'var(--neon)', critical: 'var(--rose)', warn: 'var(--gold)', info: 'var(--dim)' };
+  const LV = { critical: 'var(--rose)', warn: 'var(--gold)', info: 'var(--dim)' };
+  $('#view').innerHTML = `<div class="top"><div><h1>Switches &amp; health</h1><div class="sub">Autopilot checks the books, stuck rounds, payouts and cleanup on its own, at most every 30 minutes while the site has visitors.</div></div><button class="btn neon" id="apRun">Run checks now</button></div>
+    <div class="grid g2">
+      <div class="card"><div class="card-h"><h2>Site</h2></div>${sw('gam', set.gamblingEnabled, 'Games on the site', 'Off hides the casino and Survivor from everyone')}</div>
+      <div class="card"><div class="card-h"><h2>Last check</h2><span class="faint">${ago(ap.lastRun)}</span></div>
+        ${ap.result ? Object.entries(ap.result.checks).map(([k, v]) => `<div class="sw" style="padding:8px 0"><span>${esc(k)}</span><span class="${v?.ok === false || v?.error ? 'down' : 'up'}" style="font-size:12.5px">${v?.error ? esc(v.error) : v?.ok === false ? 'needs attention' : 'ok'}</span></div>`).join('') : '<div class="empty">Runs within seconds of the first visit.</div>'}</div>
+    </div>
+    ${sec ? `<div class="card" style="margin-top:14px"><div class="card-h"><h2>Security checklist</h2><span class="faint">${sec.items.filter((i) => i.ok).length} of ${sec.items.length} done</span></div>
+      ${sec.items.map((i) => `<div class="alert"><span class="dot" style="background:${SECC[i.level]}"></span><div style="flex:1">${i.ok ? '' : '<b>'}${esc(i.label)}${i.ok ? '' : '</b>'}${i.fix ? `<div class="faint" style="font-size:12.5px">${esc(i.fix)}</div>` : ''}</div></div>`).join('')}</div>` : ''}
+    ${em ? `<div class="card" style="margin-top:14px"><div class="card-h"><h2>Email</h2><span class="${!em.keySet || !em.from || em.sandbox || em.lastError ? 'down' : 'up'}" style="font-size:12.5px">${!em.keySet || !em.from ? 'not set up' : em.sandbox ? 'test sender only' : em.lastError && (!em.lastOkAt || new Date(em.lastErrorAt) > new Date(em.lastOkAt)) ? 'failing' : 'ready'}</span></div>
+      <div class="sw"><span>Sender (MAIL_FROM)</span><span class="mono">${esc(em.from || 'missing')}</span></div>
+      <div class="sw"><span>API key (RESEND_API_KEY)</span><span>${em.keySet ? 'set' : 'missing'}</span></div>
+      <div class="sw"><span>Alerts and help tickets go to</span><span class="mono">${esc(em.alertTo || 'not set (ALERT_EMAIL)')}</span></div>
+      ${em.sandbox ? `<div class="alert"><span class="dot" style="background:var(--gold)"></span><div style="flex:1">Your sender is Resend's test address. It can only email the address you signed up to Resend with, so receipts, withdrawal emails and sign-in links to players fail. Verify your own domain at <b>resend.com/domains</b> and set MAIL_FROM to e.g. <span class="mono">Kohler &lt;hello@yourdomain.com&gt;</span>.</div></div>` : ''}
+      ${em.lastError ? `<div class="alert"><span class="dot" style="background:var(--rose)"></span><div style="flex:1">${esc(em.lastError)}<div class="faint" style="font-size:12px">last failure ${when(em.lastErrorAt)}${em.lastOkAt ? ` · last success ${when(em.lastOkAt)}` : ''}</div></div></div>` : ''}
+      <div class="row" style="margin-top:12px"><input class="inp" id="emTo" placeholder="send a test to…" value="${esc(A.me.email || '')}" style="flex:1"><button class="btn" id="emGo">Send test email</button></div></div>` : ''}
+    ${shop?.exists ? `<div class="card" style="margin-top:14px"><div class="card-h"><h2>Shop data</h2><span class="faint">${shop.counts.brands} brands · ${shop.counts.options} options · ${shop.counts.orders} orders</span></div>
+      <p class="muted" style="margin:0 0 12px">The shop is gone from the site. Its data is still in the database until you delete it. Download a copy first: it has every brand, option, delivery code, order and brand wallet key, for the standalone shop (docs/SHOP.md explains the format).</p>
+      <div class="row" style="flex-wrap:wrap"><a class="btn neon" id="shDl" href="/api/admin/shop/export" download>Download shop data</a>
+        <button class="btn red" id="shDel" ${shop.exportedAt ? '' : 'disabled title="Download the data first"'}>Delete shop data</button>
+        <span class="faint" style="font-size:12.5px">${shop.exportedAt ? 'Downloaded ' + when(shop.exportedAt) : 'Not downloaded yet'}</span></div></div>` : ''}
+    <div class="sec"><h2>Alerts</h2><span class="faint">last 30</span></div>
+    <div class="card">${ap.alerts.length ? ap.alerts.map((x) => `<div class="alert"><span class="dot" style="background:${LV[x.detail?.level] || 'var(--gold)'}"></span><div style="flex:1">${esc(x.detail?.message || x.action)}<div class="faint" style="font-size:12px">${when(x.created_at)} · ${esc(x.action.replace('alert.', ''))}</div></div></div>`).join('') : '<div class="empty">No alerts. Everything checked out.</div>'}</div>`;
+  bindTog('gam', (on) => api('/admin/settings', { method: 'PATCH', body: { gamblingEnabled: on } }));
+  $('#shDl') && ($('#shDl').onclick = () => setTimeout(() => V.system(), 2500));
+  $('#shDel') && ($('#shDel').onclick = async () => {
+    modal(`<h2 style="margin-bottom:8px">Delete the shop data for good?</h2><p class="muted" style="margin:0 0 12px">This removes ${shop.counts.brands} brands, ${shop.counts.options} options and ${shop.counts.orders} orders from the database. It can't be undone. Your download from ${when(shop.exportedAt)} is the only copy after this. Players' balances and transaction history are not touched.</p>
+      <label class="field"><span>Type DELETE to confirm</span><input class="inp" id="shCf" autocomplete="off"></label><div class="err" id="shErr"></div>
+      <div class="row" style="justify-content:flex-end"><button class="btn ghost" id="shNo">Cancel</button><button class="btn red" id="shYes">Delete shop data</button></div>`);
+    $('#shNo').onclick = close;
+    $('#shYes').onclick = async () => { $('#shYes').disabled = true;
+      try { await api('/admin/shop/delete', { method: 'POST', body: { confirm: $('#shCf').value.trim() } }); close(); toast('Shop data deleted'); V.system(); }
+      catch (e) { $('#shErr').textContent = e.message; $('#shYes').disabled = false; } };
+  });
+  $('#emGo') && ($('#emGo').onclick = async () => {
+    $('#emGo').disabled = true; $('#emGo').textContent = 'Sending…';
+    try { await api('/admin/email/test', { method: 'POST', body: { to: $('#emTo').value } }); toast('Sent. Check that inbox (and spam).'); }
+    catch (e) { modal(`<h2>The email didn't send</h2><p class="muted">${esc(e.message)}</p><div class="row" style="justify-content:flex-end"><button class="btn" onclick="close()">Close</button></div>`); }
+    V.system();
+  });
+  $('#apRun').onclick = async () => { $('#apRun').disabled = true; await api('/admin/autopilot/run', { method: 'POST' }).catch((e) => toast(e.message, true)); toast('Checks done'); V.system(); };
+};
+
+/* ═════════ two-factor sign-in ═════════ */
+function twoFactor(mode) {
+  if (A.tfOpen === mode) return; A.tfOpen = mode; A.me = null; A.seq++;
+  $('#side').classList.add('hide'); $('#main').style.marginLeft = '0';
+  const shell = (inner) => `<div class="gate"><div class="card" style="max-width:420px"><div style="margin-bottom:14px">${KohlerLogo.mark(44, true)}</div>${inner}</div></div>`;
+  const done = () => { A.tfOpen = null; boot(); };
+  const codeForm = (btn) => `<label class="field"><span>6-digit code</span><input class="inp num" id="tfc" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123 456" style="font-size:22px;letter-spacing:.2em;text-align:center"></label><div class="err" id="tfe"></div><button class="btn neon" style="width:100%;height:44px" id="tfb">${btn}</button>`;
+  if (mode === 'verify') {
+    $('#view').innerHTML = shell(`<h1 style="font-size:22px">Enter your code</h1><p class="muted" style="margin:6px 0 16px">Open your authenticator app and type the 6-digit code for Kohler.</p>${codeForm('Continue')}
+      <p class="faint" style="font-size:12.5px;margin:12px 0 0">Lost your phone? Another owner can reset it from Players, or set ADMIN_2FA=off in your environment variables for a moment.</p>`);
+    const go = async () => { $('#tfb').disabled = true; try { await api('/auth/2fa/verify', { method: 'POST', body: { code: $('#tfc').value } }); done(); } catch (e) { $('#tfe').textContent = e.message; $('#tfb').disabled = false; $('#tfc').select(); } };
+    $('#tfb').onclick = go; $('#tfc').onkeydown = (e) => { if (e.key === 'Enter') go(); }; $('#tfc').focus();
+    return;
+  }
+  $('#view').innerHTML = shell(`<h1 style="font-size:22px">Turn on two-factor sign-in</h1><p class="muted" style="margin:6px 0 16px">Kohler Control moves real money, so admins sign in with a password <b>and</b> a code from an app on their phone (Google Authenticator, 1Password, Authy…).</p>
+    <label class="field"><span>Your password</span><input class="inp" id="tfp" type="password" autocomplete="current-password"></label><div class="err" id="tfe"></div><button class="btn neon" style="width:100%;height:44px" id="tfb">Next</button>`);
+  $('#tfb').onclick = async () => {
+    $('#tfb').disabled = true;
+    try {
+      const s = await api('/auth/2fa/setup', { method: 'POST', body: { password: $('#tfp').value } });
+      $('#view').innerHTML = shell(`<h1 style="font-size:22px">Scan this with your app</h1><p class="muted" style="margin:6px 0 12px">Then type the code it shows.</p>
+        <div style="display:grid;place-items:center;margin-bottom:10px"><img src="${s.qr}" alt="QR code" width="200" height="200" style="border-radius:12px;background:#fff;padding:6px"></div>
+        <p class="faint" style="font-size:12px;text-align:center;margin:0 0 14px">Can't scan? Enter this key: <span class="mono" style="color:var(--text);word-break:break-all">${esc(s.secret.replace(/(.{4})/g, '$1 ').trim())}</span></p>${codeForm('Turn it on')}`);
+      const go = async () => { $('#tfb').disabled = true; try { await api('/auth/2fa/enable', { method: 'POST', body: { code: $('#tfc').value } }); toast('Two-factor sign-in is on'); done(); } catch (e) { $('#tfe').textContent = e.message; $('#tfb').disabled = false; } };
+      $('#tfb').onclick = go; $('#tfc').onkeydown = (e) => { if (e.key === 'Enter') go(); }; $('#tfc').focus();
+    } catch (e) { $('#tfe').textContent = e.message; $('#tfb').disabled = false; }
+  };
+  $('#tfp').focus();
+}
+
+/* ═════════ shell ═════════ */
+function gate(msg) {
+  A.me = null; A.seq++;
+  $('#side').classList.add('hide'); $('#main').style.marginLeft = '0';
+  $('#view').innerHTML = `<div class="gate"><div class="card"><div style="margin-bottom:16px">${KohlerLogo.mark(48, true)}</div><h1 style="font-size:22px">Kohler Control</h1>
+    <p class="muted" style="margin:6px 0 18px">${msg || 'Sign in with an admin account.'}</p>
+    <form id="lf"><label class="field"><span>Email or username</span><input class="inp" id="lw" required autocomplete="username"></label><label class="field"><span>Password</span><input class="inp" id="lp" type="password" required autocomplete="current-password"></label>
+    <div class="err" id="le"></div><button class="btn neon" style="width:100%;height:44px" id="lb">Sign in</button></form></div></div>`;
+  $('#lf').onsubmit = async (e) => { e.preventDefault(); $('#lb').disabled = true;
+    try { await api('/auth/login', { method: 'POST', body: { who: $('#lw').value, password: $('#lp').value } }); boot(); } catch (err) { $('#le').textContent = err.message; $('#lb').disabled = false; } };
+}
+async function route() {
+  if (!A.me) return;                       // still signing in
+  const seq = ++A.seq; A.miss = [];
+  document.body.classList.remove('nav');
+  A.tab = (location.hash.slice(2) || home());
+  if (!god() && !fin()) { side(); $('#view').innerHTML = '<div class="card empty" style="max-width:520px;margin:40px auto">This account has no admin pages. Ask an owner to make you an owner or finance admin.</div>'; return; }
+  if (!V[A.tab] || !canSee(A.tab)) A.tab = home();
+  document.body.classList.toggle('ro', fin());
+  side(); scrollTo(0, 0);
+  $('#view').onclick = $('#view').onchange = null;   // each page sets its own
+  $('#view').innerHTML = `<div class="loading"><span class="spin"></span>Loading ${esc((NAV.flatMap((g) => g[1]).find((x) => x[0] === A.tab) || [, ''])[1])}…</div><div class="grid g4">${'<div class="card sk" style="height:110px"></div>'.repeat(4)}</div>`;
+  const slow = setTimeout(() => { const l = $('.loading'); if (l && seq === A.seq) l.lastChild.textContent = ' Still loading. The database may be waking up…'; }, 6000);
+  try {
+    await V[A.tab]();
+    if (seq === A.seq && fin()) { $('#view').insertAdjacentHTML('afterbegin', '<div class="robar">View only. Finance accounts can see everything here but can\'t change anything.</div>'); lockView(); }
+    if (seq === A.seq && A.miss.length) $('#view').insertAdjacentHTML('afterbegin', `<div class="card" style="border-color:var(--gold);margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1">Some parts of this page didn't load: <b>${esc(A.miss.join(', '))}</b>.</span><button class="btn sm" data-ro onclick="route()">Try again</button></div>`);
+  } catch (e) {
+    if (seq !== A.seq || e.need2fa) return;
+    if (e.status === 401) return boot();
+    console.error('[admin]', A.tab, e);
+    $('#view').innerHTML = `<div class="card bad"><h2>That didn't load</h2><p class="muted">${esc(e.message)}</p><button class="btn" data-ro onclick="route()">Try again</button></div>`;
+  } finally { clearTimeout(slow); }
+}
+async function boot() {
+  let me = null;
+  try { me = (await api('/me', { keep: true })).user; }
+  catch (e) {
+    $('#side').classList.add('hide'); $('#main').style.marginLeft = '0';
+    $('#view').innerHTML = `<div class="gate"><div class="card"><h2>Couldn't open Kohler Control</h2><p class="muted" style="margin:8px 0 16px">${esc(e.message)}</p><button class="btn neon" onclick="boot()">Try again</button></div></div>`;
+    return;
+  }
+  if (!me) return gate();
+  if (!me.isAdmin) return gate(`You're signed in as ${esc(me.username)}, which isn't an admin. Sign in with an admin account, or run <span class="mono">npm run make-admin -- you@example.com</span> on the server.`);
+  const tf = await api('/auth/2fa', { quiet: true, keep: true }).catch(() => null);
+  if (tf?.required && !tf.enabled) return twoFactor('setup');
+  if (tf?.required && !tf.verified) return twoFactor('verify');
+  A.me = me; A.tfOpen = null; $('#side').classList.remove('hide'); $('#main').style.marginLeft = '';
+  if (god() || fin()) api('/admin/stats', { keep: true }).then((s) => { A.stats = s; side(); }).catch(() => {});
+  route();
+}
+addEventListener('hashchange', route);
+$('#burger').onclick = () => document.body.classList.toggle('nav');
+boot();
+</script>
+</body>
+</html>
